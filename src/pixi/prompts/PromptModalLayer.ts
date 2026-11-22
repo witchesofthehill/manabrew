@@ -84,6 +84,9 @@ const MODAL_SCROLL_SNAP_PIXELS = 0.5;
 type PromptModalHeaderLayout = "stacked" | "inline-guidance";
 
 export abstract class PromptModalLayer extends PromptLayerBase {
+  protected rematchBadges: Array<{ container: Container; face: Container; baseY: number }> = [];
+  protected announcedRematchRequests = new Set<string>();
+
   private get successForeground(): string {
     return ensureTextContrast(
       this.theme.gameTheme.success,
@@ -3992,37 +3995,57 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       body.addChild(waiting);
       playerY += waiting.height + 16;
     }
+    const freshRequests = gameOver.rematchRequests.filter(
+      (id) => !this.announcedRematchRequests.has(id),
+    );
+    this.announcedRematchRequests = new Set(gameOver.rematchRequests);
+    const badgeRadius = Math.min(18, (rowHeight - 16) / 2);
     for (const player of players) {
       const isWinner = player.id === gameOver.winnerId;
-      const rowColor = isWinner
-        ? this.successForeground
-        : player.status === "conceded"
-          ? this.theme.appTheme.destructive
-          : this.theme.appTheme.border;
+      const requested = gameOver.rematchRequests.includes(player.id);
+      const rowColor = requested
+        ? this.theme.appTheme.primary
+        : isWinner
+          ? this.successForeground
+          : player.status === "conceded"
+            ? this.theme.appTheme.destructive
+            : this.theme.appTheme.border;
       const row = new Graphics()
         .roundRect(0, playerY, panelWidth - PANEL_PADDING * 2, rowHeight, 7)
         .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.5 })
-        .stroke({ color: hexToNum(rowColor), width: isWinner ? 2 : 1, alpha: 0.65 });
+        .stroke({
+          color: hexToNum(rowColor),
+          width: requested || isWinner ? 2 : 1,
+          alpha: requested ? 1 : 0.65,
+        });
+      const textX = requested ? 20 + badgeRadius * 2 : 10;
       const name = promptText(
         player.id === gameOver.me.id ? `${player.name} · You` : player.name,
         11,
         this.theme.appTheme.foreground,
         {
           weight: "600",
-          width: panelWidth - PANEL_PADDING * 2 - 20,
+          width: panelWidth - PANEL_PADDING * 2 - textX - 10,
           truncate: true,
           role: "label",
         },
       );
-      name.position.set(10, playerY + 8);
-      const nextGameStatus = gameOver.playerStatuses[player.id];
+      name.position.set(textX, playerY + 8);
+      const nextGameStatus = requested ? "Wants to play again" : gameOver.playerStatuses[player.id];
       const life = promptText(
         nextGameStatus ? `${player.life} life · ${nextGameStatus}` : `${player.life} life`,
         11,
-        this.theme.appTheme["muted-foreground"],
-        { weight: "600", width: panelWidth - PANEL_PADDING * 2 - 100, truncate: true },
+        requested
+          ? ensureTextContrast(
+              this.theme.appTheme.primary,
+              this.theme.appTheme.background,
+              this.theme.appTheme.foreground,
+              4.5,
+            )
+          : this.theme.appTheme["muted-foreground"],
+        { weight: "600", width: panelWidth - PANEL_PADDING * 2 - textX - 90, truncate: true },
       );
-      life.position.set(10, name.y + name.height + 4);
+      life.position.set(textX, name.y + name.height + 4);
       const statusLabel = isWinner
         ? "WINNER"
         : player.status === "conceded"
@@ -4042,6 +4065,13 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         name.y + name.height + 4 + status.height / 2,
       );
       body.addChild(row, name, life, status);
+      if (requested) {
+        const badge = this.makeRematchBadge(badgeRadius, freshRequests.includes(player.id));
+        const baseY = playerY + rowHeight / 2;
+        badge.container.position.set(10 + badgeRadius, baseY);
+        body.addChild(badge.container);
+        this.rematchBadges.push({ ...badge, baseY });
+      }
       playerY += rowHeight + 8;
     }
 
@@ -4080,5 +4110,29 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     home.y = (buttonHeight + buttonGap) * 2;
     footer.addChild(playAgain, changeDeck, home);
     this.finalizeModalScroll();
+  }
+
+  private makeRematchBadge(
+    radius: number,
+    pop: boolean,
+  ): { container: Container; face: Container } {
+    const ink = hexToNum(this.theme.appTheme["primary-foreground"]);
+    const disc = new Graphics()
+      .circle(0, 0, radius)
+      .fill({ color: hexToNum(this.theme.appTheme.primary) })
+      .stroke({ color: ink, width: 3, alignment: 0 })
+      .roundRect(-3.5, -radius * 0.62, 7, radius * 0.8, 3.5)
+      .fill({ color: ink })
+      .circle(0, radius * 0.52, 4)
+      .fill({ color: ink });
+    const face = new Container();
+    face.addChild(disc);
+    const container = new Container();
+    container.eventMode = "none";
+    container.addChild(face);
+    if (pop && animationsEnabled()) {
+      gsap.fromTo(face.scale, { x: 0, y: 0 }, { x: 1, y: 1, duration: 0.6, ease: "back.out(3)" });
+    }
+    return { container, face };
   }
 }

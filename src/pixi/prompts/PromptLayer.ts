@@ -484,6 +484,9 @@ export class PromptLayer extends PromptModalLayer {
     this.placePhaseTab = null;
     this.phaseLayout = null;
     this.priorityBadge = null;
+    for (const badge of this.rematchBadges) gsap.killTweensOf(badge.face.scale);
+    this.rematchBadges = [];
+    if (!this.spec?.gameOver) this.announcedRematchRequests.clear();
     this.actionPulseNodes = [];
     this.modalOpen = false;
     if (
@@ -507,7 +510,7 @@ export class PromptLayer extends PromptModalLayer {
     if (this.spec.gameOver) {
       this.modalOpen = true;
       this.renderGameOver();
-      this.presentPrompt(this.spec.gameOver);
+      this.presentPrompt("gameOver");
       return;
     }
     const input = this.spec.currentPrompt?.input;
@@ -2971,15 +2974,18 @@ export class PromptLayer extends PromptModalLayer {
     this.updateDragMotion(deltaMs);
     this.updateScrollMotion(deltaMs);
     this.syncActionFeedback(elapsed);
-    if (this.priorityBadge) {
-      const { container, baseY } = this.priorityBadge;
-      container.visible = this.autopassRemainingMs == null;
-      const wave = (period: number) =>
-        motionEnabled ? Math.sin((elapsed / period) * Math.PI * 2) : 0;
+    const wave = (period: number) =>
+      motionEnabled ? Math.sin((elapsed / period) * Math.PI * 2) : 0;
+    const bob = ({ container, baseY }: { container: Container; baseY: number }) => {
       container.y = baseY + wave(1100) * 4;
       container.scale.set(1 + wave(700) * 0.07);
       container.rotation = wave(1700) * 0.09;
+    };
+    if (this.priorityBadge) {
+      this.priorityBadge.container.visible = this.autopassRemainingMs == null;
+      bob(this.priorityBadge);
     }
+    for (const badge of this.rematchBadges) bob(badge);
     if (this.selectionFilterView) {
       this.selectionFilterView.caret.visible =
         this.selectionFilterFocused &&

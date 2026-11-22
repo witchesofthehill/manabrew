@@ -24,6 +24,8 @@ Per-seat `State`, `Prompt`, and `Error` envelopes can contain hidden information
 
 `game_rematch` gates `FinishGame`, `SetRematchIntent` and `ReturnToLobby`. After final state and `ReportGameOutcome`, the engine host sends `FinishGame` for a successful ordinary game. The relay enters `Finished`, retains seats, deck snapshots, settings and final replay, and records completion once. Crashes, aborts, Limited parents and child matches keep their existing teardown paths.
 
+A `Finished` room still forwards the engine host's envelopes and drops player responses. A browser host sends `FinishGame` when its own seat sees the end; other seats' final `gameOver` prompts leave through separate async seat readers and can reach the relay after it. Dropping them leaves those seats without an end screen until the room is torn down.
+
 `RoomInfo.rematch` fixes the required human roster at the completed game's launch, including humans who left or lost earlier. Each remaining human chooses `Deciding`, `ChoosingDeck` or `Ready`; changing a deck clears only that human's consent. The relay launches one fresh game ID when every required human is connected and ready, every retained seat has a deck and connection, and the engine host is connected. Bots do not vote.
 
 A temporary disconnect clears that human's consent during reconnect grace. Explicit departure or grace expiry cancels the agreement and clears consent. A surviving participant may then send `ReturnToLobby`, preserving the remaining seats, decks and settings for explicit reconfiguration. Engine-host loss never migrates ownership.

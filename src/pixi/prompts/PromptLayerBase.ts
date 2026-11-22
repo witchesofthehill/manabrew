@@ -481,6 +481,7 @@ export function sameGameOverPresentation(
     left.engineCrash === right.engineCrash &&
     left.statusMessage === right.statusMessage &&
     left.playerStatuses === right.playerStatuses &&
+    sameArray(left.rematchRequests, right.rematchRequests) &&
     left.ready === right.ready &&
     left.busy === right.busy &&
     !!left.onPlayAgain === !!right.onPlayAgain &&

@@ -256,6 +256,7 @@ function noticeRepeatVote(vote: RepeatVoteDto, state: GameState) {
 
 export function useGameEventListeners() {
   useEffect(() => {
+    const gameInstanceId = useGameStore.getState().gameInstanceId;
     window.addEventListener("pagehide", reportEngineGame);
     const unsubscribe = useGameStore.subscribe((state, previous) => {
       if (isOver(state) && !isOver(previous)) reportEngineGame();
@@ -263,7 +264,8 @@ export function useGameEventListeners() {
     return () => {
       window.removeEventListener("pagehide", reportEngineGame);
       unsubscribe();
-      reportEngineGame();
+      // A restart opens the next game's record before this board unmounts.
+      if (useGameStore.getState().gameInstanceId === gameInstanceId) reportEngineGame();
     };
   }, []);
   useEffect(() => {

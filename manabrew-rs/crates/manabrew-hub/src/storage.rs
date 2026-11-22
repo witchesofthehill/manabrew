@@ -609,8 +609,8 @@ impl Storage {
             "INSERT OR IGNORE INTO offline_play_games
                 (id, reported_at, started_at, ended_at, duration_s, format, engine,
                  starting_life, end_reason, game_over, winner, conceded,
-                 client_version, platform, seats, engine_error)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+                 client_version, platform, seats, engine_error, rematch_of)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
             params![
                 game.report_id,
                 reported_at,
@@ -628,6 +628,7 @@ impl Storage {
                 game.platform,
                 game.players.len() as i64,
                 game.engine_error,
+                game.rematch_of,
             ],
         )?;
         if inserted == 0 {
@@ -3973,6 +3974,7 @@ mod tests {
             client_version: "3.38.1".to_string(),
             platform: "web".to_string(),
             players: vec![],
+            rematch_of: None,
         };
         assert!(storage
             .record_offline_play_game(&game, "2026-09-08T14:40:01Z")

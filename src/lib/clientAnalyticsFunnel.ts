@@ -1,21 +1,55 @@
 import {
   captureClientEvent,
   isClientAnalyticsEnabled,
+  renewClientVisitId,
   trackClientEvent,
 } from "@/lib/clientAnalytics";
-import { analyticsPageUrl } from "@/lib/clientAnalyticsPrivacy";
+import { analyticsAcquisition, analyticsPageUrl } from "@/lib/clientAnalyticsPrivacy";
+import type { ClientAnalyticsAttributes } from "@/lib/clientAnalyticsPrivacy";
 import { relayUsername } from "@/lib/relayUsername";
+import { getClientPlatform } from "@/platform/clientPlatform";
 import type { GameState } from "@/stores/gameStore.types";
 
-const CHECKPOINT_DELAY_MS = 3000;
+export type ClientMatchSource = NonNullable<
+  ClientAnalyticsAttributes<"first_game_funnel">["source"]
+>;
+
+const CHECKPOINT_DELAY_MS = 15_000;
+const COMPLETED_KEY = "manabrew.analytics.firstMatch";
+const MAX_COMPLETED = 20;
 const MAX_CLICKS = 999999999;
-const VISIT_ID = crypto.randomUUID();
+const SOURCE_NOTE_TTL_MS = 10 * 60_000;
+const ACQUISITION = analyticsAcquisition(
+  window.location.href,
+  document.referrer,
+  getClientPlatform(),
+);
+let sourceNote: { source: ClientMatchSource; at: number } | undefined;
+let invitedRoomId: string | undefined;
 const handles = new Map<string, { clicks: number; completed: boolean }>();
 let handle: string | undefined;
 let pending: (() => void) | undefined;
 let timer: number | undefined;
 let inGame = false;
 let stopListening: (() => void) | undefined;
+
+function completedHandles(): string[] {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(COMPLETED_KEY) ?? "[]");
+    return Array.isArray(value) ? value.filter((entry) => typeof entry === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberCompleted(completed: string) {
+  try {
+    const next = [completed, ...completedHandles().filter((entry) => entry !== completed)];
+    localStorage.setItem(COMPLETED_KEY, JSON.stringify(next.slice(0, MAX_COMPLETED)));
+  } catch {
+    return;
+  }
+}
 
 function allowed() {
   return (
@@ -41,24 +75,46 @@ export function observeClientAnalyticsIdentity() {
   }
   let visit = handles.get(nextHandle);
   if (!visit) {
-    visit = { clicks: 0, completed: false };
+    visit = { clicks: 0, completed: completedHandles().includes(nextHandle) };
     handles.set(nextHandle, visit);
+    if (visit.completed) return visit;
     trackClientEvent("first_game_funnel", {
       stage: "observed",
-      visit_id: VISIT_ID,
+      acquisition: ACQUISITION,
       clicks: "0",
     });
   }
   return visit;
 }
 
-export function trackClientMatchRequested() {
+export function noteClientMatchSource(source: ClientMatchSource) {
+  sourceNote = { source, at: performance.now() };
+}
+
+export function noteClientInviteAccepted(roomId: string) {
+  invitedRoomId = roomId;
+}
+
+export function clientMultiplayerSource(
+  room: { room_id: string; host: string; draft_config?: unknown; sealed_config?: unknown } | null,
+  username: string | null,
+): ClientMatchSource {
+  if (room?.draft_config || room?.sealed_config) return "limited";
+  if (room && room.room_id === invitedRoomId) return "invite";
+  return room?.host === username ? "lobby_host" : "lobby_join";
+}
+
+export function trackClientMatchRequested(fallback: ClientMatchSource) {
+  const note = sourceNote;
+  sourceNote = undefined;
+  const source = note && performance.now() - note.at < SOURCE_NOTE_TTL_MS ? note.source : fallback;
   const visit = observeClientAnalyticsIdentity();
   if (!visit || visit.completed) return;
   flushClientAnalyticsFunnel();
   trackClientEvent("first_game_funnel", {
     stage: "match_requested",
-    visit_id: VISIT_ID,
+    source,
+    acquisition: ACQUISITION,
     clicks: String(visit.clicks),
   });
 }
@@ -88,10 +144,11 @@ export function observeClientAnalyticsGame(state: GameState) {
   flushClientAnalyticsFunnel();
   trackClientEvent("first_game_funnel", {
     stage: "game_started",
-    visit_id: VISIT_ID,
+    acquisition: ACQUISITION,
     clicks: String(visit.clicks),
   });
   visit.completed = true;
+  rememberCompleted(relayUsername());
 }
 
 export function listenClientAnalyticsFunnel() {
@@ -114,7 +171,7 @@ export function listenClientAnalyticsFunnel() {
     visit.clicks = Math.min(MAX_CLICKS, visit.clicks + 1);
     pending = captureClientEvent("first_game_funnel", {
       stage: "observed",
-      visit_id: VISIT_ID,
+      acquisition: ACQUISITION,
       clicks: String(visit.clicks),
     });
     timer ??= window.setTimeout(flushClientAnalyticsFunnel, CHECKPOINT_DELAY_MS);
@@ -143,6 +200,7 @@ export function listenClientAnalyticsFunnel() {
 }
 
 if (import.meta.hot) {
+  renewClientVisitId();
   import.meta.hot.dispose(() => {
     stopListening?.();
     flushClientAnalyticsFunnel();

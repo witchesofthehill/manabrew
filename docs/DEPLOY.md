@@ -403,13 +403,20 @@ Retain old directories for the supported lifetime of installed clients and rollb
 
 `FARO_ANALYTICS_DAILY_BYTES` independently defaults to 10485760 for analytics records. Reservations persist in `analytics-budget.json` alongside the existing exception `budget.json` in `faro-data`. Failed exports consume their own budget. Exhausting either budget does not reject the other signal class. The separate transport queues, export concurrency pools, and rate limits also keep ordinary analytics traffic from using exception delivery capacity. Both classes still share the collector process, host resources, and Loki; this is not infrastructure-level isolation.
 
-Analytics clients transmit the full relay handle in `relay_username`. The collector stores that readable value as `context_user_id`, displayed as **Activity user ID**, in analytics records. No analytics HMAC key is generated or required. Usernames remain JSON fields, never Loki labels. Older hashed records are not rewritten; readable-handle filtering applies to new records.
+Analytics clients transmit the relay handle in `relay_username`. The collector never stores it. It stores `context_user_id`, the first 16 hex characters of an HMAC-SHA256 over environment and handle, displayed as **Activity user ID**. The collector creates the 32-byte key on first start at `/var/lib/faro/state/analytics-hmac.key` (mode `0600`). Back it up as a secret. Losing or replacing it breaks correlation with stored IDs; that is also the way to unlink all past activity at once. IDs are JSON fields, never Loki labels. The handle is a client claim, not authentication.
 
-Deploy this collector version before expecting readable handles in the dashboard. The handle is a client claim, not authentication, and can identify a person or link usage directly to relay records. Update the published notice and review the legal basis or consent/opt-out requirements for storing readable usernames with activity. Exception-report metadata remains unchanged. Keep the existing `faro-data` budget files across restarts and rollouts; this change does not reset quotas.
+To find or erase one player's data, run the bundled CLI inside the collector:
 
-The first observed match funnel adds `client-funnel.db` to the collector state volume. It uses Node's built-in SQLite support, transactionally adds per-visit high-water click increases, and freezes each environment/handle summary at its first received confirmed match start. Summaries remain until explicitly deleted; pending visit state is deleted on completion or player erasure. Raw checkpoint events still expire from Loki after 30 days. This is not historical first-ever-game tracking or an authenticated identity record.
+```sh
+docker compose exec faro-collector node activity.mjs id production 'player-x@1234'
+docker compose exec faro-collector node activity.mjs erase production 'player-x@1234'
+```
 
-Rebuild/redeploy the collector before reloading the updated client. Recreate Grafana as well: both Compose files mount the collector state read-only at `/var/manabrew/client-funnel`, and provision the `client-funnel-sqlite` datasource. The database uses a rollback journal and is readable by Grafana; budget files remain owner-only. Keep the state volume across restarts and rollbacks. Preserve the database when updating collector images, and include it in private state backups. Read [the funnel retention and erasure procedure](OBSERVABILITY.md#first-observed-match-funnel) before removing a handle; deleting a row resets that handle's observed history.
+`erase` deletes the funnel summary and refreshes the Grafana snapshot. Raw Loki events with that ID expire after 30 days.
+
+The first observed match funnel keeps `client-funnel.db` in the collector state volume. The collector is its only connection: WAL with `synchronous=NORMAL`, so a commit does not fsync and does not stall the event loop. Every five minutes the collector deletes summaries whose last checkpoint is older than `FARO_FUNNEL_RETENTION_DAYS` (default 90) and refreshes `grafana/client-funnel.db`, a rollback-journal copy of the player summaries without visit tokens. Grafana reads only that copy, so a slow dashboard query cannot block a write. A refresh that meets a reader lock is skipped and retried on the next tick.
+
+Rebuild and redeploy the collector before the updated client. Recreate Grafana as well: both Compose files mount the collector state read-only at `/var/manabrew/client-funnel` and provision the `client-funnel-sqlite` datasource on the snapshot. Keep the state volume, including the key, across restarts and rollbacks.
 
 ### Rollout and rollback
 

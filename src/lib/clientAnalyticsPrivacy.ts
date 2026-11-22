@@ -2,6 +2,38 @@ import { TransportItemType } from "@grafana/faro-web-sdk";
 import type { BeforeSendHook } from "@grafana/faro-web-sdk";
 
 export const CLIENT_ANALYTICS_DOMAIN = "manabrew-analytics";
+export const ANALYTICS_MATCH_SOURCES = [
+  "my_deck",
+  "preset",
+  "community",
+  "offline_setup",
+  "gauntlet",
+  "lobby_host",
+  "lobby_join",
+  "invite",
+  "limited",
+] as const;
+export const ANALYTICS_ACQUISITIONS = [
+  "direct",
+  "website",
+  "app",
+  "search",
+  "reddit",
+  "discord",
+  "youtube",
+  "twitch",
+  "twitter",
+  "bluesky",
+  "github",
+  "moxfield",
+  "archidekt",
+  "edhrec",
+  "mtggoldfish",
+  "scryfall",
+  "newsletter",
+  "other",
+] as const;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export const CLIENT_ANALYTICS_SCHEMA = {
   screen_view: {
     screen: [
@@ -40,19 +72,31 @@ export const CLIENT_ANALYTICS_SCHEMA = {
   },
   first_game_funnel: {
     stage: ["observed", "match_requested", "game_started"],
-    visit_id: "uuid",
     clicks: "count",
+    source: ANALYTICS_MATCH_SOURCES,
+    acquisition: ANALYTICS_ACQUISITIONS,
   },
 } as const;
+const OPTIONAL_ATTRIBUTES: Partial<Record<string, readonly string[]>> = {
+  first_game_funnel: ["source", "acquisition"],
+};
 
 export type ClientAnalyticsEvent = keyof typeof CLIENT_ANALYTICS_SCHEMA;
-export type ClientAnalyticsAttributes<N extends ClientAnalyticsEvent> = {
+type OptionalAttribute<N extends ClientAnalyticsEvent> = N extends "first_game_funnel"
+  ? "source" | "acquisition"
+  : never;
+type SchemaAttributes<N extends ClientAnalyticsEvent> = {
   [K in keyof (typeof CLIENT_ANALYTICS_SCHEMA)[N]]: (typeof CLIENT_ANALYTICS_SCHEMA)[N][K] extends readonly string[]
     ? (typeof CLIENT_ANALYTICS_SCHEMA)[N][K][number]
-    : (typeof CLIENT_ANALYTICS_SCHEMA)[N][K] extends "url" | "uuid" | "count"
+    : (typeof CLIENT_ANALYTICS_SCHEMA)[N][K] extends "url" | "count"
       ? string
       : never;
 };
+export type ClientAnalyticsAttributes<N extends ClientAnalyticsEvent> = Omit<
+  SchemaAttributes<N>,
+  OptionalAttribute<N>
+> &
+  Partial<Pick<SchemaAttributes<N>, Extract<OptionalAttribute<N>, keyof SchemaAttributes<N>>>>;
 
 export function safeClientAnalyticsEvent(name: unknown, attributes: unknown) {
   if (
@@ -82,22 +126,19 @@ export function safeClientAnalyticsEvent(name: unknown, attributes: unknown) {
       return undefined;
     safe.relay_username = input.relay_username;
   }
-  if (name === "first_game_funnel" && !safe.relay_username) return undefined;
+  if (input.visit_id !== undefined) {
+    if (typeof input.visit_id !== "string" || !UUID_PATTERN.test(input.visit_id)) return undefined;
+    safe.visit_id = input.visit_id;
+  }
+  if (name === "first_game_funnel" && (!safe.relay_username || !safe.visit_id)) return undefined;
   for (const [key, allowed] of Object.entries(schema)) {
     const value = input[key];
+    if (value === undefined && OPTIONAL_ATTRIBUTES[name]?.includes(key)) continue;
     if (allowed === "url") {
       if (value === undefined) continue;
       const url = analyticsPageUrl(value);
       if (!url) return undefined;
       safe[key] = url;
-    } else if (allowed === "uuid") {
-      if (
-        typeof value !== "string" ||
-        value.length !== 36 ||
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value)
-      )
-        return undefined;
-      safe[key] = value;
     } else if (allowed === "count") {
       if (typeof value !== "string" || value.length > 9) return undefined;
       const count = Number(value);
@@ -132,6 +173,69 @@ export function analyticsScreen(
     : "other";
 }
 
+const UTM_ACQUISITIONS: Record<
+  string,
+  ClientAnalyticsAttributes<"first_game_funnel">["acquisition"]
+> = {
+  reddit: "reddit",
+  discord: "discord",
+  youtube: "youtube",
+  twitch: "twitch",
+  twitter: "twitter",
+  x: "twitter",
+  bluesky: "bluesky",
+  github: "github",
+  google: "search",
+  moxfield: "moxfield",
+  archidekt: "archidekt",
+  edhrec: "edhrec",
+  mtggoldfish: "mtggoldfish",
+  scryfall: "scryfall",
+  newsletter: "newsletter",
+  email: "newsletter",
+};
+const REFERRER_ACQUISITIONS: Array<
+  [RegExp, ClientAnalyticsAttributes<"first_game_funnel">["acquisition"]]
+> = [
+  [/(^|\.)reddit\.com$|^redd\.it$/, "reddit"],
+  [/(^|\.)discord(app)?\.com$|^discord\.gg$/, "discord"],
+  [/(^|\.)youtube\.com$|^youtu\.be$/, "youtube"],
+  [/(^|\.)twitch\.tv$/, "twitch"],
+  [/(^|\.)(twitter|x)\.com$|^t\.co$/, "twitter"],
+  [/(^|\.)bsky\.app$/, "bluesky"],
+  [/(^|\.)github\.com$/, "github"],
+  [
+    /(^|\.)(google\.[a-z.]+|bing\.com|duckduckgo\.com|search\.brave\.com|ecosia\.org|yahoo\.com)$/,
+    "search",
+  ],
+  [/(^|\.)moxfield\.com$/, "moxfield"],
+  [/(^|\.)archidekt\.com$/, "archidekt"],
+  [/(^|\.)edhrec\.com$/, "edhrec"],
+  [/(^|\.)mtggoldfish\.com$/, "mtggoldfish"],
+  [/(^|\.)scryfall\.com$/, "scryfall"],
+  [/(^|\.)manabrew\.app$/, "website"],
+];
+
+export function analyticsAcquisition(
+  href: string,
+  referrer: string,
+  platform: string,
+): ClientAnalyticsAttributes<"first_game_funnel">["acquisition"] {
+  try {
+    const utm = new URL(href).searchParams.get("utm_source")?.trim().toLowerCase();
+    if (utm) return UTM_ACQUISITIONS[utm] ?? "other";
+    if (platform === "desktop" || platform === "mobile") return "app";
+    if (!referrer) return "direct";
+    const host = new URL(referrer).hostname.toLowerCase();
+    if (host === new URL(href).hostname.toLowerCase()) return "direct";
+    return REFERRER_ACQUISITIONS.find(([pattern]) => pattern.test(host))?.[1] ?? "other";
+  } catch {
+    return "other";
+  }
+}
+
+const STATIC_PATH_SEGMENTS = new Set(["multiplayer", "top"]);
+
 export function analyticsPageUrl(value: unknown, base?: string): string | undefined {
   if (
     typeof value !== "string" ||
@@ -150,11 +254,14 @@ export function analyticsPageUrl(value: unknown, base?: string): string | undefi
       )
     )
       return undefined;
-    url.username = "";
-    url.password = "";
-    url.search = "";
-    url.hash = "";
-    return url.href.length <= 2048 ? url.href : undefined;
+    const [, first = "", ...rest] = url.pathname.split("/");
+    const route = [
+      first,
+      ...rest
+        .filter(Boolean)
+        .map((segment) => (STATIC_PATH_SEGMENTS.has(segment) ? segment : ":id")),
+    ];
+    return `${url.protocol}//${url.host}/${route.join("/")}`;
   } catch {
     return undefined;
   }

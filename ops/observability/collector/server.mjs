@@ -23,6 +23,7 @@ import {
 } from "../../../src/lib/clientAnalyticsPrivacy.ts";
 import { SourceMaps } from "./sourcemaps.mjs";
 import { ClientFunnel } from "./client-funnel.mjs";
+import { activityId, loadActivityKey } from "./activity-key.mjs";
 
 const MAX_BODY_BYTES = 256 * 1024;
 const DAILY_BYTES = Number(process.env.FARO_DAILY_BYTES ?? 10 * 1024 * 1024);
@@ -30,6 +31,7 @@ const ANALYTICS_DAILY_BYTES = Number(process.env.FARO_ANALYTICS_DAILY_BYTES ?? 1
 const SIGNATURE_DAILY_BYTES = Number(
   process.env.FARO_SIGNATURE_DAILY_BYTES ?? Math.floor(DAILY_BYTES / 20),
 );
+const FUNNEL_RETENTION_DAYS = Number(process.env.FARO_FUNNEL_RETENTION_DAYS ?? 90);
 const MAX_INFLIGHT = 4;
 const origins = new Set((process.env.FARO_ORIGINS ?? "").split(",").filter(Boolean));
 const loki = process.env.LOKI_URL ?? "http://loki:3100";
@@ -72,7 +74,9 @@ if (
   !Number.isSafeInteger(ANALYTICS_DAILY_BYTES) ||
   ANALYTICS_DAILY_BYTES <= 0 ||
   !Number.isSafeInteger(SIGNATURE_DAILY_BYTES) ||
-  SIGNATURE_DAILY_BYTES <= 0
+  SIGNATURE_DAILY_BYTES <= 0 ||
+  !Number.isSafeInteger(FUNNEL_RETENTION_DAYS) ||
+  FUNNEL_RETENTION_DAYS <= 0
 )
   throw new Error("Invalid collector configuration");
 mkdirSync(stateDirectory, { recursive: true });
@@ -98,10 +102,23 @@ if (
   analyticsBudget.bytes < 0
 )
   throw new Error("Invalid analytics budget state");
+const analyticsKey = loadActivityKey(stateDirectory, { create: true });
+const openFunnel = () =>
+  (clientFunnel ??= new ClientFunnel(stateDirectory, { retentionDays: FUNNEL_RETENTION_DAYS }));
 try {
-  clientFunnel = new ClientFunnel(stateDirectory);
+  openFunnel();
 } catch {
   analyticsCounters.funnel_errors++;
+}
+
+function maintainFunnel() {
+  try {
+    openFunnel().sweep();
+    clientFunnel.rollup();
+    clientFunnel.snapshot();
+  } catch {
+    analyticsCounters.funnel_errors++;
+  }
 }
 
 function currentBudget() {
@@ -194,7 +211,9 @@ function sanitizeEvents(body) {
         Object.entries(attributes).map(([key, value]) => [`event_${key}`, value]),
       ),
       context_platform: platform,
-      ...(relay_username ? { context_user_id: relay_username } : {}),
+      ...(relay_username
+        ? { context_user_id: activityId(analyticsKey, app.environment, relay_username) }
+        : {}),
       app_name: "manabrew-client",
       app_version: release[1],
       app_release: app.release,
@@ -279,6 +298,14 @@ async function collectEvents(records) {
     analyticsCounters.budget_limited++;
     reject(429);
   }
+  if (records.some((record) => record.event_name === "first_game_funnel")) {
+    try {
+      openFunnel().record(records);
+    } catch {
+      analyticsCounters.funnel_errors++;
+      reject(503);
+    }
+  }
   const values = lines.map((line) => {
     const timestamp = BigInt(Date.now()) * 1_000_000n;
     lastTimestamp = timestamp > lastTimestamp ? timestamp : lastTimestamp + 1n;
@@ -309,17 +336,6 @@ async function collectEvents(records) {
     analyticsCounters.export_errors++;
     lokiReady = false;
     reject(503);
-  }
-  if (
-    records.some((record) => record.event_name === "first_game_funnel" && record.context_user_id)
-  ) {
-    try {
-      clientFunnel ??= new ClientFunnel(stateDirectory);
-      clientFunnel.record(records);
-    } catch {
-      analyticsCounters.funnel_errors++;
-      reject(503);
-    }
   }
   analyticsCounters.accepted += records.length;
 }
@@ -559,4 +575,6 @@ server.maxConnections = 32;
 server.maxHeadersCount = 32;
 server.maxRequestsPerSocket = 20;
 setInterval(() => maps.prune(), 30_000).unref();
+maintainFunnel();
+setInterval(maintainFunnel, 5 * 60_000).unref();
 server.listen(Number(process.env.PORT ?? 12347), "0.0.0.0");

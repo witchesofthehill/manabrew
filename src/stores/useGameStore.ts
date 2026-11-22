@@ -1,7 +1,7 @@
 import { beginGame, noteAnswerSent } from "@/lib/engineTelemetry";
 import { setErrorReportingEngine } from "@/lib/errorReporting";
 import { relayUsername } from "@/lib/relayUsername";
-import { trackClientMatchRequested } from "@/lib/clientAnalyticsFunnel";
+import { clientMultiplayerSource, trackClientMatchRequested } from "@/lib/clientAnalyticsFunnel";
 import {
   engineReportGameId,
   forgeHostLabel,
@@ -415,7 +415,8 @@ export const useGameStore = create<GameState>()(
         }
         const launchGeneration = ++gameLaunchGeneration;
         gameLaunchInFlight = launchGeneration;
-        if (purpose === "match") trackClientMatchRequested();
+        if (purpose === "match")
+          trackClientMatchRequested(gauntletId ? "gauntlet" : "offline_setup");
         set({
           gauntletId: gauntletId ?? null,
           gamePurpose: purpose,
@@ -588,7 +589,7 @@ export const useGameStore = create<GameState>()(
             ? (session?.gauntletId ?? null)
             : null;
         set({ gauntletId });
-        trackClientMatchRequested();
+        trackClientMatchRequested(clientMultiplayerSource(server.currentRoom, server.username));
         set({
           gamePurpose: "match",
           gameLaunchReady: false,

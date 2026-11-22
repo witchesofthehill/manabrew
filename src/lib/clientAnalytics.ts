@@ -2,6 +2,7 @@ import { InternalLoggerLevel } from "@grafana/faro-web-sdk";
 import type { Faro } from "@grafana/faro-web-sdk";
 import { getClientPlatform } from "@/platform/clientPlatform";
 import { relayUsername } from "@/lib/relayUsername";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { clientTelemetryConfig } from "@/lib/clientTelemetryConfig";
 import { createClientTelemetryTransport } from "@/lib/clientTelemetryTransport";
 import {
@@ -12,32 +13,52 @@ import {
 import type { ClientAnalyticsAttributes, ClientAnalyticsEvent } from "@/lib/clientAnalyticsPrivacy";
 
 const MAX_EVENTS_PER_PAGE = 500;
+const MAX_FUNNEL_CHECKPOINTS_PER_PAGE = 200;
 let faro: Faro | undefined;
 let disposeTransport: (() => void) | undefined;
 let initialized = false;
 let eventsThisPage = 0;
+let funnelCheckpointsThisPage = 0;
+let visitId = crypto.randomUUID();
+
+export function renewClientVisitId(): void {
+  visitId = crypto.randomUUID();
+}
+
+function optedOut(): boolean {
+  const navigatorPrivacy = navigator as Navigator & { globalPrivacyControl?: boolean };
+  return (
+    navigatorPrivacy.globalPrivacyControl === true || !usePreferencesStore.getState().usageAnalytics
+  );
+}
 
 export function isClientAnalyticsEnabled(): boolean {
-  return faro !== undefined;
+  return faro !== undefined && !optedOut();
 }
 
 export function captureClientEvent<N extends ClientAnalyticsEvent>(
   name: N,
   attributes: ClientAnalyticsAttributes<N>,
 ): (() => void) | undefined {
-  if (!faro) return;
+  if (!isClientAnalyticsEnabled()) return;
   const event = safeClientAnalyticsEvent(name, {
     ...attributes,
     platform: getClientPlatform(),
     relay_username: relayUsername(),
+    visit_id: visitId,
   });
   if (event) return () => pushClientEvent(event);
 }
 
 function pushClientEvent(event: { name: string; attributes: Record<string, string> }): void {
-  if (!faro || (event.name !== "first_game_funnel" && eventsThisPage >= MAX_EVENTS_PER_PAGE))
-    return;
-  if (event.name !== "first_game_funnel") eventsThisPage++;
+  if (!faro || optedOut()) return;
+  if (event.name !== "first_game_funnel") {
+    if (eventsThisPage >= MAX_EVENTS_PER_PAGE) return;
+    eventsThisPage++;
+  } else if (event.attributes.stage !== "game_started") {
+    if (funnelCheckpointsThisPage >= MAX_FUNNEL_CHECKPOINTS_PER_PAGE) return;
+    funnelCheckpointsThisPage++;
+  }
   const batching = faro.config.batching;
   try {
     if (event.name === "first_game_funnel") faro.config.batching = { enabled: false };
@@ -84,12 +105,13 @@ export function trackClientEvent<N extends ClientAnalyticsEvent>(
   name: N,
   attributes: ClientAnalyticsAttributes<N>,
 ): void {
-  if (!faro) return;
+  if (!isClientAnalyticsEnabled()) return;
   try {
     const event = safeClientAnalyticsEvent(name, {
       ...attributes,
       platform: getClientPlatform(),
       relay_username: relayUsername(),
+      visit_id: visitId,
     });
     if (!event) return;
     pushClientEvent(event);
@@ -104,6 +126,7 @@ function disposeClientAnalytics(): void {
   disposeTransport = undefined;
   faro = undefined;
   eventsThisPage = 0;
+  funnelCheckpointsThisPage = 0;
 }
 
 if (import.meta.hot) import.meta.hot.dispose(disposeClientAnalytics);

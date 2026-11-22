@@ -12,6 +12,7 @@ import { presetSupportsEngine, type PresetDeck } from "@/lib/presetDecks";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
+import { noteClientMatchSource } from "@/lib/clientAnalyticsFunnel";
 import { useHubStore } from "@/stores/useHubStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { prefetchPresetDecks, usePresetDecksStore } from "@/stores/usePresetDecksStore";
@@ -78,6 +79,7 @@ export function useQuickPlay() {
           });
           return;
         }
+        noteClientMatchSource("my_deck");
         const started = await useGameStore
           .getState()
           .startGame(
@@ -120,6 +122,7 @@ export function useQuickPlay() {
         toast.error(`No AI deck available for this format \u2014 pick one yourself.`);
         return;
       }
+      noteClientMatchSource("preset");
       const started = await useGameStore
         .getState()
         .startGame(
@@ -160,6 +163,7 @@ export function useQuickPlay() {
         toast.error(`No AI deck available for this format \u2014 pick one yourself.`);
         return;
       }
+      noteClientMatchSource("community");
       const started = await useGameStore
         .getState()
         .startGame(
@@ -202,6 +206,7 @@ export function useQuickPlay() {
           formatId,
           commanderName: saved.deck.commanders?.[0]?.identity.name,
         };
+        noteClientMatchSource("my_deck");
         navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedDeck } });
         return;
       }
@@ -237,6 +242,7 @@ export function useQuickPlay() {
           commanderName: preset.commanders?.[0]?.identity.name,
           coverCardName: preset.coverCardName,
         };
+        noteClientMatchSource("preset");
         navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedDeck } });
         return;
       }
@@ -275,6 +281,7 @@ export function useQuickPlay() {
             commanderName: entry.deck.commanders?.[0]?.identity.name,
             coverCardName: entry.deck.coverCardName,
           };
+          noteClientMatchSource("community");
           navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedDeck } });
           return;
         }

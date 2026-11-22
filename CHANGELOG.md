@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.87.5](https://github.com/witchesofthehill/manabrew/compare/v3.87.4...v3.87.5) (2026-11-22)
+
+### Fixes
+
+* fix end screen ([#1269](https://github.com/witchesofthehill/manabrew/issues/1269)) ([7326d5e](https://github.com/witchesofthehill/manabrew/commit/7326d5e31c903ca8ff2475cba0bc532928c737fa))
+
 ## [3.87.4](https://github.com/witchesofthehill/manabrew/compare/v3.87.3...v3.87.4) (2026-11-22)
 
 ### Fixes

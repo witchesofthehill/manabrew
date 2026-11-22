@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.88.0](https://github.com/witchesofthehill/manabrew/compare/v3.87.7...v3.88.0) (2026-11-22)
+
+### Features
+
+* **analytics:** add client events and first-game funnels ([#1210](https://github.com/witchesofthehill/manabrew/issues/1210)) ([7faceea](https://github.com/witchesofthehill/manabrew/commit/7faceea08a9deca6304d2dcb8fa5a4bf8c507518))
+
 ## [3.87.7](https://github.com/witchesofthehill/manabrew/compare/v3.87.6...v3.87.7) (2026-11-22)
 
 ### Fixes

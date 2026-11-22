@@ -78,6 +78,13 @@ export default function Play() {
     typeof routeState.preSelectedDeck === "object"
       ? (routeState.preSelectedDeck as SelectedDeck)
       : undefined;
+  const gamePurpose =
+    routeState &&
+    typeof routeState === "object" &&
+    "gamePurpose" in routeState &&
+    routeState.gamePurpose === "playtest"
+      ? "playtest"
+      : "match";
   const singlePlayerSetup =
     routeState &&
     typeof routeState === "object" &&
@@ -305,6 +312,7 @@ export default function Play() {
           preSelectedDeck={preSelectedDeck}
           onStart={(playerDeck, opponentDecks, formatId, commanderName, setup) =>
             startGame(
+              gamePurpose,
               playerDeck,
               formatId,
               commanderName,

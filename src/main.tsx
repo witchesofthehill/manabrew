@@ -9,8 +9,10 @@ import { initAndroidSafeArea } from "./platform/androidSafeArea";
 import { initializeLocalization } from "./i18n/runtime";
 import { DISPLAY_FONT_FAMILY, UI_FONT_FAMILY } from "@/themes/typography";
 import { initializeErrorReporting, reportClientError } from "@/lib/errorReporting";
+import { initializeClientAnalytics } from "@/lib/clientAnalytics";
 
 initializeErrorReporting();
+initializeClientAnalytics();
 
 async function start(): Promise<void> {
   initAndroidSafeArea();

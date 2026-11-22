@@ -130,7 +130,7 @@ impl PromptInput {
                 _ => Ok(()),
             },
             (I::PayManaCost(input), O::PayManaCost(out)) => match out {
-                PayManaCostOutput::Cancel if !input.can_cancel => {
+                PayManaCostOutput::Cancel if !input.cancellable => {
                     Err(ResponseViolation::CancelNotAllowed)
                 }
                 PayManaCostOutput::Act { action_id }

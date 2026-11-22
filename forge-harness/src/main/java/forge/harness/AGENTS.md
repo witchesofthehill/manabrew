@@ -63,7 +63,7 @@ Card-selection costs use `!payCosts.isMandatory()` for cancellation, not `abilit
 
 Interactive mana payment must record newly activated manual and automatic mana abilities in `sa.getPayingManaAbilities()` when payment commits. Forge's refund service needs those abilities to undo their taps after a later cost is declined. Exclude pre-existing floating mana sources and remove abilities when the player explicitly undoes them.
 
-Mana-payment prompts publish `PayManaCostInput.canCancel` from `payManaInteractively`'s `!mandatory` permission. The Cancel output variant alone does not grant permission. Sacrifice prompts publish `chooseBoardTargets.cancellable: false`; dismissing their presentation must leave the decision pending.
+Mana-payment prompts publish `PayManaCostInput.cancellable` from `payManaInteractively`'s `!mandatory` permission. The Cancel output variant alone does not grant permission. Sacrifice prompts publish `chooseBoardTargets.cancellable: false`; dismissing their presentation must leave the decision pending.
 
 ### Mana conversion is applied to the `CostPayment` before paying
 

@@ -252,7 +252,7 @@ export function useBoardGameplayPreview(
             cardName: "Preview spell",
             manaCost: "{2}{G}",
             manaPool: gameView.players[0]!.manaPool,
-            canCancel: true,
+            cancellable: true,
             canConfirmFromPool:
               (gameView.players[0]!.manaPool.G ?? 0) >= 1 &&
               (gameView.players[0]!.manaPool.C ?? 0) >= 2,

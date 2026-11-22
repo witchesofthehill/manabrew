@@ -1912,7 +1912,7 @@ export class PromptLayer extends PromptModalLayer {
         ),
       );
     }
-    if (info?.canCancel) {
+    if (info?.cancellable) {
       buttons.push(
         this.makeActionButton(
           "Cancel",
@@ -2705,7 +2705,7 @@ export class PromptLayer extends PromptModalLayer {
     const action = this.spec.action;
     if (action.isWaitingForResponse || action.isWaitingForOthers) return false;
     if (actionViewKey(action) === "payManaCost") {
-      if (action.payManaCostInfo?.canCancel) action.onCancelManaCost();
+      if (action.payManaCostInfo?.cancellable) action.onCancelManaCost();
       return true;
     }
     if (action.targetCompletionKind === "cancel" && action.onCompleteTargets) {

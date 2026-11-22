@@ -53,7 +53,9 @@ const methods: IronsmithEngineMethods = {
     return null;
   },
   view(viewer) {
-    return plainify(game.manabrewView(viewer)) as IronsmithViewResult;
+    const view = plainify(game.manabrewView(viewer)) as IronsmithViewResult;
+    if (view.prompt?.input.type === "payManaCost") view.prompt.input.cancellable ??= true;
+    return view;
   },
   publicState() {
     return plainify(game.manabrewPublicState()) as { gameView?: GameViewDto };

@@ -1,6 +1,6 @@
 [package]
 name = "manabrew-relay-protocol"
-version = "6.5.0"
+version = "7.0.0"
 edition = "2021"
 license.workspace = true
 repository.workspace = true

@@ -2483,7 +2483,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             description: payManaCostInput.presentation.text,
             manaPool: gameView.players.find((player) => player.isHuman)?.manaPool ?? {},
             canConfirmFromPool: payManaCostInput.canConfirmFromPool,
-            canCancel: payManaCostInput.canCancel,
+            cancellable: payManaCostInput.cancellable,
             delveCount: delvedCardIds.length,
             delveAvailable: delveSourceIds.length > 0,
             onOpenDelve: openDelveZone,

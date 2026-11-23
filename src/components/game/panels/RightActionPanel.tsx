@@ -8,6 +8,7 @@ import type { RightActionPanelProps } from "../game.types";
 import { TAB_BUTTON_BASE, TAB_ACTIVE, TAB_INACTIVE } from "../game.styles";
 import { CheckpointsPanel } from "./CheckpointsPanel";
 import { GameChat, GameChatButton } from "./GameChat";
+import { MatchmakingStatus } from "@/components/lobby/MatchmakingStatus";
 import { useServerStore } from "@/stores/useServerStore";
 import { RELAY_FEATURE } from "@/types/server";
 import { GameDevPanel } from "@/components/dev/GameDevPanel";
@@ -64,6 +65,7 @@ export function RightActionPanel({
   if (collapsed) {
     return (
       <div className="absolute right-[calc(0.75rem+var(--safe-area-inset-right))] top-[calc(0.75rem+var(--safe-area-inset-top))] z-50 flex items-center gap-2">
+        <MatchmakingStatus />
         {chatButton}
         {!mobile && checkpoints.length > 0 && (
           <button

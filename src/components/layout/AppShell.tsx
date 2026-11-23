@@ -11,7 +11,6 @@ import { useGameSessionResume } from "@/hooks/useGameSessionResume";
 import { useLimitedSessionRecovery } from "@/hooks/useLimitedSessionRecovery";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
-import { MatchmakingStatus } from "@/components/lobby/MatchmakingStatus";
 import { RoomInviteOverlay } from "@/components/lobby/RoomInviteOverlay";
 import { IronsmithUnsupportedDeckModal } from "@/components/IronsmithUnsupportedDeckModal";
 import { GuestNameConflictModal } from "@/components/GuestNameConflictModal";
@@ -148,7 +147,6 @@ export function AppShell() {
         {accountsEnabled && <GuestNameConflictModal />}
         <RoomInviteOverlay />
         {!hideNavChrome && <TopBar override={activeTopBarOverride} />}
-        {hideNavChrome && <MatchmakingStatus floating />}
         <main
           className={cn(
             "relative isolate flex-1 min-h-0 overflow-auto",

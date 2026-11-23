@@ -26,7 +26,7 @@ async function joinMatch(
     await current.answerTableCall(true, deckIndex);
 }
 
-export function MatchmakingStatus({ floating = false }: { floating?: boolean }) {
+export function MatchmakingStatus() {
   const state = useMatchmakingStore();
   const gameActive = useGameStore((s) => s.isGameActive);
   const [open, setOpen] = useState(false);
@@ -96,14 +96,7 @@ export function MatchmakingStatus({ floating = false }: { floating?: boolean }) 
   }
 
   return (
-    <div
-      ref={rootRef}
-      className={cn(
-        "relative shrink-0",
-        floating &&
-          "fixed top-[calc(var(--safe-area-inset-top)+0.75rem)] right-[calc(var(--safe-area-inset-right)+0.75rem)] z-50",
-      )}
-    >
+    <div ref={rootRef} className="relative shrink-0">
       <Button
         ref={triggerRef}
         type="button"

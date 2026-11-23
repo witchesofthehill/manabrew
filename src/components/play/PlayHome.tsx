@@ -56,7 +56,9 @@ export function PlayHome() {
   const accountHandle = useAuthStore((s) =>
     s.status === "signedIn" ? (s.account?.handle ?? null) : null,
   );
-  const openTables = rooms.filter((room) => room.status === "Lobby").length;
+  const openTables = rooms.filter(
+    (room) => room.status === "Lobby" && room.engine !== "Manabrew",
+  ).length;
   const lobbyTeaser =
     connected && (openTables > 0 || players.length > 0)
       ? `${openTables} ${openTables === 1 ? "table" : "tables"} open · ${players.length} online`

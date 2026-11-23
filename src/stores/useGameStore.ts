@@ -62,6 +62,7 @@ import { usePreferencesStore } from "./usePreferencesStore";
 import type { ClientCardDto, ClientGameView, GameState } from "./gameStore.types";
 import type { DirectiveInput, Prompt, PromptOutput } from "@/protocol";
 import type { Deck, DeckCard } from "@/protocol/deck";
+import { MANABREW_ENGINE_UNAVAILABLE } from "@/types/server";
 import type { AiController, EngineKind } from "@/types/server";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { normalizeCardCosmetics } from "@/lib/cardCosmetics";
@@ -446,6 +447,11 @@ export const useGameStore = create<GameState>()(
           toast.info(`The previous game is still closing. Try again in a moment.`);
           return false;
         }
+        const requestedEngine = setup?.engine ?? engine;
+        if (purpose !== "manual" && requestedEngine === "Manabrew") {
+          toast.error(MANABREW_ENGINE_UNAVAILABLE);
+          return false;
+        }
         const launchGeneration = ++gameLaunchGeneration;
         gameLaunchInFlight = launchGeneration;
         if (purpose === "match")
@@ -457,9 +463,10 @@ export const useGameStore = create<GameState>()(
         });
         const runtimeKind =
           setup?.runtimeKind ??
-          (engine === "Ironsmith" ? "ironsmith" : getSelectedGameRuntimeKind());
+          (requestedEngine === "Ironsmith" ? "ironsmith" : getSelectedGameRuntimeKind());
         const launchEngine =
-          setup?.engine ?? engine ?? (runtimeKind === "ironsmith" ? "Ironsmith" : "Manabrew");
+          requestedEngine ??
+          (runtimeKind === "ironsmith" ? "Ironsmith" : purpose === "manual" ? "Manabrew" : "Forge");
         const launchOpponents =
           opponentDecks?.length || runtimeKind === "manual-tabletop"
             ? (opponentDecks ?? [])

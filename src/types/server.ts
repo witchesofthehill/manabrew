@@ -339,6 +339,7 @@ export const USER_FACING_ERROR_MESSAGES: Partial<Record<ServerErrorCode, string>
     return `Sign in to chat in General`;
   },
 };
+export const MANABREW_ENGINE_UNAVAILABLE = "Manabrew Engine is no longer available for play.";
 export interface ServerErrorPayload {
   code: ServerErrorCode | string;
   message: string;

@@ -1,15 +1,12 @@
 # Manabrew — Agent Guide
 
-> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+> **Manabrew Engine and parity are deprecated.** Work on `manabrew-rs/crates/manabrew-engine` or its parity tools only when the user explicitly requests that work. A gameplay bug report is not a request to fix or compare the Rust engine. Investigate the active Forge runtime instead. The parity harness, debugger, and `DeterministicController` are not supported verification paths.
 
-Manabrew is a Tauri desktop/web client for Magic: The Gathering, powered by a Rust rewrite of the [Forge](https://github.com/Card-Forge/forge) rules engine.
+Manabrew is a Tauri desktop and web client for Magic: The Gathering. Forge powers regular gameplay.
 
 - **UI**: React + TypeScript under `src/`, Tauri shell under `src-tauri/`
-- **Engine**: Rust workspace under `manabrew-rs/crates/`, the rules engine being ported from Java
-- **Java reference**: `forge/` — read-only; the source of truth for parity
-- **Parity harness**: `manabrew-rs/crates/parity/` — runs Rust and Java side-by-side and compares traces
-
-The engine is incomplete. Most day-to-day work is **finding parity bugs** with `yarn parity` and fixing them.
+- **Forge**: `forge/` is the read-only upstream source; `forge-harness/` supplies the interactive host for browser, desktop, and hosted games.
+- **Rust workspace**: `manabrew-rs/crates/` includes the active relay, Hub, shared protocols, ManaBot, and Limited deck-building code. The deprecation does not apply to those components.
 
 ## Local full stack
 
@@ -27,9 +24,9 @@ Hub migrations are immutable once any environment has applied them. Extend the s
 
 For Hub startup or health-check changes, read `docs/agents/HUB.md`: parsing the cached Scryfall index can exceed the deployment health-check budget.
 
-## Prime directive: root-cause, not symptom
+## Explicitly requested Manabrew Engine fixes
 
-Every engine fix must restore long-term correctness of the underlying mechanic — not patch the one card that triggered the bug report. If a single card seems to need a special case, that is almost always wrong: the general rule lives somewhere in Forge — find it, port it, mirror it.
+Fix the underlying rule, not the individual card. Do not change active Forge gameplay to match the Rust port.
 
 Before writing the fix:
 
@@ -37,14 +34,13 @@ Before writing the fix:
 2. Identify the rule the Rust port is missing, not the symptom that exposed it.
 3. Mirror Forge's logic — same file names, same symbol names, same control flow.
 
-Symptom-only fixes will be rejected in review. Full workflow: `docs/agents/ENGINE_BUGFIX_WORKFLOW.md`.
+Verify the rule with a focused reproduction, not the deprecated parity harness.
 
-## Code-quality discipline
+## Code quality
 
 The project is large; every line is a long-term liability. Before adding code:
 
-- **Read first.** Inspect the Java counterpart and the existing Rust file. Use the `scan-feature-parity` skill to confirm names/paths.
-- **Mirror Java structure exactly.** Same file names (snake_case), same module layout, same method names. Do not invent. See `docs/agents/PARITY_PHILOSOPHY.md`.
+- **For explicitly requested Rust engine changes, mirror the Java counterpart.** Read the Java and Rust implementations before editing. Follow the same module structure, names, and control flow. See `docs/agents/PARITY_PHILOSOPHY.md`.
 - **Extend before creating.** Prefer adding to the existing file that already mirrors the Java side over a new one.
 - **No premature abstraction.** Three similar lines beat a clever generic. No defensive code at internal boundaries. No speculative error handling.
 - **Bound the change.** A bugfix touching 12 files needs justification. If it can be one or two, do that.
@@ -60,29 +56,28 @@ Sub-AGENTS.md files are not auto-discovered by Codex or by Claude Code's parent-
 | `src/components/game/AGENTS.md`                                    | Any change under `src/components/game/` (game board, modals, panels, zones)      |
 | `src/components/companion/AGENTS.md`                               | Any change under `src/components/companion/` (paper-play life tracker)           |
 | `src-tauri/AGENTS.md`                                              | Any change under `src-tauri/`                                                    |
-| `manabrew-rs/AGENTS.md`                                            | Any Rust engine work — workspace map and engine module map                       |
-| `manabrew-rs/crates/manabrew-engine/src/ability/effects/AGENTS.md` | Adding or modifying a `*_effect.rs` (most parity work)                           |
-| `manabrew-rs/crates/parity/AGENTS.md`                              | Investigating a parity divergence or editing `regression.json`                   |
-| `forge-harness/src/main/java/forge/harness/AGENTS.md`              | Any change under `forge-harness/` (parity/host/common package boundaries)        |
+| `manabrew-rs/AGENTS.md`                                            | Work in the Rust workspace                                                       |
+| `manabrew-rs/crates/manabrew-engine/src/ability/effects/AGENTS.md` | Explicitly requested Rust effect changes                                         |
+| `manabrew-rs/crates/parity/AGENTS.md`                              | Explicitly requested legacy parity work                                          |
+| `forge-harness/src/main/java/forge/harness/AGENTS.md`              | Any change under `forge-harness/` (host and package boundaries)                  |
 | `packages/forge-wasm/AGENTS.md`                                    | Any Forge WASM package runtime or decision journal change                        |
-| `scripts/AGENTS.md`                                                | Adding or running a build/parity script                                          |
+| `scripts/AGENTS.md`                                                | Adding or running a build script                                                 |
 | `website/AGENTS.md`                                                | Any change under `website/` (landing at manabrew.app, docs at docs.manabrew.app) |
 
 Topic spinoffs (cross-cut multiple folders):
 
-| File                                    | Read it when                                                                                                          |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `docs/agents/PARITY_PHILOSOPHY.md`      | Any engine work                                                                                                       |
-| `docs/agents/ENGINE_BUGFIX_WORKFLOW.md` | Investigating a parity divergence                                                                                     |
-| `docs/agents/UI_THEME_RULES.md`         | Any UI change that involves color                                                                                     |
-| `docs/agents/RELAY.md`                  | Any relay (`manabrew-server`) work — trust boundary, reconnect/resync, identity and usernames                         |
-| `docs/agents/HUB.md`                    | Any hub (`manabrew-hub`) work — auth and token audiences, migrations, Deck Hub flag                                   |
-| `docs/agents/SELF_HOSTED_NODE.md`       | Any self-hosted node work — game-id reconciliation, reconnect, JVM sizing, updater                                    |
-| `docs/DECISION_REPLAY.md`               | Forge decision journaling, deterministic reconstruction, replay snapshots and their isolation limits                  |
-| `docs/agents/LATENCY_ANALYSIS.md`       | Measuring hosted latency from capture files — what the timestamps mean, and four traps that skew results              |
-| `docs/forge-dsl-semantics.md`           | Any engine work touching abilities, triggers, replacements, static abilities, costs, SVars, or the stack              |
-| `docs/forge-dsl-grammar.md`             | Parser / IR changes, or when interpreting card-script syntax                                                          |
-| `docs/OBSERVABILITY.md`                 | Client-error Grafana queries: `:json` does not quote scalars; interpolation, result conversion, query limits, privacy |
+| File                               | Read it when                                                                                                          |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `docs/agents/PARITY_PHILOSOPHY.md` | Explicitly requested work on the Rust engine                                                                          |
+| `docs/agents/UI_THEME_RULES.md`    | Any UI change that involves color                                                                                     |
+| `docs/agents/RELAY.md`             | Any relay (`manabrew-server`) work — trust boundary, reconnect/resync, identity and usernames                         |
+| `docs/agents/HUB.md`               | Any hub (`manabrew-hub`) work — auth and token audiences, migrations, Deck Hub flag                                   |
+| `docs/agents/SELF_HOSTED_NODE.md`  | Any self-hosted node work — game-id reconciliation, reconnect, JVM sizing, updater                                    |
+| `docs/DECISION_REPLAY.md`          | Forge decision journaling, deterministic reconstruction, replay snapshots and their isolation limits                  |
+| `docs/agents/LATENCY_ANALYSIS.md`  | Measuring hosted latency from capture files — what the timestamps mean, and four traps that skew results              |
+| `docs/forge-dsl-semantics.md`      | Any engine work touching abilities, triggers, replacements, static abilities, costs, SVars, or the stack              |
+| `docs/forge-dsl-grammar.md`        | Parser / IR changes, or when interpreting card-script syntax                                                          |
+| `docs/OBSERVABILITY.md`            | Client-error Grafana queries: `:json` does not quote scalars; interpolation, result conversion, query limits, privacy |
 
 These files start minimal and grow over time. If a section outgrows its file, split it into a new doc under `docs/agents/` and add it to this map.
 

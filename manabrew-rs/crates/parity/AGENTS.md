@@ -1,10 +1,8 @@
 # Parity harness
 
-> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+> **Deprecated and not functioning.** This file documents the historical parity harness. Follow the [root policy](../../../AGENTS.md): do not investigate, run, fix, or extend parity unless explicitly asked. Do not use it to verify ordinary changes.
 
-Differential testing: runs the Rust engine and the Java Forge engine on the same deck/seed and compares decision-by-decision. The home base for parity bug investigation.
-
-Read first: `/AGENTS.md`, `docs/agents/ENGINE_BUGFIX_WORKFLOW.md`, `docs/PARITY_TESTING.md`.
+The harness compared the Rust rules engine with Java Forge on the same decks, seed, and decisions.
 
 ## Layout
 

@@ -602,6 +602,9 @@ async function startLimitedMatchesNow() {
   const session = host;
   if (!session || session.pairing) return;
   if (host !== session || session.pairing) return;
+  if (session.room.engine === "Manabrew") {
+    throw new Error("Multiplayer Limited matches are unavailable.");
+  }
   if (!useServerStore.getState().hasRelayFeature("limited_sessions"))
     throw new Error("This relay needs an update before Limited decks can play.");
   const unfinished = session.series

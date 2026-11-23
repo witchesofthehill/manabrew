@@ -1,6 +1,6 @@
 # Engine bugfix workflow
 
-The standard loop for fixing a parity divergence.
+> Historical workflow for the deprecated Manabrew Engine. Parity is not functioning and is not a verification path for current gameplay. Follow the [root deprecation policy](../../AGENTS.md) before doing any Rust engine or parity work.
 
 ## 1. Reproduce
 

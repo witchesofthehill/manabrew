@@ -98,7 +98,7 @@ export default function Lobby() {
     error,
     username,
     playerId,
-    rooms,
+    rooms: relayRooms,
     currentRoom,
     roomPassword,
     hostingForgeRoom,
@@ -123,6 +123,7 @@ export default function Lobby() {
     startGame,
     relayFeatures,
   } = useServerStore();
+  const rooms = relayRooms.filter((room) => room.engine !== "Manabrew");
   const chatEnabled = relayFeatures.includes(RELAY_FEATURE.Chat);
   const pendingInviteCount = useInviteStore((s) => s.invites.length);
   const invitesEnabled = relayFeatures.includes(RELAY_FEATURE.RoomInvites);

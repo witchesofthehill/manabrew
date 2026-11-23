@@ -1,5 +1,7 @@
 # Parity philosophy
 
+> This guide applies only to explicitly requested work on the deprecated Rust rules engine. See the [root deprecation policy](../../AGENTS.md).
+
 The Rust engine targets **1:1 behavioral parity** with the Java Forge engine in `forge/forge-game/`. Java is the source of truth.
 
 ## What we mirror

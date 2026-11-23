@@ -261,6 +261,7 @@ async function findHostedRoom(format: GameFormat, requiredSeats: number): Promis
   const candidates = rooms.filter(
     (candidate) =>
       candidate.hosted &&
+      candidate.engine === "Forge" &&
       candidate.status === "Lobby" &&
       candidate.format === "Any" &&
       candidate.players.length === 0 &&

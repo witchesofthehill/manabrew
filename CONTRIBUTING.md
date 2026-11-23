@@ -20,10 +20,16 @@ Use this path for most contributions:
 6. **Respond to review.** Maintainers review on a best-effort basis and may ask
    for changes before merging.
 
-GitHub adds `UI`, `manabrew-engine`, `forge-engine`, and `forge-harness` based on
-the changed paths when a PR opens. `UI` covers React components, views, and the
-Pixi board. The workflow does not remove labels. Changing the Forge harness
-does not imply a change to Forge itself.
+GitHub adds component labels based on the changed paths when a PR opens. It
+does not remove labels.
+
+- `UI` covers React components, views, and the Pixi board.
+- `manabrew-engine` covers the Rust rules engine.
+- `forge-engine` covers the Forge submodule. Changes to `forge-harness/` get
+  `forge-harness` instead.
+- `manabrew-protocol` covers the Rust game and relay protocol crates and the
+  `@manabrew/protocol` TypeScript package.
+- `manabot` covers the bot crate, its WASM adapter, and its browser worker.
 
 ## Start with an issue
 

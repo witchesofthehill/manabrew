@@ -26,6 +26,11 @@ jobs:
               if (filename.startsWith('manabrew-rs/crates/manabrew-engine/')) labels.add('manabrew-engine');
               if (filename === 'forge') labels.add('forge-engine');
               if (filename.startsWith('forge-harness/')) labels.add('forge-harness');
+              if (/^manabrew-rs\/crates\/manabrew-(?:relay-)?protocol\//.test(filename) ||
+                  filename.startsWith('packages/protocol/')) labels.add('manabrew-protocol');
+              if (filename.startsWith('manabrew-rs/crates/manabot/') ||
+                  filename === 'manabrew-rs/crates/wasm/src/bot_api.rs' ||
+                  filename === 'src/workers/manabot.worker.ts') labels.add('manabot');
             }
             if (labels.size) {
               await github.rest.issues.addLabels({

@@ -536,10 +536,18 @@ impl MatchQueue {
                         && self.entries[i].accepts(bracket))
             })
             .collect();
-        let hosted_slot = hosted.iter().position(|&seats| seats >= pod_size);
+        let browser_host = accepting
+            .iter()
+            .copied()
+            .find(|&i| self.entries[i].can_host);
+        let hosted_slot = if pod_size == 2 && browser_host.is_some() {
+            None
+        } else {
+            hosted.iter().position(|&seats| seats >= pod_size)
+        };
         let mut chosen = vec![anchor];
         if hosted_slot.is_none() {
-            let &host = accepting.iter().find(|&&i| self.entries[i].can_host)?;
+            let host = browser_host?;
             if host != anchor {
                 chosen.push(host);
             }
@@ -1105,9 +1113,12 @@ fn claim_sessions(state: &Arc<ServerState>, room_id: &str, members: &[QueueEntry
 }
 
 fn seat_pod(state: &Arc<ServerState>, pod: Pod) {
-    if let Some(room_id) = free_pool_room(state, pod.pod_size) {
+    let browser_host = pod.members.iter().any(|entry| entry.can_host);
+    if pod.pod_size == 2 && browser_host {
+        seat_in_browser_room(state, pod);
+    } else if let Some(room_id) = free_pool_room(state, pod.pod_size) {
         seat_in_pool_room(state, room_id, pod);
-    } else if pod.members.iter().any(|entry| entry.can_host) {
+    } else if browser_host {
         seat_in_browser_room(state, pod);
     } else {
         requeue(state, pod.members);

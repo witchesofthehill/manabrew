@@ -2026,6 +2026,14 @@ class WebServerApi implements IServerApi {
     });
   }
 
+  private resendPublicState(): void {
+    const state = this.latestPublicState;
+    if (!state || !this.currentRoomId || !useGameStore.getState().isHost) return;
+    const fingerprint = `browser-${++this.relayStateSequence}`;
+    this.lastRelayStates.set("", { state, json: JSON.stringify(state), fingerprint });
+    this.send({ type: "BroadcastState", state: { kind: "state", state, fingerprint } });
+  }
+
   private send(msg: Record<string, unknown>): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       console.error("[WebServerApi] Not connected");
@@ -2076,12 +2084,7 @@ class WebServerApi implements IServerApi {
           : 0;
     }
     if (type === "AuthResult" && msg.success && msg.reconnected) {
-      const state = this.latestPublicState;
-      if (state && this.currentRoomId && useGameStore.getState().isHost) {
-        const fingerprint = `browser-${++this.relayStateSequence}`;
-        this.lastRelayStates.set("", { state, json: JSON.stringify(state), fingerprint });
-        this.send({ type: "BroadcastState", state: { kind: "state", state, fingerprint } });
-      }
+      this.resendPublicState();
     }
     if (type === "AuthResult" && msg.success) {
       this.peerSignalling =
@@ -2313,11 +2316,9 @@ class WebServerApi implements IServerApi {
     }
 
     if (type === "RoomResumed") {
+      this.resendPublicState();
       for (const [playerSlot, { state, fingerprint }] of this.lastRelayStates) {
-        if (playerSlot === "") {
-          this.send({ type: "BroadcastState", state: { kind: "state", state, fingerprint } });
-          continue;
-        }
+        if (playerSlot === "") continue;
         const targetPlayer = this.enginePlayerName(playerSlot);
         if (targetPlayer) {
           void this.broadcastState(

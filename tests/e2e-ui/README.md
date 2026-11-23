@@ -4,8 +4,8 @@
 
 Playwright smoke tests for game-UI features that need a real board — the
 in-game Board settings modal, the unified card-size multiplier and the
-zone-pile lock. Engine-agnostic (they run on the default Manabrew engine) and
-dependency-light, reusing the driving helpers from `tests/e2e-ironsmith/lib.mjs`.
+zone-pile lock. They run on browser Forge and reuse the driving helpers from
+`tests/e2e-ironsmith/lib.mjs`.
 
 Prompts are drawn on the canvas, so a script answers them through the dev-only
 `window.__gameStore` seam rather than by clicking; `forgeSolo.mjs` holds the
@@ -20,6 +20,8 @@ Same stack as `tests/e2e-ironsmith/README.md`, minus the Ironsmith parts:
    dev server — the scripts answer prompts through `window.__gameStore`)
 3. **Playwright + Chrome** (`playwright` is a devDependency; system Chrome is
    used via `channel: "chrome"`)
+4. **Both browser WASM builds**: `yarn build:forge-wasm` for Forge and
+   `yarn ensure:wasm` for ManaBot.
 
 ## Run
 

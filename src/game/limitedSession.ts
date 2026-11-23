@@ -14,9 +14,11 @@ import { BASIC_LAND_NAMES, resolveDeckCards } from "@/lib/limited.utils";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { ROUTES } from "@/lib/constants";
 import { buildEngineGameRouteState, type EngineGameRouteState } from "@/game/engineGameLaunch";
+import { clearActiveGameSession, peekActiveGameSession } from "@/lib/activeGameSession";
 import type { MpDraftSeatAssignment } from "@/game/draftRelay";
 import type { DraftCard, SealedPool } from "@/types/limited";
 import type { Deck } from "@/protocol/deck";
+import { MANABREW_ENGINE_UNAVAILABLE } from "@/types/server";
 import type { GameStartedPayload, RoomInfo, RoomRelayEnvelope } from "@/types/server";
 import { commitLimitedEngineSession, serializeLimitedSession } from "@/game/limitedPersistence";
 import { captureLimitedConnection } from "@/game/limitedConnection";
@@ -475,33 +477,23 @@ export function attachLimitedSessionPeer(): () => void {
         env.targetPlayer === server.username &&
         msg.room.players.some((p) => p.username === server.username)
       ) {
-        await saveLocalLimitedState({
-          phase: "playing",
-          matchReturn: {
-            roomId: msg.room.room_id,
-            host: msg.room.host,
-            route:
-              local.kind === "draft"
-                ? `${ROUTES.DRAFT}/multiplayer`
-                : `${ROUTES.SEALED}/multiplayer`,
-            sessionId: msg.sessionId,
-          },
-        });
-        useMultiplayerLimitedStore.setState({
-          phase: "playing",
-          matchReturn: {
-            roomId: msg.room.room_id,
-            host: msg.room.host,
-            route:
-              local.kind === "draft"
-                ? `${ROUTES.DRAFT}/multiplayer`
-                : `${ROUTES.SEALED}/multiplayer`,
-            sessionId: msg.sessionId,
-          },
-        });
+        const matchReturn = {
+          roomId: msg.room.room_id,
+          host: msg.room.host,
+          route:
+            local.kind === "draft" ? `${ROUTES.DRAFT}/multiplayer` : `${ROUTES.SEALED}/multiplayer`,
+          sessionId: msg.sessionId,
+        };
+        await saveLocalLimitedState({ phase: "playing", matchReturn });
+        useMultiplayerLimitedStore.setState({ phase: "playing", matchReturn });
         useServerStore.setState({ currentRoom: msg.room, gameStarted: false });
-        if (msg.room.host === server.username) void getPlatform().server?.startGame();
-        else await getPlatform().server?.requestResync();
+        if (msg.room.engine === "Manabrew") {
+          void recoverLimitedMatchReturn().catch((error) => local.setError(String(error)));
+        } else if (msg.room.host === server.username) {
+          void server.startGame();
+        } else {
+          await getPlatform().server?.requestResync();
+        }
       } else if (msg.type === "returned" && env.targetPlayer === server.username) {
         await acceptLimitedReturn(msg);
         void requestLimitedResync();
@@ -513,10 +505,12 @@ export function attachLimitedSessionPeer(): () => void {
   return offSession;
 }
 async function acceptLimitedReturn(msg: Extract<SessionPayload, { type: "returned" }>) {
+  const matchRoomId = useMultiplayerLimitedStore.getState().matchReturn?.roomId;
   await saveLocalLimitedState(
-    { phase: "building", matchReturn: null, originalRoom: msg.room },
+    { phase: "building", matchReturn: null, originalRoom: msg.room, lastError: null },
     msg.game,
   );
+  if (matchRoomId && peekActiveGameSession()?.roomId === matchRoomId) clearActiveGameSession();
   useServerStore.setState({
     currentRoom: msg.room,
     gameStarted: false,
@@ -530,6 +524,7 @@ async function acceptLimitedReturn(msg: Extract<SessionPayload, { type: "returne
     phase: "building",
     matchReturn: null,
     originalRoom: msg.room,
+    lastError: null,
   });
 }
 export async function requestLimitedResync() {
@@ -603,7 +598,7 @@ async function startLimitedMatchesNow() {
   if (!session || session.pairing) return;
   if (host !== session || session.pairing) return;
   if (session.room.engine === "Manabrew") {
-    throw new Error("Multiplayer Limited matches are unavailable.");
+    throw new Error(MANABREW_ENGINE_UNAVAILABLE);
   }
   if (!useServerStore.getState().hasRelayFeature("limited_sessions"))
     throw new Error("This relay needs an update before Limited decks can play.");

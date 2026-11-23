@@ -1,11 +1,4 @@
-// Regression guard: confirm the non-Ironsmith engines still start a game.
-// The Ironsmith work touches vite.config's wasm handling (assetsInclude +
-// optimizeDeps), which also governs how the Manabrew engine wasm is served —
-// so the default engine must keep loading and playing. Run with the
-// `ironsmithRuntime` flag OFF (the shipped default) to mirror production.
-//
-// Usage: node tests/e2e-ironsmith/other-engines-smoke.mjs           # Manabrew
-//        ENGINE=Ironsmith node tests/e2e-ironsmith/other-engines-smoke.mjs
+// Usage: yarn test:e2e:engines
 import { chromium } from "playwright";
 import {
   uniqueName,
@@ -14,12 +7,11 @@ import {
   createRoom,
   pickPreset,
   deckButton,
-  modalDialog,
+  pickBotPreset,
   livePromptType,
 } from "./lib.mjs";
 
 const SHOT = process.env.SHOT || null;
-const engine = process.env.ENGINE || "Manabrew";
 const DECK = process.env.DECK || "Izzet Lessons";
 const FORMAT = process.env.FORMAT || "Standard";
 
@@ -35,22 +27,20 @@ page.on("pageerror", (e) => (err = "PAGEERROR " + String(e).slice(0, 160)));
 const NM = uniqueName();
 await onboard(page, NM);
 await connectLocal(page, NM);
-await createRoom(page, { name: engine + "Smoke", engine, format: FORMAT });
+await createRoom(page, { name: "ForgeSmoke", format: FORMAT });
 await pickPreset(page, () => deckButton(page).click(), DECK);
-await page.getByRole("button", { name: /Add (a )?bot/i }).click();
-await page.waitForTimeout(900);
-if (await modalDialog(page).count()) await pickPreset(page, async () => {}, DECK);
+await pickBotPreset(page, DECK);
 await page.getByRole("button", { name: /Start (Game|Table)/i }).click();
-await page.waitForTimeout(10000);
+await page.waitForURL(/\/play(?:[/?#]|$)/, { timeout: 60000 }).catch(() => {});
 
 const url = page.url();
 const canvas = await page.locator("canvas").count();
 const live = await livePromptType(page);
 const prompt = live.checked ? (live.type ?? "none") : "not checked: no dev game store";
-if (SHOT) await page.screenshot({ path: `${SHOT}/engine-${engine}.png`, fullPage: true });
+if (SHOT) await page.screenshot({ path: `${SHOT}/engine-Forge.png`, fullPage: true });
 const onBoard = /\/play|\/game/.test(url) && canvas > 0 && (!live.checked || Boolean(live.type));
 console.log(
-  `ENGINE=${engine} deck=${DECK} url=${url} canvas=${canvas} prompt=${prompt} -> ${onBoard ? "PLAYS ✓" : "FAILED ✗"}`,
+  `ENGINE=Forge deck=${DECK} url=${url} canvas=${canvas} prompt=${prompt} -> ${onBoard ? "PLAYS ✓" : "FAILED ✗"}`,
 );
 if (!onBoard) console.log("  err:", err ?? "(none)");
 await browser.close();

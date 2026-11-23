@@ -106,8 +106,8 @@ export async function enableIronsmith(page) {
 }
 
 /** Create a Match room on the given engine + format, waiting for the relay to be connected first. */
-export async function createRoom(page, { name, engine = "Ironsmith", format } = {}) {
-  if (/ironsmith/i.test(engine)) await enableIronsmith(page);
+export async function createRoom(page, { name, engine = "Forge", format } = {}) {
+  if (engine === "Ironsmith") await enableIronsmith(page);
   await page.goto(BASE() + "/lobby", { waitUntil: "networkidle" });
   // The lobby shows the button twice (header and empty table); either works.
   const setUp = page.getByRole("button", { name: /Set up a table/i }).first();
@@ -116,18 +116,11 @@ export async function createRoom(page, { name, engine = "Ironsmith", format } = 
   }
   await setUp.click();
   await page.waitForTimeout(600);
-  // The engine picker starts collapsed on the setup page.
-  const engineSummary = page.locator("summary", { hasText: /engine/i }).first();
-  if (await engineSummary.count()) await engineSummary.click();
-  await page.waitForTimeout(300);
-  // Inside the picker only: the header's home button is named after the app.
-  await page
-    .locator("details")
-    .filter({ hasText: /engine/i })
-    .getByRole("button", { name: new RegExp(engine, "i") })
-    .first()
-    .click();
-  await page.waitForTimeout(300);
+  if (engine === "Ironsmith") {
+    const picker = page.locator("details").filter({ hasText: /engine/i });
+    await picker.locator("summary").click();
+    await picker.getByRole("button", { name: /Ironsmith/i }).click();
+  }
   if (format) {
     await page.locator("#room-format").click();
     // The item's accessible name starts with its format badge ("STDStandard").
@@ -179,6 +172,11 @@ export async function pickPreset(page, opener, preset) {
   for (let i = 0; i < 20 && !(await select.isEnabled()); i += 1) await page.waitForTimeout(250);
   await select.click();
   await page.waitForTimeout(900);
+}
+
+export async function pickBotPreset(page, preset) {
+  await page.getByRole("button", { name: /^Seat \d+ actions$/ }).first().press("ArrowDown");
+  await pickPreset(page, () => page.getByRole("button", { name: /^Add bot$/i }).click(), preset);
 }
 
 /** List the preset decks the picker currently offers (format-filtered). */

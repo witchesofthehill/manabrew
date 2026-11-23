@@ -20,6 +20,10 @@ Use this path for most contributions:
 6. **Respond to review.** Maintainers review on a best-effort basis and may ask
    for changes before merging.
 
+GitHub adds `UI`, `manabrew-engine`, `forge-engine`, and `forge-harness` based on
+the changed paths when a PR opens. It does not remove labels. In particular,
+changing the Forge harness does not imply a change to Forge itself.
+
 ## Start with an issue
 
 For anything larger than a typo, start from an existing issue or open one first.

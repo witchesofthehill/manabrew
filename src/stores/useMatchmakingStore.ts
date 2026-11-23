@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { toast } from "sonner";
 import { forgeWasmGate } from "@/lib/forgeWasm";
-import { localGameActive, onLocalGameEnd } from "@/lib/localGamePresence";
+import { localGameActive } from "@/lib/localGamePresence";
 import { playSound } from "@/lib/soundRuntime";
 import { commanderQueueDecks, queueDeckChoices } from "@/lib/queueDecks";
 import { stripUsernameTag } from "@/lib/username";
@@ -81,7 +81,7 @@ interface MatchmakingState {
   dismissOffer(): void;
   acceptBotFill(): Promise<void>;
   dismissBotFill(): void;
-  acceptMatch(deckIndex?: number): Promise<void>;
+  acceptMatch(deckIndex: number): Promise<void>;
   declineMatch(): Promise<void>;
   leave(): Promise<void>;
   clearMatch(): void;
@@ -177,10 +177,6 @@ function listen(set: (partial: Partial<MatchmakingState>) => void, get: () => Ma
         `Bracket ${payload.bracket} · ${tableLabel(payload.pod_size)}${localGameActive() ? ". Return to Manabrew to join." : ""}`,
         payload.expires_s,
       );
-      if (!localGameActive())
-        void get()
-          .acceptMatch()
-          .catch(() => undefined);
     }),
     events.on<MatchProposalAcceptsPayload>("server:match_proposal_accepts", (payload) => {
       if (get().phase === "proposed") set({ proposalAccepts: payload.accepted });
@@ -211,13 +207,6 @@ function listen(set: (partial: Partial<MatchmakingState>) => void, get: () => Ma
       }
       preparation++;
       set({ ...IDLE, tableCall: null });
-    }),
-    onLocalGameEnd(() => {
-      if (get().phase === "proposed" && !get().accepted) {
-        void get()
-          .acceptMatch()
-          .catch(() => undefined);
-      }
     }),
   ];
 }
@@ -312,11 +301,10 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
       return;
     if (!proposal) return;
     const choices = queueDeckChoices(get().queuedDecks, proposal.bracket);
-    if (deckIndex === undefined && choices.length !== 1) return;
-    if (deckIndex !== undefined && !choices.some((choice) => choice.index === deckIndex)) return;
+    if (!choices.some((choice) => choice.index === deckIndex)) return;
     set({ accepted: true });
     try {
-      await getPlatform().server?.acceptMatch(deckIndex ?? choices[0].index);
+      await getPlatform().server?.acceptMatch(deckIndex);
     } catch (error) {
       if (get().proposal === proposal) set({ accepted: false });
       throw error;

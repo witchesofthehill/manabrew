@@ -12,7 +12,7 @@ import type { MatchProposalPayload, TableCallPayload } from "@/types/server";
 
 async function joinMatch(
   invitation: MatchProposalPayload | TableCallPayload | null,
-  deckIndex: number | undefined,
+  deckIndex: number,
 ) {
   const { proposal, tableCall, proposalExpiresAt, tableCallExpiresAt } =
     useMatchmakingStore.getState();

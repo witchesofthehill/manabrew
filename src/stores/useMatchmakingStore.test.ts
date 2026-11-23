@@ -4,7 +4,6 @@ import type { QueuedDeck } from "@/types/server";
 
 const fixture = vi.hoisted(() => ({
   listeners: new Map<string, (payload: unknown) => void>(),
-  end: () => {},
   busy: false,
   room: null as unknown,
   prepare: vi.fn(),
@@ -33,10 +32,6 @@ vi.mock("@/platform", () => ({
 vi.mock("@/lib/forgeWasm", () => ({ forgeWasmGate: () => "in_browser" }));
 vi.mock("@/lib/localGamePresence", () => ({
   localGameActive: () => fixture.busy,
-  onLocalGameEnd: (listener: () => void) => {
-    fixture.end = listener;
-    return () => {};
-  },
 }));
 vi.mock("@/lib/soundRuntime", () => ({ playSound: vi.fn() }));
 vi.mock("@/stores/useServerStore", () => ({
@@ -97,11 +92,13 @@ describe("Commander matchmaking lifecycle", () => {
     });
     expect(playSound).toHaveBeenCalledExactlyOnceWith("matchFound");
   });
-  it("automatically accepts a single eligible deck while browsing", async () => {
+  it("waits for an explicit accept with a single eligible deck while browsing", async () => {
     await enter([deck("Wrong", 5), deck("Exact")]);
     proposal();
-    expect(fixture.server.acceptMatch).toHaveBeenCalledWith(1);
-    expect(useMatchmakingStore.getState().accepted).toBe(true);
+    expect(fixture.server.acceptMatch).not.toHaveBeenCalled();
+    expect(useMatchmakingStore.getState().accepted).toBe(false);
+    await useMatchmakingStore.getState().acceptMatch(1);
+    expect(fixture.server.acceptMatch).toHaveBeenCalledExactlyOnceWith(1);
   });
   it("waits for an explicit choice when duplicate deck names fit", async () => {
     await enter([deck("Same"), deck("Same"), deck("Wrong", 5)]);
@@ -112,30 +109,10 @@ describe("Commander matchmaking lifecycle", () => {
     await useMatchmakingStore.getState().acceptMatch(1);
     expect(fixture.server.acceptMatch).toHaveBeenCalledExactlyOnceWith(1);
   });
-  it("does not interrupt a solo game and accepts after its natural end", async () => {
-    fixture.busy = true;
-    await enter();
-    proposal();
-    expect(fixture.server.acceptMatch).not.toHaveBeenCalled();
-    fixture.busy = false;
-    fixture.end();
-    expect(fixture.server.acceptMatch).toHaveBeenCalledExactlyOnceWith(0);
-  });
-  it("still requires deck choice after a solo game ends", async () => {
-    fixture.busy = true;
-    await enter([deck("A"), deck("B")]);
-    proposal();
-    fixture.busy = false;
-    fixture.end();
-    expect(fixture.server.acceptMatch).not.toHaveBeenCalled();
-  });
   it("does not accept an expired proposal", async () => {
-    fixture.busy = true;
     await enter();
     proposal();
     useMatchmakingStore.setState({ proposalExpiresAt: Date.now() - 1 });
-    fixture.busy = false;
-    fixture.end();
     await useMatchmakingStore.getState().acceptMatch(0);
     expect(fixture.server.acceptMatch).not.toHaveBeenCalled();
   });

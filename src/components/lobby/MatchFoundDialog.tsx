@@ -21,7 +21,7 @@ interface MatchFoundDialogProps {
   now: number;
   inSolo: boolean;
   pending: boolean;
-  onAccept: (deckIndex: number | undefined) => void;
+  onAccept: (deckIndex: number) => void;
   onDecline: () => void;
 }
 
@@ -149,7 +149,7 @@ export function MatchFoundDialog({
                 size="lg"
                 className="h-14 min-w-64 font-serif text-2xl"
                 disabled={pending || remaining === 0 || deckIndex === undefined}
-                onClick={() => onAccept(deckIndex)}
+                onClick={() => deckIndex !== undefined && onAccept(deckIndex)}
               >
                 {pending && <Loader2 className="animate-spin" />}
                 Accept

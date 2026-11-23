@@ -454,25 +454,28 @@ pub fn join_room_sync(
             }
         }
 
-        if observe {
+        if observe && room.status != RoomStatus::Lobby {
             if !room.can_spectate() {
                 return Err(ServerError::GameNotInProgress);
             }
             room.add_observer(player_id.to_string(), username)
                 .map_err(|_| ServerError::AlreadyInRoom(room_id.to_string()))?;
             (room.to_room_info(), false)
-        } else if let Some(slot) = room
-            .players
-            .iter_mut()
-            .find(|slot| slot.username == username && slot.is_bot == as_bot && !slot.connected)
-        {
+        } else if let Some(slot) = room.players.iter_mut().find(|slot| {
+            !observe && slot.username == username && slot.is_bot == as_bot && !slot.connected
+        }) {
             slot.player_id = player_id.to_string();
             slot.connected = true;
             (room.to_room_info(), true)
         } else if room.status != RoomStatus::Lobby {
             return Err(ServerError::GameAlreadyStarted);
         } else {
-            room.add_player(player_id.to_string(), username, as_bot, seat_index)?;
+            if observe {
+                room.add_observer(player_id.to_string(), username)
+                    .map_err(|_| ServerError::AlreadyInRoom(room_id.to_string()))?;
+            } else {
+                room.add_player(player_id.to_string(), username, as_bot, seat_index)?;
+            }
             (room.to_room_info(), false)
         }
     };

@@ -1170,6 +1170,7 @@ class WebServerApi implements IServerApi {
 
     eventBus.on<StateUpdate>("game:public_state", (state) => {
       if (!useGameStore.getState().isHost || !this.currentRoomId) return;
+      if (this.ws?.readyState !== WebSocket.OPEN) return;
       const json = JSON.stringify(state);
       const previous = this.lastRelayStates.get("");
       if (previous?.json === json) return;
@@ -2071,6 +2072,19 @@ class WebServerApi implements IServerApi {
                 ? 1
                 : 0
           : 0;
+    }
+    if (type === "AuthResult" && msg.success && msg.reconnected) {
+      const publicState = this.lastRelayStates.get("");
+      if (publicState && this.currentRoomId && useGameStore.getState().isHost) {
+        this.send({
+          type: "BroadcastState",
+          state: {
+            kind: "state",
+            state: publicState.state,
+            fingerprint: publicState.fingerprint,
+          },
+        });
+      }
     }
     if (type === "AuthResult" && msg.success) {
       this.peerSignalling =

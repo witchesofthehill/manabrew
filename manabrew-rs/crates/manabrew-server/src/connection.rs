@@ -798,22 +798,24 @@ fn invite_to_room(
 }
 
 fn broadcast_recipients(room: &Room, message: &ServerMessage) -> Vec<String> {
-    let public = match message {
+    let watchable = match message {
         ServerMessage::StateUpdate { state, .. } => {
-            matches!(
-                state.get("kind").and_then(serde_json::Value::as_str),
-                Some("state" | "stateDelta")
-            ) && state
-                .get("forPlayer")
-                .and_then(serde_json::Value::as_str)
-                .is_none()
+            room.allow_spectators
+                && matches!(
+                    state.get("kind").and_then(serde_json::Value::as_str),
+                    Some("state" | "stateDelta")
+                )
+                && state
+                    .get("forPlayer")
+                    .and_then(serde_json::Value::as_str)
+                    .is_none()
         }
         _ => true,
     };
     room.connected_player_ids()
         .into_iter()
         .filter(|pid| {
-            public || room.is_host(pid) || room.players.iter().any(|seat| seat.player_id == *pid)
+            watchable || room.is_host(pid) || room.players.iter().any(|seat| seat.player_id == *pid)
         })
         .collect()
 }
@@ -2167,12 +2169,11 @@ fn handle_client_message(
                     return None;
                 }
                 let replay = room.replay.as_ref()?;
-                let slot = room
-                    .players
-                    .iter()
-                    .any(|seat| seat.player_id == player_id)
-                    .then(|| replay.slot_for(username))
-                    .flatten();
+                let seated = room.players.iter().any(|seat| seat.player_id == player_id);
+                if !seated && !room.is_host(player_id) && !room.allow_spectators {
+                    return None;
+                }
+                let slot = seated.then(|| replay.slot_for(username)).flatten();
                 let mut messages = vec![ServerMessage::GameStarted {
                     room_id: rid.clone(),
                     game_id: replay.game_id.clone(),

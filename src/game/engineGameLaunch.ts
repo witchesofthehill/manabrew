@@ -55,7 +55,9 @@ export function buildEngineGameRouteState(
   }
   const myIndex = playerOrder.indexOf(username ?? "");
   const spectator =
-    room?.can_spectate === true && !room.players.some((player) => player.username === username);
+    room != null &&
+    room.host !== username &&
+    !room.players.some((player) => player.username === username);
   if (
     !spectator &&
     (myIndex < 0 || (room && !room.players.some((player) => player.username === username)))

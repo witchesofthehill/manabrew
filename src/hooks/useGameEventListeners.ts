@@ -189,7 +189,11 @@ function reportHostOutcome(state: GameState): void {
 /** Close the book on the current game. Safe to call more than once. */
 function reportEngineGame(): void {
   const state = useGameStore.getState();
-  if (!state.isGameActive || state.isSpectator) return;
+  if (!state.isGameActive) {
+    clearLocalGame();
+    return;
+  }
+  if (state.isSpectator) return;
   // Read before the offline record is closed: reporting the game clears it, and
   // the engine report below needs the same id to file itself against.
   const offlineGameId = currentOfflineGameId();

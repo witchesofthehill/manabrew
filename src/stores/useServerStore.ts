@@ -467,7 +467,7 @@ export const useServerStore = create<ServerState>()(
           format: currentRoom.format,
           hosted: currentRoom.hosted,
           allow_spectators: currentRoom.allow_spectators,
-          engine: "Manabrew",
+          engine: currentRoom.engine,
           password: roomPassword ?? undefined,
           reconnect_timeout_s: currentRoom.reconnect_timeout_s,
           table_style: currentRoom.table_style,

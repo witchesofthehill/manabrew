@@ -61,7 +61,8 @@ function pushClientEvent(event: { name: string; attributes: Record<string, strin
   }
   const batching = faro.config.batching;
   try {
-    if (event.name === "first_game_funnel") faro.config.batching = { enabled: false };
+    if (event.name === "first_game_funnel" || event.name === "visit_signal")
+      faro.config.batching = { enabled: false };
     faro.api.pushEvent(event.name, event.attributes, CLIENT_ANALYTICS_DOMAIN, { skipDedupe: true });
   } catch {
     return;

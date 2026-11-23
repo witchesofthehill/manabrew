@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.90.0](https://github.com/witchesofthehill/manabrew/compare/v3.89.0...v3.90.0) (2026-11-23)
+
+### Features
+
+* **analytics:** record how each visit was used before the first match ([#1275](https://github.com/witchesofthehill/manabrew/issues/1275)) ([fe82d76](https://github.com/witchesofthehill/manabrew/commit/fe82d76002b31ed4b977bcd83c1a3d8a82567111))
+
 ## [3.89.0](https://github.com/witchesofthehill/manabrew/compare/v3.88.0...v3.89.0) (2026-11-23)
 
 ### Features

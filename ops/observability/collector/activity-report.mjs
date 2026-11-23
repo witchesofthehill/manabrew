@@ -82,6 +82,41 @@ function screenOf(event) {
   }
 }
 
+const VISIT_DURATIONS = ["under-10s", "10-60s", "1-10m", "10-60m", "1h-plus"];
+const VISIT_KINDS = [
+  "automated",
+  "no_exit_signal",
+  "bounced",
+  "open_in_background",
+  "open_untouched",
+  "interacted",
+];
+const INPUTS = ["none", "passive", "active"];
+
+function visitKind(signals) {
+  if (!signals.length) return "no_exit_signal";
+  if (signals.some((event) => event.event_automation && event.event_automation !== "none"))
+    return "automated";
+  const rank = (values, key) => Math.max(...signals.map((event) => values.indexOf(event[key])));
+  const age = rank(VISIT_DURATIONS, "event_age");
+  const visible = rank(VISIT_DURATIONS, "event_visible");
+  const input = rank(INPUTS, "event_input");
+  if (input > 0) return "interacted";
+  if (age < 2) return "bounced";
+  if (age >= 3 && visible < 2) return "open_in_background";
+  return "open_untouched";
+}
+
+function visitKinds(events) {
+  const visits = new Map();
+  for (const event of events) {
+    if (!event.event_visit_id) continue;
+    if (!visits.has(event.event_visit_id)) visits.set(event.event_visit_id, []);
+    if (event.event_name === "visit_signal") visits.get(event.event_visit_id).push(event);
+  }
+  return [...visits.values()].map(visitKind);
+}
+
 function profile(player, events) {
   const cutoff = player.game_started_at ?? Infinity;
   const before = events.filter((event) => event.at < cutoff);
@@ -109,6 +144,7 @@ function profile(player, events) {
     actions,
     stepClicks,
     visits: new Set(before.map((event) => event.event_visit_id).filter(Boolean)).size,
+    visitKinds: visitKinds(before),
   };
 }
 
@@ -210,6 +246,16 @@ export function analyticsReport({ environment, days, players, events, relay }) {
           .map(([value, ids]) => ({ value, ids })),
       ]),
     ),
+    visitKinds: VISIT_KINDS.map((value) => ({
+      value,
+      ...Object.fromEntries(
+        GROUPS.map((group) => {
+          const kinds = grouped[group].flatMap((row) => row.profile.visitKinds);
+          const count = kinds.filter((kind) => kind === value).length;
+          return [group, count >= MIN_GROUP ? count : null];
+        }),
+      ),
+    })).filter((row) => GROUPS.some((group) => row[group] !== null)),
     medianVisitsBeforeFirstMatch: Object.fromEntries(
       GROUPS.map((group) => [group, median(grouped[group].map((row) => row.profile.visits))]),
     ),
@@ -296,6 +342,10 @@ export function formatReport(report) {
     ...GROUPS.map((group) =>
       table(`Opening path of first visit: ${group}`, report.openingPaths[group], ["value", "ids"]),
     ),
+    table("Visits before first match by kind (visit counts)", report.visitKinds, [
+      "value",
+      ...GROUPS,
+    ]),
     `Median visits before first match: ${GROUPS.map((group) => `${group} ${report.medianVisitsBeforeFirstMatch[group] ?? "-"}`).join(", ")}`,
     "",
   ];

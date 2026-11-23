@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { isClientAnalyticsEnabled, trackClientEvent } from "@/lib/clientAnalytics";
 import { analyticsPageUrl, analyticsScreen } from "@/lib/clientAnalyticsPrivacy";
 import { observeClientAnalyticsLobby, resetClientAnalyticsLobby } from "@/lib/clientAnalyticsLobby";
+import { startClientVisitSignals } from "@/lib/clientAnalyticsVisit";
 import {
   listenClientAnalyticsFunnel,
   observeClientAnalyticsGame,
@@ -28,6 +29,7 @@ export function useClientAnalytics() {
 
   useEffect(() => {
     if (excluded || !isClientAnalyticsEnabled()) return;
+    startClientVisitSignals();
     observeClientAnalyticsGame(useGameStore.getState());
     const stopListening = listenClientAnalyticsFunnel();
     const unsubscribeGame = useGameStore.subscribe(observeClientAnalyticsGame);

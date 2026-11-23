@@ -464,6 +464,7 @@ function sameActionPresentation(
       !!left.onMulliganPutBackConfirm === !!right.onMulliganPutBackConfirm &&
       left.selfClusterMaxHeight === right.selfClusterMaxHeight &&
       left.dividerY === right.dividerY &&
+      left.spectator === right.spectator &&
       left.dimmed === right.dimmed)
   );
 }
@@ -474,6 +475,7 @@ export function sameGameOverPresentation(
   if (left === right) return true;
   if (!left || !right) return false;
   return (
+    left.spectator === right.spectator &&
     left.winnerId === right.winnerId &&
     left.me === right.me &&
     sameArray(left.opponents, right.opponents) &&

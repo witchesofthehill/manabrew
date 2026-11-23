@@ -92,7 +92,11 @@ async function rejoinAfterRelayRestart() {
       try {
         await useServerStore
           .getState()
-          .joinRoom(roomId, useServerStore.getState().roomPassword ?? undefined);
+          .joinRoom(
+            roomId,
+            useServerStore.getState().roomPassword ?? undefined,
+            getState().isSpectator,
+          );
         void getPlatform().server?.requestResync();
         setReconnectPhase("idle");
         return;
@@ -185,6 +189,11 @@ function reportHostOutcome(state: GameState): void {
 /** Close the book on the current game. Safe to call more than once. */
 function reportEngineGame(): void {
   const state = useGameStore.getState();
+  if (!state.isGameActive) {
+    clearLocalGame();
+    return;
+  }
+  if (state.isSpectator) return;
   // Read before the offline record is closed: reporting the game clears it, and
   // the engine report below needs the same id to file itself against.
   const offlineGameId = currentOfflineGameId();
@@ -273,6 +282,7 @@ export function useGameEventListeners() {
     const runtime = getSelectedGameRuntime();
     const unsubscribers: (() => void)[] = [];
     const fetchInitialState = async () => {
+      if (getState().isSpectator) return;
       try {
         const prompt = normalizeEnginePrompt(await runtime.api.getPrompt());
         if (prompt && prompt.promptId !== getState().currentPrompt?.promptId) {
@@ -481,7 +491,13 @@ export function useGameEventListeners() {
           const roomId =
             peekActiveGameSession()?.roomId ?? useServerStore.getState().currentRoom?.room_id;
           if (roomId && payload.room_id !== roomId) return;
-          if (state.gameView?.gameOver || isGameOverPrompt(state.currentPrompt)) return;
+          if (
+            state.gameView?.gameOver ||
+            isGameOverPrompt(state.currentPrompt) ||
+            (state.isSpectator &&
+              state.deferredQueue.some((snapshot) => snapshot.gameView?.gameOver))
+          )
+            return;
           toast.error(`Game aborted \u2014 a player did not reconnect.`);
           void useGameStore.getState().endGame();
         }),

@@ -5,6 +5,8 @@
  * The game engine runs in a Web Worker for non-blocking UI.
  */
 
+import { useGameStore } from "@/stores/useGameStore";
+import { useServerStore } from "@/stores/useServerStore";
 import { deckHasCardCosmetics, normalizeCardCosmetics } from "@/lib/cardCosmetics";
 import type { WasmBot } from "@/wasm/wasm";
 import type * as WasmModule from "@/wasm/wasm";
@@ -954,6 +956,7 @@ class WebGameApi implements IGameApi {
       // Host runs the engine; the worker posts back one SAB per remote
       // seat (see the game:remote_sab handler in WorkerBridge).
       await this.bridge.invoke("start_multiplayer_game", {
+        publicSnapshots: useServerStore.getState().currentRoom?.allow_spectators === true,
         decks: params.decks,
         commanderNames: params.commanderNames,
         playerNames: params.playerNames,
@@ -1139,6 +1142,7 @@ class WebServerApi implements IServerApi {
     { state: StateUpdate; json: string; fingerprint: string }
   >();
   private relayStateSequence = 0;
+  private latestPublicState: StateUpdate | null = null;
   private deltaBases = new Map<string, { state: StateUpdate; fingerprint: string }>();
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
   private pendingRelayDirectives = new Map<string, Record<string, unknown>>();
@@ -1163,6 +1167,25 @@ class WebServerApi implements IServerApi {
       if (prefs.directTransport === this.directTransportOptIn) return;
       this.directTransportOptIn = prefs.directTransport;
       this.onDirectTransportPreference();
+    });
+
+    eventBus.on<StateUpdate>("game:public_state", (state) => {
+      if (!useGameStore.getState().isHost || !this.currentRoomId) return;
+      this.latestPublicState = state;
+      if (this.ws?.readyState !== WebSocket.OPEN) return;
+      const json = JSON.stringify(state);
+      const previous = this.lastRelayStates.get("");
+      if (previous?.json === json) return;
+      const fingerprint = `browser-${++this.relayStateSequence}`;
+      const patch = previous ? diffStateDelta(previous.state, state) : undefined;
+      this.lastRelayStates.set("", { state, json, fingerprint });
+      this.send({
+        type: "BroadcastState",
+        state:
+          previous && patch !== undefined
+            ? { kind: "stateDelta", base: previous.fingerprint, fingerprint, patch }
+            : { kind: "state", state, fingerprint },
+      });
     });
 
     eventBus.on<RelayMessage>("game:relay_message", ({ forPlayer, msg }) => {
@@ -1495,6 +1518,10 @@ class WebServerApi implements IServerApi {
 
   async stopRoom(): Promise<void> {
     // No embedded room host on web — the relay owns room lifecycle.
+  }
+
+  async setAllowSpectators(allow: boolean): Promise<void> {
+    this.send({ type: "SetAllowSpectators", allow });
   }
 
   async joinRoom(params: JoinRoomParams): Promise<void> {
@@ -1999,6 +2026,14 @@ class WebServerApi implements IServerApi {
     });
   }
 
+  private resendPublicState(): void {
+    const state = this.latestPublicState;
+    if (!state || !this.currentRoomId || !useGameStore.getState().isHost) return;
+    const fingerprint = `browser-${++this.relayStateSequence}`;
+    this.lastRelayStates.set("", { state, json: JSON.stringify(state), fingerprint });
+    this.send({ type: "BroadcastState", state: { kind: "state", state, fingerprint } });
+  }
+
   private send(msg: Record<string, unknown>): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       console.error("[WebServerApi] Not connected");
@@ -2047,6 +2082,9 @@ class WebServerApi implements IServerApi {
                 ? 1
                 : 0
           : 0;
+    }
+    if (type === "AuthResult" && msg.success && msg.reconnected) {
+      this.resendPublicState();
     }
     if (type === "AuthResult" && msg.success) {
       this.peerSignalling =
@@ -2271,13 +2309,16 @@ class WebServerApi implements IServerApi {
         if (bot.roomId === msg.room_id) bot.status = "InGame";
       }
       this.lastRelayStates.clear();
+      this.latestPublicState = null;
       this.pendingRelayPrompts.clear();
       this.pendingRelayDirectives.clear();
       this.deltaBases.clear();
     }
 
     if (type === "RoomResumed") {
+      this.resendPublicState();
       for (const [playerSlot, { state, fingerprint }] of this.lastRelayStates) {
+        if (playerSlot === "") continue;
         const targetPlayer = this.enginePlayerName(playerSlot);
         if (targetPlayer) {
           void this.broadcastState(

@@ -158,6 +158,7 @@ export interface IServerApi {
   setDeckSelection(params: SetDeckSelectionParams): Promise<void>;
   setFormat(params: SetFormatParams): Promise<void>;
   setMaxPlayers(params: SetMaxPlayersParams): Promise<void>;
+  setAllowSpectators(allow: boolean): Promise<void>;
   startGame(params?: StartServerGameParams): Promise<void>;
   endGame(gameId: string): Promise<void>;
   finishGame(gameId: string): Promise<void>;

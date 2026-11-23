@@ -27,8 +27,8 @@ does not remove labels.
 - `manabrew-engine` covers the Rust rules engine.
 - `forge-engine` covers the Forge submodule. Changes to `forge-harness/` get
   `forge-harness` instead.
-- `manabrew-protocol` covers the Rust game and relay protocol crates and the
-  `@manabrew/protocol` TypeScript package.
+- `manabrew-protocol` covers the Rust game and relay protocol crates, the
+  `@manabrew/protocol` TypeScript package, and the generated types in `bindings/`.
 - `manabot` covers the bot crate, its WASM adapter, and its browser worker.
 
 ## Start with an issue

@@ -1029,6 +1029,11 @@ fn publish_started_game(state: &Arc<ServerState>, started: lobby::StartedGame) {
         .map(|room| {
             room.connected_player_ids()
                 .into_iter()
+                .filter(|pid| {
+                    room.allow_spectators
+                        || room.is_host(pid)
+                        || room.players.iter().any(|seat| seat.player_id == *pid)
+                })
                 .filter_map(|pid| {
                     let username = state.players.get(&pid)?.username.clone();
                     Some((

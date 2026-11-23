@@ -1142,6 +1142,7 @@ class WebServerApi implements IServerApi {
     { state: StateUpdate; json: string; fingerprint: string }
   >();
   private relayStateSequence = 0;
+  private latestPublicState: StateUpdate | null = null;
   private deltaBases = new Map<string, { state: StateUpdate; fingerprint: string }>();
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
   private pendingRelayDirectives = new Map<string, Record<string, unknown>>();
@@ -1170,6 +1171,7 @@ class WebServerApi implements IServerApi {
 
     eventBus.on<StateUpdate>("game:public_state", (state) => {
       if (!useGameStore.getState().isHost || !this.currentRoomId) return;
+      this.latestPublicState = state;
       if (this.ws?.readyState !== WebSocket.OPEN) return;
       const json = JSON.stringify(state);
       const previous = this.lastRelayStates.get("");
@@ -2074,16 +2076,11 @@ class WebServerApi implements IServerApi {
           : 0;
     }
     if (type === "AuthResult" && msg.success && msg.reconnected) {
-      const publicState = this.lastRelayStates.get("");
-      if (publicState && this.currentRoomId && useGameStore.getState().isHost) {
-        this.send({
-          type: "BroadcastState",
-          state: {
-            kind: "state",
-            state: publicState.state,
-            fingerprint: publicState.fingerprint,
-          },
-        });
+      const state = this.latestPublicState;
+      if (state && this.currentRoomId && useGameStore.getState().isHost) {
+        const fingerprint = `browser-${++this.relayStateSequence}`;
+        this.lastRelayStates.set("", { state, json: JSON.stringify(state), fingerprint });
+        this.send({ type: "BroadcastState", state: { kind: "state", state, fingerprint } });
       }
     }
     if (type === "AuthResult" && msg.success) {
@@ -2309,6 +2306,7 @@ class WebServerApi implements IServerApi {
         if (bot.roomId === msg.room_id) bot.status = "InGame";
       }
       this.lastRelayStates.clear();
+      this.latestPublicState = null;
       this.pendingRelayPrompts.clear();
       this.pendingRelayDirectives.clear();
       this.deltaBases.clear();

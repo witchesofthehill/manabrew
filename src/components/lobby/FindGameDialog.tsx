@@ -1,7 +1,7 @@
 import { Check, Loader2, Search } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import brewy from "@/assets/brewy-readyfight.webp";
+import brewy from "@/assets/brewy-combat.webp";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { DeckSelectionCard } from "@/components/lobby/DeckSelectionCard";
 import { useDeckBrackets } from "@/components/lobby/useDeckBrackets";

@@ -1,6 +1,6 @@
 import { Bot, Check, Loader2 } from "lucide-react";
 import { useState } from "react";
-import brewy from "@/assets/brewy-readyfight.webp";
+import brewy from "@/assets/brewy-combat.webp";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { DeckSelectionCard } from "@/components/lobby/DeckSelectionCard";
 import { Button } from "@/components/ui/button";

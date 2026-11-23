@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.91.0](https://github.com/witchesofthehill/manabrew/compare/v3.90.0...v3.91.0) (2026-11-23)
+
+### Features
+
+* **lobby:** add live tables and public spectator mode ([#1233](https://github.com/witchesofthehill/manabrew/issues/1233)) ([5f49695](https://github.com/witchesofthehill/manabrew/commit/5f4969526581177fd3bbbc306f84ceeb167e1731))
+
 ## [3.90.0](https://github.com/witchesofthehill/manabrew/compare/v3.89.0...v3.90.0) (2026-11-23)
 
 ### Features

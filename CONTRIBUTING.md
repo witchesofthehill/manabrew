@@ -21,8 +21,9 @@ Use this path for most contributions:
    for changes before merging.
 
 GitHub adds `UI`, `manabrew-engine`, `forge-engine`, and `forge-harness` based on
-the changed paths when a PR opens. It does not remove labels. In particular,
-changing the Forge harness does not imply a change to Forge itself.
+the changed paths when a PR opens. `UI` covers React components, views, and the
+Pixi board. The workflow does not remove labels. Changing the Forge harness
+does not imply a change to Forge itself.
 
 ## Start with an issue
 

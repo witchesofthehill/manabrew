@@ -22,7 +22,7 @@ jobs:
             });
             const labels = new Set();
             for (const { filename } of files) {
-              if (/^src\/(?:components|views)\//.test(filename)) labels.add('UI');
+              if (/^src\/(?:components|views|pixi)\//.test(filename)) labels.add('UI');
               if (filename.startsWith('manabrew-rs/crates/manabrew-engine/')) labels.add('manabrew-engine');
               if (filename === 'forge') labels.add('forge-engine');
               if (filename.startsWith('forge-harness/')) labels.add('forge-harness');

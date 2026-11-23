@@ -47,6 +47,22 @@ export const ANALYTICS_UI_ACTIONS = [
   "setup_table_background",
   "setup_table_cancel",
   "setup_table_start",
+  "lobby_new_table",
+  "lobby_create_table",
+  "lobby_refresh",
+  "lobby_join",
+  "lobby_leave",
+  "lobby_ready",
+  "lobby_format",
+  "lobby_max_players",
+  "lobby_seat",
+  "lobby_deck",
+  "lobby_bot_deck",
+  "lobby_add_bot",
+  "lobby_remove_bot",
+  "lobby_invite",
+  "lobby_start",
+  "lobby_start_limited",
 ] as const;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export const CLIENT_ANALYTICS_SCHEMA = {

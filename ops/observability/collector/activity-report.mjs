@@ -284,7 +284,7 @@ export function formatReport(report) {
       ...GROUPS,
     ]),
     table(
-      "Setup steps before first match (% of group reaching it, median clicks when first reached)",
+      "Steps before first match (% of group reaching it, median clicks when first reached)",
       report.setupSteps,
       ["value", "ids", ...GROUPS, "medianClicksAtFirst"],
     ),

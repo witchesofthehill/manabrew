@@ -28,6 +28,7 @@ import { useForgeRoomAvailabilityStore } from "@/stores/useForgeRoomAvailability
 import { getPlatformType } from "@/platform";
 import { claimHostedTable } from "@/game/hostedAiPlay";
 import { isFeatureEnabled } from "@/featureFlags";
+import { trackClientUiAction } from "@/lib/clientAnalyticsFunnel";
 import { forgeWasmNeedsValidation, useForgeWasmHostingEnabled } from "@/lib/forgeWasm";
 import { validateForgeWasm } from "@/game/forgeWasmValidation";
 import { cn } from "@/lib/utils";
@@ -184,6 +185,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
   const hostPlayer: RoomPlayerInfo = { username: hostUsername, ready: true, connected: true };
   async function handleCreate() {
     if (!canSubmit) return;
+    trackClientUiAction("lobby_create_table");
     setCreating(true);
     const checking = submittedEngine === "Forge" && forgeWasm && forgeWasmNeedsValidation();
     showSplash(checking ? "Checking browser engine support\u2026" : splashLabel);

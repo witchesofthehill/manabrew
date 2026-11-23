@@ -33,6 +33,37 @@ export const ANALYTICS_ACQUISITIONS = [
   "newsletter",
   "other",
 ] as const;
+export const ANALYTICS_UI_ACTIONS = [
+  "setup_format",
+  "setup_seat",
+  "setup_seat_add",
+  "setup_seat_clear",
+  "setup_seat_remove",
+  "setup_random_opponent",
+  "setup_deck_owned",
+  "setup_deck_preset",
+  "setup_deck_community",
+  "setup_fight",
+  "setup_table_background",
+  "setup_table_cancel",
+  "setup_table_start",
+  "lobby_new_table",
+  "lobby_create_table",
+  "lobby_refresh",
+  "lobby_join",
+  "lobby_leave",
+  "lobby_ready",
+  "lobby_format",
+  "lobby_max_players",
+  "lobby_seat",
+  "lobby_deck",
+  "lobby_bot_deck",
+  "lobby_add_bot",
+  "lobby_remove_bot",
+  "lobby_invite",
+  "lobby_start",
+  "lobby_start_limited",
+] as const;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export const CLIENT_ANALYTICS_SCHEMA = {
   screen_view: {
@@ -69,6 +100,10 @@ export const CLIENT_ANALYTICS_SCHEMA = {
   },
   feature_used: {
     feature: ["deck_export", "deck_playtest"],
+  },
+  ui_action: {
+    action: ANALYTICS_UI_ACTIONS,
+    clicks: "count",
   },
   first_game_funnel: {
     stage: ["observed", "match_requested", "game_started"],
@@ -234,7 +269,14 @@ export function analyticsAcquisition(
   }
 }
 
-const STATIC_PATH_SEGMENTS = new Set(["multiplayer", "top"]);
+const STATIC_PATH_SEGMENTS = new Set([
+  "multiplayer",
+  "top",
+  "offline",
+  "constructed",
+  "limited",
+  "deck",
+]);
 
 export function analyticsPageUrl(value: unknown, base?: string): string | undefined {
   if (

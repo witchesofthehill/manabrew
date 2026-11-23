@@ -71,6 +71,17 @@ function countBy(items, key) {
   return [...counts].filter(([, count]) => count >= MIN_GROUP).sort((a, b) => b[1] - a[1]);
 }
 
+function screenOf(event) {
+  try {
+    const path = new URL(event.event_url).pathname.slice(1);
+    return path.startsWith(`${event.event_screen}/`) && !path.includes(":id")
+      ? path
+      : event.event_screen;
+  } catch {
+    return event.event_screen;
+  }
+}
+
 function profile(player, events) {
   const cutoff = player.game_started_at ?? Infinity;
   const before = events.filter((event) => event.at < cutoff);
@@ -79,20 +90,24 @@ function profile(player, events) {
   const opening = [];
   for (const event of screens) {
     if (firstVisit && event.event_visit_id !== firstVisit) continue;
-    if (opening.at(-1) !== event.event_screen) opening.push(event.event_screen);
+    if (opening.at(-1) !== screenOf(event)) opening.push(screenOf(event));
     if (opening.length === 3) break;
   }
   const actions = new Set();
+  const stepClicks = new Map();
   for (const event of before) {
+    if (event.event_name === "ui_action" && !stepClicks.has(event.event_action))
+      stepClicks.set(event.event_action, Number(event.event_clicks));
     if (event.event_name === "feature_used") actions.add(event.event_feature);
     if (event.event_name === "deck_import") actions.add(`import_${event.event_outcome}`);
     if (event.event_name === "lobby_wait") actions.add(`lobby_${event.event_outcome}`);
   }
   return {
-    screens: new Set(screens.map((event) => event.event_screen)),
+    screens: new Set(screens.map(screenOf)),
     opening: opening.join(" > "),
-    lastScreen: screens.at(-1)?.event_screen,
+    lastScreen: screens.at(-1) && screenOf(screens.at(-1)),
     actions,
+    stepClicks,
     visits: new Set(before.map((event) => event.event_visit_id).filter(Boolean)).size,
   };
 }
@@ -160,6 +175,26 @@ export function analyticsReport({ environment, days, players, events, relay }) {
     })),
     screensBeforeFirstMatch: reach((row) => row.profile.screens),
     actionsBeforeFirstMatch: reach((row) => row.profile.actions),
+    setupSteps: [...new Set(rows.flatMap((row) => [...row.profile.stepClicks.keys()]))]
+      .map((value) => {
+        const reached = rows.filter((row) => row.profile.stepClicks.has(value));
+        return {
+          value,
+          ids: reached.length,
+          ...Object.fromEntries(
+            GROUPS.map((group) => [
+              group,
+              share(
+                grouped[group].filter((row) => row.profile.stepClicks.has(value)).length,
+                grouped[group].length,
+              ),
+            ]),
+          ),
+          medianClicksAtFirst: median(reached.map((row) => row.profile.stepClicks.get(value))),
+        };
+      })
+      .filter((row) => row.ids >= MIN_GROUP)
+      .sort((a, b) => (a.medianClicksAtFirst ?? Infinity) - (b.medianClicksAtFirst ?? Infinity)),
     lastScreenOfNonPlayers: countBy(
       grouped.browsed.filter((row) => row.profile.lastScreen),
       (row) => row.profile.lastScreen,
@@ -248,6 +283,11 @@ export function formatReport(report) {
       "value",
       ...GROUPS,
     ]),
+    table(
+      "Steps before first match (% of group reaching it, median clicks when first reached)",
+      report.setupSteps,
+      ["value", "ids", ...GROUPS, "medianClicksAtFirst"],
+    ),
     table("Last screen of IDs that never requested a match", report.lastScreenOfNonPlayers, [
       "value",
       "ids",

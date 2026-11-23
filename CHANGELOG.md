@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.89.0](https://github.com/witchesofthehill/manabrew/compare/v3.88.0...v3.89.0) (2026-11-23)
+
+### Features
+
+* **analytics:** name setup and lobby steps before the first match ([#1273](https://github.com/witchesofthehill/manabrew/issues/1273)) ([e47650a](https://github.com/witchesofthehill/manabrew/commit/e47650a7e225ad24a428bb3fe887e469e95e1c65))
+
 ## [3.88.0](https://github.com/witchesofthehill/manabrew/compare/v3.87.7...v3.88.0) (2026-11-22)
 
 ### Features

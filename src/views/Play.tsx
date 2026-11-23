@@ -227,8 +227,8 @@ export default function Play() {
         replace: true,
       });
     };
-    const engineIndex = parseInt(myPlayerSlot.replace("player-", ""), 10);
-    if (Number.isNaN(engineIndex) || engineIndex < 0) {
+    const engineIndex = mpState.spectator ? -1 : parseInt(myPlayerSlot.replace("player-", ""), 10);
+    if (!mpState.spectator && (Number.isNaN(engineIndex) || engineIndex < 0)) {
       void recoverFromFailedStart();
       return;
     }

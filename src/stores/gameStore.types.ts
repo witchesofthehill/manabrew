@@ -103,6 +103,7 @@ export interface GameState {
   /** Set at concede click, before the engine confirms via `status: "conceded"`. */
   selfConceded: boolean;
   isMultiplayer: boolean;
+  isSpectator: boolean;
   isHost: boolean;
   myPlayerSlot: string | null;
   /** Active game's decks keyed by player slot id ("player-0", "player-1", ...).

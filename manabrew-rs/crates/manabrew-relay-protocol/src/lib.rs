@@ -309,6 +309,10 @@ pub enum ClientMessage {
         format: GameFormat,
     },
 
+    SetAllowSpectators {
+        allow: bool,
+    },
+
     SetMaxPlayers {
         max_players: u8,
     },
@@ -568,6 +572,9 @@ pub struct ResumeRoomRequest {
     pub format: GameFormat,
     #[serde(default)]
     pub hosted: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub allow_spectators: Option<bool>,
     #[serde(default)]
     pub engine: EngineKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -612,6 +619,12 @@ pub struct RoomInfo {
     pub official: bool,
     #[serde(default)]
     pub password_protected: bool,
+    #[serde(default)]
+    pub allow_spectators: bool,
+    #[serde(default)]
+    pub can_spectate: bool,
+    #[serde(default)]
+    pub spectator_count: usize,
     pub players: Vec<RoomPlayerInfo>,
     pub max_players: u8,
     pub format: GameFormat,
@@ -742,7 +755,10 @@ pub const FEATURE_CARD_COSMETICS: &str = "card_cosmetics";
 pub const FEATURE_CARD_COSMETICS_V2: &str = "card_cosmetics_v2";
 pub const FEATURE_CARD_COSMETICS_V3: &str = "card_cosmetics_v3";
 
+pub const FEATURE_SPECTATORS: &str = "spectators";
+
 pub const FEATURES: &[&str] = &[
+    FEATURE_SPECTATORS,
     FEATURE_LOCAL_GAME,
     FEATURE_ROOM_TRANSPORT,
     FEATURE_PEER_SIGNAL,

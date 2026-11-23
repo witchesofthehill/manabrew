@@ -134,6 +134,7 @@ public final class SabTransport implements InteractiveBridge {
     private static final int LIBRARY_TOP_CARDS = 7;
 
     private final java.util.function.IntFunction<String> snapshots;
+    private final boolean publicSnapshots;
     private final java.util.function.BiFunction<Integer, Integer, String> libraryTop;
     private String publishedLibraryTop;
     /**
@@ -176,14 +177,16 @@ public final class SabTransport implements InteractiveBridge {
     }
 
     public SabTransport(final java.util.function.IntFunction<String> snapshots) {
-        this(snapshots, java.util.Collections.emptySet(), () -> "[]", () -> "", (seat, count) -> "[]");
+        this(snapshots, java.util.Collections.emptySet(), () -> "[]", () -> "", (seat, count) -> "[]", false);
     }
 
     public SabTransport(final java.util.function.IntFunction<String> snapshots,
             final java.util.Set<Integer> botSeats,
             final java.util.function.Supplier<String> checkpointMetrics,
             final java.util.function.Supplier<String> decisionJournal,
-            final java.util.function.BiFunction<Integer, Integer, String> libraryTop) {
+            final java.util.function.BiFunction<Integer, Integer, String> libraryTop,
+            final boolean publicSnapshots) {
+        this.publicSnapshots = publicSnapshots;
         this.snapshots = snapshots;
         this.libraryTop = libraryTop;
         this.botSeats = botSeats;
@@ -246,6 +249,7 @@ public final class SabTransport implements InteractiveBridge {
         // when Forge's AI held these seats.
         if (bot) {
             sendState(seat);
+            publishPublicState();
         } else {
             broadcastState(dice);
         }
@@ -371,11 +375,20 @@ public final class SabTransport implements InteractiveBridge {
 
     /** Every person's seat; `bots` too, which only the dice roll needs. */
     private void broadcastState(final boolean bots) {
+        publishPublicState();
         final int seats = Math.max(1, seatCount());
         for (int viewer = 0; viewer < seats; viewer++) {
             if (bots || !botSeats.contains(viewer)) {
                 sendState(viewer);
             }
+        }
+    }
+
+    private void publishPublicState() {
+        if (!publicSnapshots) return;
+        final String view = snapshots == null ? null : snapshots.apply(-1);
+        if (view != null && !view.isEmpty()) {
+            post("game:public_state", stateFrame(view));
         }
     }
 
@@ -393,6 +406,7 @@ public final class SabTransport implements InteractiveBridge {
 
     @Override
     public void publishState() {
+        publishPublicState();
         final int seats = Math.max(1, seatCount());
         for (int viewer = 0; viewer < seats; viewer++) {
             if (!botSeats.contains(viewer)) {
@@ -455,6 +469,7 @@ public final class SabTransport implements InteractiveBridge {
     }
 
     public void publishGameOver(final String engineError) {
+        publishPublicState();
         publishDecisionJournal();
         publishCheckpointMetrics();
         final int seats = Math.max(1, seatCount());

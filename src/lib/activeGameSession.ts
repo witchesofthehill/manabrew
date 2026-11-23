@@ -5,6 +5,7 @@ export interface ActiveGameSession {
   gameId: string;
   gauntletId?: string;
   isHost: boolean;
+  spectator?: boolean;
   username: string;
   ownsForgeHost?: boolean;
   relayHost?: string;

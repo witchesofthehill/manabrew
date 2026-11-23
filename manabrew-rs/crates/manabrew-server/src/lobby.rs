@@ -300,6 +300,7 @@ pub fn resume_room_sync(
             .clamp(MIN_RECONNECT_TIMEOUT_S, MAX_RECONNECT_TIMEOUT_S),
         spec.table_style,
     );
+    room.allow_spectators = spec.allow_spectators.unwrap_or(false);
     room.resume_token = spec.resume_token;
     room.status = RoomStatus::InGame;
     room.players = restored_players;
@@ -453,7 +454,14 @@ pub fn join_room_sync(
             }
         }
 
-        if let Some(slot) = room.players.iter_mut().find(|slot| {
+        if observe && room.status != RoomStatus::Lobby {
+            if !room.can_spectate() {
+                return Err(ServerError::GameNotInProgress);
+            }
+            room.add_observer(player_id.to_string(), username)
+                .map_err(|_| ServerError::AlreadyInRoom(room_id.to_string()))?;
+            (room.to_room_info(), false)
+        } else if let Some(slot) = room.players.iter_mut().find(|slot| {
             !observe && slot.username == username && slot.is_bot == as_bot && !slot.connected
         }) {
             slot.player_id = player_id.to_string();
@@ -1071,7 +1079,15 @@ pub fn reset_room_to_lobby(
                 analytics::emit_game_ended(&state.analytics, &room, &replay, reason);
             }
         }
-        let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
+        let mut cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
+        let host_id = room.host_player_id.clone();
+        room.observers.retain(|observer| {
+            if observer.player_id == host_id {
+                return true;
+            }
+            cleared.push(observer.player_id.clone());
+            false
+        });
         room.status = RoomStatus::Lobby;
         room.rematch = None;
         let paired_limited = room.parent_limited_room.is_some();

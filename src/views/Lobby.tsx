@@ -514,6 +514,9 @@ export default function Lobby() {
             <TableCreatingSplash label={creatingLabel} />
           ) : (
             <TablesList
+              onWatchRoom={(roomId, password) =>
+                useServerStore.getState().joinRoom(roomId, password, true)
+              }
               rooms={rooms}
               currentRoom={currentRoom}
               roomPassword={roomPassword}

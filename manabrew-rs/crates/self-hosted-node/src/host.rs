@@ -942,6 +942,7 @@ fn resume_room_request(
         max_players: room_info.max_players,
         format: room_info.format.clone(),
         hosted: !config.host_plays,
+        allow_spectators: Some(room_info.allow_spectators),
         engine: engine_kind(config),
         official_key: config.official_key.clone(),
         password: config.room_password.clone(),

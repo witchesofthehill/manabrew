@@ -9,6 +9,7 @@ export const PAGE_LOAD_ID = crypto.randomUUID();
 
 export interface EngineGameRouteState {
   multiplayer: true;
+  spectator?: boolean;
   bootId: string;
   playerOrder: string[];
   playerDecks: PlayerDeckInfo[];
@@ -47,7 +48,9 @@ export function buildEngineGameRouteState(
   if (room.engine === "Manabrew") {
     return { error: MANABREW_ENGINE_UNAVAILABLE };
   }
+  const isSeated = room.players.some((player) => player.username === username);
   if (
+    isSeated &&
     !samePlayers(
       playerOrder,
       room.players.map((player) => player.username),
@@ -56,7 +59,8 @@ export function buildEngineGameRouteState(
     return { error: "Server player order does not match the current room." };
   }
   const myIndex = playerOrder.indexOf(username ?? "");
-  if (myIndex < 0) {
+  const spectator = room.host !== username && !isSeated;
+  if (!spectator && (myIndex < 0 || !isSeated)) {
     return { error: "Could not determine your player slot for this game." };
   }
   const hostIndex = playerOrder.indexOf(room.host);
@@ -67,12 +71,13 @@ export function buildEngineGameRouteState(
   return {
     state: {
       multiplayer: true,
+      spectator,
       bootId: PAGE_LOAD_ID,
       playerOrder,
       playerDecks,
       isHost: room.host === username,
       startingLife,
-      myPlayerSlot: `player-${myIndex}`,
+      myPlayerSlot: spectator ? "spectator" : `player-${myIndex}`,
       engine: room.engine,
       format: room.format,
       hostPlayerSlot: hostIndex >= 0 ? `player-${hostIndex}` : null,

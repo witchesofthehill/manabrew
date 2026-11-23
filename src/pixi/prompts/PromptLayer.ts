@@ -556,9 +556,70 @@ export class PromptLayer extends PromptModalLayer {
     );
   }
 
+  private renderSpectatorPhaseStrip(): void {
+    const spec = this.spec!;
+    const margin = this.viewportHeight <= 520 ? 6 : 12;
+    const width = Math.min(this.viewportWidth - margin * 2, getUiControlHeight() >= 44 ? 320 : 300);
+    const { columns, phaseWidth, columnX } = phaseTileLayout(width);
+    const cellHeight = getUiControlHeight();
+    const rows = Math.ceil(PHASE_BAR_ENTRIES.length / columns);
+    const height = PANEL_PAD_X * 2 + rows * cellHeight + (rows - 1) * 4;
+    const x = this.viewportWidth - width - margin;
+    const y = this.viewportHeight - height - margin;
+    const surface = this.theme.gameTheme.phaseStrip.background;
+    const ink = readableTextColor(
+      surface,
+      this.theme.gameTheme.canvas.shadow,
+      this.theme.gameTheme.textOnTinted,
+    );
+    const turnInk = readableTextColor(
+      spec.turnColor,
+      this.theme.gameTheme.canvas.shadow,
+      this.theme.gameTheme.textOnTinted,
+    );
+    const step = spec.gameView.step;
+    const panel = new Container();
+    panel.position.set(x, y);
+    panel.eventMode = "static";
+    panel.hitArea = new Rectangle(0, 0, width, height);
+    panel.accessible = true;
+    panel.accessibleTitle = PHASES.find((phase) => phase.id === step)?.label ?? "Phase";
+    const background = this.makeActionPanelSurface(width, height, 8, false, false);
+    const border = new Graphics()
+      .roundRect(0, 0, width, height, 8)
+      .stroke({ color: hexToNum(spec.turnColor), width: TURN_BORDER_WIDTH });
+    border.eventMode = "none";
+    panel.addChild(background, border);
+    PHASE_BAR_ENTRIES.forEach((entry, index) => {
+      const current = entry.steps.includes(step);
+      const tileX = columnX(index);
+      const tileY = PANEL_PAD_X + Math.floor(index / columns) * (cellHeight + 4);
+      const tile = new Graphics()
+        .roundRect(tileX, tileY, phaseWidth, cellHeight, 4)
+        .fill({ color: hexToNum(current ? spec.turnColor : surface) });
+      tile.eventMode = "none";
+      const label = promptText(
+        (current && PHASES.find((phase) => phase.id === step)?.short) || entry.short,
+        getUiFontSize("meta"),
+        current ? turnInk : ink,
+        { weight: "700" },
+      );
+      label.anchor.set(0.5);
+      label.position.set(tileX + phaseWidth / 2, tileY + cellHeight / 2);
+      panel.addChild(tile, label);
+    });
+    this.container.addChild(panel);
+    this.actionPanelBounds = { x, y, width, height };
+    this.actionBounds = new Rectangle(x, y, width, height);
+  }
+
   private renderActionPanel(): void {
     const spec = this.spec!;
     const action = spec.action;
+    if (action.spectator && action.promptType !== "gameOver") {
+      this.renderSpectatorPhaseStrip();
+      return;
+    }
     const shortScreen = this.viewportHeight <= 520;
     const minimal = this.layerPresentation.actionStyle === "minimal";
     const touch = getUiControlHeight() >= 44;
@@ -605,10 +666,8 @@ export class PromptLayer extends PromptModalLayer {
       : view.width;
     const contentWidth = fixedWidth == null ? rowWidth : fixedContentWidth;
     const width = fixedWidth ?? Math.min(this.viewportWidth - 12, Math.max(40, contentWidth + 12));
-    const spectator = !!action.spectator;
-    const modeButton =
-      !minimal && !spectator && showPriorityMode ? this.makePriorityModePill(preview) : null;
-    const menuButton = !minimal && !spectator ? this.makeActionMenuButton(false) : null;
+    const modeButton = !minimal && showPriorityMode ? this.makePriorityModePill(preview) : null;
+    const menuButton = !minimal ? this.makeActionMenuButton(false) : null;
     const contextButton = !minimal && showActionContext ? this.makeActionContextButton() : null;
     const held = this.heldTurn;
     const phaseSpec = held
@@ -643,9 +702,7 @@ export class PromptLayer extends PromptModalLayer {
           effectivePromptType,
           input && "presentation" in input ? input.presentation.title : undefined,
         )
-      : spectator
-        ? "Watching"
-        : "Waiting";
+      : "Waiting";
     const sectionPaddingX = minimal ? 6 : PANEL_PAD_X;
     const sectionPaddingTop = minimal ? 4 : 0;
     const sectionPaddingBottom = minimal ? 4 : PANEL_PAD_X;
@@ -735,9 +792,7 @@ export class PromptLayer extends PromptModalLayer {
           backgroundColor: turnColor,
           foreground: tabInk,
           pressOffsetY: 0,
-          onPress: () => {
-            if (!spectator) this.togglePhaseControls();
-          },
+          onPress: () => this.togglePhaseControls(),
         });
     if (phaseTab) phaseTab.position.set(phaseTabX, -phaseTabRise);
     const panelShape = {
@@ -870,18 +925,15 @@ export class PromptLayer extends PromptModalLayer {
 
     if (!minimal) {
       const rowCenter = phaseHeight + titleRowHeight / 2;
-      let right = width - PANEL_PAD_X;
-      if (menuButton) {
-        right += (menuButton.width - ACTION_MENU_ICON_SIZE) / 2;
-        menuButton.container.position.set(
-          right - menuButton.width,
-          rowCenter - menuButton.height / 2,
-        );
-        panel.addChild(menuButton.container);
-        right -= menuButton.width + 5;
-      }
-      if (modeButton) {
-        const mode = modeButton;
+      let right = width - PANEL_PAD_X + (menuButton!.width - ACTION_MENU_ICON_SIZE) / 2;
+      menuButton!.container.position.set(
+        right - menuButton!.width,
+        rowCenter - menuButton!.height / 2,
+      );
+      panel.addChild(menuButton!.container);
+      right -= menuButton!.width + 5;
+      if (showPriorityMode) {
+        const mode = modeButton!;
         mode.position.set(right - mode.buttonWidth, rowCenter - mode.buttonHeight / 2);
         panel.addChild(mode);
         right -= mode.buttonWidth + 6;
@@ -1664,15 +1716,7 @@ export class PromptLayer extends PromptModalLayer {
       const waitingFor = this.spec?.action.waitingFor;
       const avatar = waitingFor ? this.makeWaitingAvatar(waitingFor) : null;
       const avatarWidth = avatar ? WAITING_AVATAR_DIAMETER + labelGap : 0;
-      const spectator = !!this.spec?.action.spectator;
-      const text = spectator
-        ? waitingFor
-          ? "NOW DECIDING"
-          : "WATCHING"
-        : waitingFor
-          ? "WAITING FOR"
-          : "WAITING FOR OTHERS";
-      const label = promptText(text, 11, color, {
+      const label = promptText(waitingFor ? "WAITING FOR" : "WAITING FOR OTHERS", 11, color, {
         weight: "600",
         letterSpacing: 1.54,
         width: Math.max(1, width - hourglassWidth - labelGap - avatarWidth),
@@ -2186,29 +2230,24 @@ export class PromptLayer extends PromptModalLayer {
     disabled: boolean,
   ): ActionViewLayout {
     const phase = includePhase ? this.makeCompactPhaseButton() : null;
-    const spectator = !!this.spec?.action.spectator;
-    const menu = spectator ? null : this.makeActionMenuButton(true);
-    const priorityMode =
-      showPriorityMode && !spectator ? this.makePriorityModePill(disabled, true) : null;
+    const menu = this.makeActionMenuButton(true);
+    const priorityMode = showPriorityMode ? this.makePriorityModePill(disabled, true) : null;
     const utility = new Container();
-    if (priorityMode) utility.addChild(priorityMode);
-    if (menu) {
-      menu.container.position.set(priorityMode?.buttonWidth ?? 0, 0);
-      utility.addChild(menu.container);
+    if (priorityMode) {
+      utility.addChild(priorityMode);
+      menu.container.position.set(priorityMode.buttonWidth, 0);
     }
-    const utilities: ActionViewLayout | null =
-      menu || priorityMode
-        ? {
-            container: utility,
-            width: (menu?.width ?? 0) + (priorityMode?.buttonWidth ?? 0),
-            height: Math.max(menu?.height ?? 0, priorityMode?.buttonHeight ?? 0),
-          }
-        : null;
-    const controlViews = [
-      ...(phase && this.leftHanded ? [phase] : []),
-      ...(utilities ? [utilities] : []),
-      ...(phase && !this.leftHanded ? [phase] : []),
-    ];
+    utility.addChild(menu.container);
+    const utilities: ActionViewLayout = {
+      container: utility,
+      width: menu.width + (priorityMode?.buttonWidth ?? 0),
+      height: Math.max(menu.height, priorityMode?.buttonHeight ?? 0),
+    };
+    const controlViews = phase
+      ? this.leftHanded
+        ? [phase, utilities]
+        : [utilities, phase]
+      : [utilities];
     const height = controlViews.reduce(
       (controlHeight, control) => Math.max(controlHeight, control.height),
       0,

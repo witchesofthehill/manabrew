@@ -2451,7 +2451,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           useServerStore.getState().playerDecks,
         ));
   const decidingPlayer =
-    isSpectator || gameView.decidingPlayerId !== me.id
+    gameView.decidingPlayerId !== me.id
       ? gameView.players.find((player) => player.id === gameView.decidingPlayerId)
       : undefined;
   const promptOverlaySpec: PromptOverlaySpec = {

@@ -64,6 +64,7 @@ export const ANALYTICS_UI_ACTIONS = [
   "lobby_start",
   "lobby_start_limited",
 ] as const;
+const VISIT_DURATIONS = ["under-10s", "10-60s", "1-10m", "10-60m", "1h-plus"] as const;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export const CLIENT_ANALYTICS_SCHEMA = {
   screen_view: {
@@ -110,6 +111,13 @@ export const CLIENT_ANALYTICS_SCHEMA = {
     clicks: "count",
     source: ANALYTICS_MATCH_SOURCES,
     acquisition: ANALYTICS_ACQUISITIONS,
+  },
+  visit_signal: {
+    trigger: ["hidden", "age"],
+    age: VISIT_DURATIONS,
+    visible: VISIT_DURATIONS,
+    input: ["none", "passive", "active"],
+    automation: ["none", "webdriver", "headless"],
   },
 } as const;
 const OPTIONAL_ATTRIBUTES: Partial<Record<string, readonly string[]>> = {
@@ -196,6 +204,16 @@ export function analyticsDuration(
   if (milliseconds < 60_000) return "10-60s";
   if (milliseconds < 300_000) return "1-5m";
   return "5m-plus";
+}
+
+export function analyticsVisitDuration(
+  milliseconds: number,
+): ClientAnalyticsAttributes<"visit_signal">["age"] {
+  if (milliseconds < 10_000) return "under-10s";
+  if (milliseconds < 60_000) return "10-60s";
+  if (milliseconds < 600_000) return "1-10m";
+  if (milliseconds < 3_600_000) return "10-60m";
+  return "1h-plus";
 }
 
 export function analyticsScreen(

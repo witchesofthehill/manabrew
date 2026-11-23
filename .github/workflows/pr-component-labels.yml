@@ -1,0 +1,42 @@
+name: PR component labels
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
+        with:
+          script: |
+            const pull_number = context.payload.pull_request.number;
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              ...context.repo,
+              pull_number,
+              per_page: 100,
+            });
+            const labels = new Set();
+            for (const { filename } of files) {
+              if (/^src\/(?:components|views|pixi)\//.test(filename)) labels.add('UI');
+              if (filename.startsWith('manabrew-rs/crates/manabrew-engine/')) labels.add('manabrew-engine');
+              if (filename === 'forge') labels.add('forge-engine');
+              if (filename.startsWith('forge-harness/')) labels.add('forge-harness');
+              if (/^manabrew-rs\/crates\/manabrew-(?:relay-)?protocol\//.test(filename) ||
+                  filename.startsWith('packages/protocol/') ||
+                  filename.startsWith('bindings/')) labels.add('manabrew-protocol');
+              if (filename.startsWith('manabrew-rs/crates/manabot/') ||
+                  filename === 'manabrew-rs/crates/wasm/src/bot_api.rs' ||
+                  filename === 'src/workers/manabot.worker.ts') labels.add('manabot');
+            }
+            if (labels.size) {
+              await github.rest.issues.addLabels({
+                ...context.repo,
+                issue_number: pull_number,
+                labels: [...labels],
+              });
+            }

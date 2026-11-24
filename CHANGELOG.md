@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.93.0](https://github.com/witchesofthehill/manabrew/compare/v3.92.1...v3.93.0) (2026-11-24)
+
+### Features
+
+* **ironsmith:** carry private traffic over the peer-to-peer plane ([#1283](https://github.com/witchesofthehill/manabrew/issues/1283)) ([9cc86a5](https://github.com/witchesofthehill/manabrew/commit/9cc86a5a3730750f97aeedbaa2db9eb17a9ae936))
+
 ## [3.92.1](https://github.com/witchesofthehill/manabrew/compare/v3.92.0...v3.92.1) (2026-11-24)
 
 ### Fixes

@@ -346,6 +346,7 @@ async function initializeGame({
     if (!isLaunchCurrent() && !(error instanceof GameLaunchCancelledError)) {
       throw new GameLaunchCancelledError();
     }
+    if (firstPrompt && !(error instanceof GameLaunchCancelledError)) await runtime.api.endGame();
     // A launch that never became a game must not be reported as the next one.
     abandonOfflineGame();
     clearLocalGame();

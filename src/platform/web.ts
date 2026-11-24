@@ -274,6 +274,8 @@ class WorkerBridge {
   >();
   private eventBus: WebEventBus;
   private initPromise: Promise<void> | null = null;
+  private cancelInit: ((error: Error) => void) | null = null;
+  private forgeListenersInstalled = false;
 
   workerIsForgeWasm = false;
   private fallbackWorker: Worker | null = null;
@@ -617,13 +619,7 @@ class WorkerBridge {
    * Initialize the worker lazily.
    */
   async init(forgeWasm = isForgeWasmHostingEnabled()): Promise<void> {
-    if (this.worker) return;
-
-    if (this.initPromise) {
-      return this.initPromise;
-    }
-
-    this.initPromise = this.doInit(forgeWasm);
+    this.initPromise ??= this.doInit(forgeWasm);
     return this.initPromise;
   }
 
@@ -643,7 +639,8 @@ class WorkerBridge {
               type: "module",
             });
 
-        if (forgeWasm) {
+        if (forgeWasm && !this.forgeListenersInstalled) {
+          this.forgeListenersInstalled = true;
           const w = window as unknown as { __forgeLog?: string[] };
           w.__forgeLog = w.__forgeLog ?? [];
           type Decision = {
@@ -692,7 +689,7 @@ class WorkerBridge {
           console.error("[WorkerBridge] Worker error:", e);
           const error = workerError(e);
           reportClientError(error, "engine-worker");
-          reject(error);
+          this.cancelInit?.(error);
           for (const pending of this.pendingRequests.values()) pending.reject(error);
           this.pendingRequests.clear();
         };
@@ -702,6 +699,10 @@ class WorkerBridge {
             "engine-worker",
           );
 
+        const clearInit = () => {
+          unsubscribe();
+          this.cancelInit = null;
+        };
         const unsubscribe = this.eventBus.on<{
           stage?: string;
           message?: string;
@@ -709,18 +710,21 @@ class WorkerBridge {
           stack?: string;
         }>("worker:init", (payload) => {
           if (payload?.stage === "ready") {
-            unsubscribe();
+            clearInit();
             if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Worker reported ready");
             resolve();
           } else if (payload?.stage === "error") {
-            unsubscribe();
             const error = new Error(payload.message ?? "Worker init failed");
             error.name = payload.name ?? "Error";
             error.stack = payload.stack ?? "";
             reportClientError(error, "engine-worker", { operation: "initialize" });
-            reject(error);
+            this.cancelInit?.(error);
           }
         });
+        this.cancelInit = (error) => {
+          clearInit();
+          reject(error);
+        };
       } catch (error) {
         reportClientError(error, "engine-worker", { operation: "initialize" });
         reject(error);
@@ -860,6 +864,7 @@ class WorkerBridge {
       setTimeout(() => {
         if (this.pendingRequests.has(requestId)) {
           this.pendingRequests.delete(requestId);
+          if (startsGame && this.workerIsForgeWasm && target === this.worker) this.terminate();
           reject(new Error(`Command timed out: ${command}`));
         }
       }, timeout);
@@ -883,9 +888,11 @@ class WorkerBridge {
     this.stopLocalBots();
     // Response listener stays installed — terminate() is per-game, and a
     // second game on this (singleton) bridge still needs it.
+    const error = new Error("Game worker terminated.");
+    this.cancelInit?.(error);
     for (const [requestId, pending] of this.pendingRequests) {
       if (pending.worker !== this.fallbackWorker) {
-        pending.reject(new Error("Game worker terminated."));
+        pending.reject(error);
         this.pendingRequests.delete(requestId);
       }
     }
@@ -1041,7 +1048,7 @@ class WebGameApi implements IGameApi {
     this.isMultiplayer = false;
     this.isHost = false;
     this.myPlayerSlot = null;
-    if (this.bridge.gameBuffer) {
+    if (this.bridge.workerIsForgeWasm || this.bridge.gameBuffer) {
       this.bridge.terminate();
       return;
     }

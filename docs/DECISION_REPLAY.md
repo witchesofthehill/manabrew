@@ -48,6 +48,9 @@ source. There is no idle spare or shadow engine.
   survive promotion; prompt IDs advance so stale responses cannot be accepted.
   The supervisor cancels owned child-worker error events and forwards the failure,
   preventing a second propagated report at the page's worker boundary.
+  A child failure before startup returns the supervisor to its command handler
+  so the same client can start another game. A client-side startup timeout
+  terminates the hosting worker even if the child has not published its SABs.
 - JVM/native: `journal_engine.rs` owns subprocess reconstruction and promotion.
   Replay has a 120-second total deadline; subprocess RPCs have 60-second deadlines
   and poll cancellation every 20 ms. Failed transports are killed and reaped,

@@ -5,7 +5,6 @@ let wasmUrl = null;
 
 let booting = null;
 let gameRunning = false;
-let supervised = false;
 
 const postEvent = (event, payload) => self.postMessage({ type: "event", event, payload });
 
@@ -30,7 +29,6 @@ const postError = (requestId, error) =>
   });
 
 function supervise(command) {
-  supervised = true;
   let active;
   let candidate;
   let timer;
@@ -74,6 +72,7 @@ function supervise(command) {
       event.preventDefault();
       if (instance === candidate) fail(event.message);
       else if (instance === active) {
+        if (!started) self.onmessage = handleCommand;
         stop();
         postEvent("game:forced_end", {
           reason: "worker_error",
@@ -135,7 +134,10 @@ function supervise(command) {
       }
       if (data.type === "response" && data.requestId === command.requestId) {
         started = true;
-        if (data.error) stop();
+        if (data.error) {
+          stop();
+          self.onmessage = handleCommand;
+        }
       }
       if (data.event === "game:directive_lanes") directiveLanes = data.payload;
       if (data.event === "game:forced_end" || data.event === "game:over") stop();
@@ -442,11 +444,10 @@ async function startMultiplayerGame(requestId, args) {
   }
 }
 
-self.onmessage = (e) => {
+function handleCommand(e) {
   const msg = e.data;
   if (!msg || msg.type !== "command") return;
   if (
-    !supervised &&
     !msg.args?.forgeLeaf &&
     msg.args?.journalRewind &&
     (msg.command === "start_game" || msg.command === "start_multiplayer_game")
@@ -482,6 +483,8 @@ self.onmessage = (e) => {
     msg.requestId,
     `the Forge engine does not implement "${msg.command}" — it should have gone to the Rust worker`,
   );
-};
+}
+
+self.onmessage = handleCommand;
 
 postEvent("worker:init", { stage: "ready" });

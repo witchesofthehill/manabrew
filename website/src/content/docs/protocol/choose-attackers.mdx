@@ -18,6 +18,12 @@ opponent's face while leaving an untapped blocker back.
 
 <ProtocolType slug="choose-attackers" />
 
+`validTargetIds` lists legal targets for each creature. Individually legal
+assignments can still violate a requirement or restriction on the attack as a
+whole. Forge can send a new prompt with `error` explaining the rejection.
+Each `suggestedTargetId` is part of Forge's proposed declaration and can be
+changed before submitting.
+
 ## Response
 
 ```ts
@@ -38,8 +44,8 @@ simply omitted.
   "input": {
     "type": "chooseAttackers",
     "attackers": [
-      { "attackerId": "bf-3", "validTargetIds": ["player-1", "pw-1"] },
-      { "attackerId": "bf-4", "validTargetIds": ["player-1", "pw-1"] }
+      { "attackerId": "bf-3", "validTargetIds": ["player-1", "pw-1"], "mustAttack": false },
+      { "attackerId": "bf-4", "validTargetIds": ["player-1", "pw-1"], "mustAttack": false }
     ],
     "attackTargets": [
       { "id": "player-1", "label": "Opponent", "kind": "player" },

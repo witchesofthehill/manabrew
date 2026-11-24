@@ -208,6 +208,7 @@ export function TableRoom({
           modeLabel={modeLabel}
           isController={isController}
           isLimitedRoom={isLimitedRoom}
+          startingGame={startingGame}
           onSetFormat={onSetFormat}
           onSetMaxPlayers={onSetMaxPlayers}
         />

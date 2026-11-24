@@ -1109,7 +1109,21 @@ export class PromptLayer extends PromptModalLayer {
         const container = new Container();
         let y = 0;
         let width = 0;
-        if (!minimal && action.mustAttackHint) {
+        if (action.attackError) {
+          const textWidth = minimal ? Math.min(192, availableWidth) : availableWidth;
+          const text = promptText(action.attackError, minimal ? 10 : 12, attackColor, {
+            weight: "600",
+            role: "body",
+            width: textWidth,
+            align: "center",
+          });
+          text.anchor.set(0.5, 0);
+          text.position.set(textWidth / 2, y);
+          container.addChild(text);
+          y += text.height + 6;
+          width = textWidth;
+        }
+        if (!minimal && !action.attackError && action.mustAttackHint) {
           const text = promptText(action.mustAttackHint, 11, muted, {
             weight: "500",
             role: "body",
@@ -2416,6 +2430,7 @@ export class PromptLayer extends PromptModalLayer {
     const promptType = promptTypeForView(action.promptType, action.promptActionOverride);
     const lines = getPromptContextLines(promptType, {
       mulliganCount: action.mulliganCount,
+      attackError: action.attackError,
       mustAttackHint: action.mustAttackHint,
       blockRestrictionHint: action.blockRestrictionHint,
       payManaCostInfo: action.payManaCostInfo,

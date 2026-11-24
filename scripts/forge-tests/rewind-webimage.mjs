@@ -33,6 +33,16 @@ const engine = new ForgeEngine({
     changes.emit("update");
   },
   onEvent(event, payload) {
+    if (
+      event === "forge:log" &&
+      (payload.text ===
+        "[manabrew-engine-reset] Resetting all forge-game ID counters via reflection" ||
+        /^Upcoming set .+ dated in the future\. All `upcoming` cards will be added to this set with unknown rarity\.$/.test(
+          payload.text,
+        ))
+    ) {
+      return;
+    }
     if (event === "game:forced_end" || (event === "forge:log" && payload.level === "error")) {
       failure = new Error(payload.message ?? payload.text);
       changes.emit("update");

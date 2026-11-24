@@ -108,6 +108,7 @@ import {
 } from "@forge-wasm/seat.js";
 
 const DEBUG_TRANSPORT = false;
+const FORGE_AI_REWIND_OPTIONS = { forgeAiPolicy: "deterministic-v1", snapshotRecording: false };
 
 let wasmReady: Promise<typeof import("@/wasm/wasm")> | null = null;
 
@@ -928,7 +929,7 @@ class WebGameApi implements IGameApi {
       forgeAi,
       decisionJournal: journalRewind,
       journalRewind,
-      ...(forgeAiRewind && { forgeAiPolicy: "deterministic-v1", snapshotRecording: false }),
+      ...(forgeAiRewind && FORGE_AI_REWIND_OPTIONS),
     });
   }
 
@@ -942,6 +943,14 @@ class WebGameApi implements IGameApi {
       const forgeAi =
         params.engine === "Forge" && usePreferencesStore.getState().aiController === "forge";
       const botSeats = (params.botPlayerSlots ?? []).map(seatIndexOf);
+      const { currentRoom, forgeAiRewindRoomId } = useServerStore.getState();
+      const hasForgeBots = forgeAi && botSeats.length > 0;
+      const forgeAiRewind =
+        hasForgeBots &&
+        currentRoom != null &&
+        !currentRoom.hosted &&
+        currentRoom.room_id === forgeAiRewindRoomId;
+      const journalRewind = params.engine === "Forge" && (!hasForgeBots || forgeAiRewind);
       const limited = useMultiplayerLimitedStore.getState();
       const virtualBotNames = new Set(
         limited.matchReturn
@@ -960,15 +969,16 @@ class WebGameApi implements IGameApi {
       // Host runs the engine; the worker posts back one SAB per remote
       // seat (see the game:remote_sab handler in WorkerBridge).
       await this.bridge.invoke("start_multiplayer_game", {
-        publicSnapshots: useServerStore.getState().currentRoom?.allow_spectators === true,
+        publicSnapshots: currentRoom?.allow_spectators === true,
         decks: params.decks,
         commanderNames: params.commanderNames,
         playerNames: params.playerNames,
         enginePlayerIndex: params.enginePlayerIndex,
         botSeats,
         forgeAiSeats: forgeAi ? botSeats : [],
-        decisionJournal: params.engine === "Forge" && (!forgeAi || botSeats.length === 0),
-        journalRewind: params.engine === "Forge" && (!forgeAi || botSeats.length === 0),
+        decisionJournal: journalRewind,
+        journalRewind,
+        ...(forgeAiRewind && FORGE_AI_REWIND_OPTIONS),
         startingLife: params.startingLife,
         engine: params.engine,
       });

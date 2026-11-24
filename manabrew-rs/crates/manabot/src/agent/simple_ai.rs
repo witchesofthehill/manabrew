@@ -1329,7 +1329,14 @@ impl BotAgent for SimpleAi {
                     )
                 };
                 let mut assignments = Vec::new();
-                if !reprompted {
+                if reprompted {
+                    assignments.extend(attackers.iter().filter_map(|a| {
+                        a.suggested_target_id.as_ref().map(|target_id| AttackAssignment {
+                            attacker_id: a.attacker_id.clone(),
+                            target_id: target_id.clone(),
+                        })
+                    }));
+                } else {
                     for a in &attackers {
                         if keep.contains(&a.attacker_id) && !a.must_attack {
                             continue;

@@ -2,11 +2,16 @@
 
 PvP and external Manabot games use `decisionJournal` and `journalRewind`.
 The Journal tab shows redacted consumed decisions from `gameView.checkpoints`.
-Built-in Forge AI uses legacy snapshots by default. In browser Play vs AI, open
-**Choose your table** and check **Experimental Forge AI rewind** before starting
-the match. Leave it unchecked to compare against legacy snapshots. The setting
-is per match and carries over to a rematch. It isn't available for hosted or
-native desktop games.
+Built-in Forge AI uses legacy snapshots by default. To opt into journal rewind:
+
+- Browser Play vs AI: check **Experimental Forge AI rewind** in **Choose your table**.
+- Browser-hosted multiplayer: add a built-in Forge bot and check **Experimental
+  Forge AI rewind** in the table header before starting. Only the engine host
+  sees the checkbox.
+
+The choice carries over to rematches. In multiplayer it stays in the host's tab
+for that room and is not sent to the relay. The toggle is unavailable on
+node-hosted tables and in the native desktop app.
 
 Journal mode rejects built-in Forge AI unless the private start request selects
 `forgeAiPolicy: "deterministic-v1"`.

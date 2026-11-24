@@ -3,6 +3,7 @@ export const ATTACK_DRAG_HINT =
 
 export interface PromptContextInfo {
   mulliganCount?: number;
+  attackError?: string;
   mustAttackHint?: string | null;
   blockRestrictionHint?: string | null;
   payManaCostInfo?: {
@@ -34,6 +35,7 @@ export function getPromptContextLines(
     case "chooseAttackers": {
       const lines = [ATTACK_DRAG_HINT];
       if (info.mustAttackHint) lines.unshift(info.mustAttackHint);
+      if (info.attackError) lines.unshift(info.attackError);
       return lines;
     }
     case "chooseBlockers": {

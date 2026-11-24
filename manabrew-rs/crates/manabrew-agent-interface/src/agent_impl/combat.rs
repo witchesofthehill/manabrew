@@ -52,6 +52,7 @@ pub(super) fn choose_attackers<T: Responder>(
             manabrew_protocol::prompts::choose_attackers::ChooseAttackersInput {
                 attackers,
                 attack_targets,
+                error: None,
             },
         ),
         None,

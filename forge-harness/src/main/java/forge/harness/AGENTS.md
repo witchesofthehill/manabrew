@@ -132,6 +132,8 @@ Web Image cannot walk the stack, so tinylog's caller lookup (`RuntimeProvider.ge
 
 `publishAttackersPrompt` sends `suggestedTargetId` from Forge's whole-combat `AttackConstraints.getLegalAttackers()` solution. The client stages these assignments for review on each new attack prompt, so Encore tokens start aimed at their assigned opponents. `canAttack` and `validTargetIds` express restrictions, not requirements: both opponents can appear individually legal even when sending both Encore tokens to one fails `validateAttackers`. Do not narrow the target list using `MustAttack` alone; attack taxes, conflicting requirements, and limits such as Silent Arbiter need the whole-combat solution. Suggestions remain editable and Forge validates the submitted attack.
 
+`CombatExplainer.explainInvalidAttack` reprompts only for declarations the current player can fix. Remove only that player's rejected assignments before publishing. `PhaseHandler` still validates the combined declaration on shared turns and handles attack taxes.
+
 ## Typed prompt emission (compile-time protocol check)
 
 The host **does not hand-build prompt JSON.** `manabrew-protocol` (Rust) is the source of truth: `scripts/gen-harness-prompts.mjs` reads its generated TS bindings and emits one Java class per prompt input + referenced shared type into `forge-harness/src/main/java/forge/harness/protocol/` (package `forge.harness.protocol.*`), each baking in its own `type` discriminator. `scripts/harness.mjs` regenerates them before every build. The package is generated, gitignored (`forge-harness/.gitignore`), and lives under the standard `src/main/java` root on purpose: m2e/JDTLS has no build-helper connector, so an out-of-tree generated-sources dir never lands on the IDE classpath. Never hand-edit anything in this package.
@@ -161,6 +163,8 @@ Mechanic projections use Forge's predicates and selected ability state: independ
 Casting display labels use the selected play `mode` when the internal action label lacks an alternative-cost tag. This covers Morph, Megamorph, Prototype and Suspend without mechanic-specific label checks; `staticAlternative` uses `Alternative cost`. Preserve action-space labels and IDs because journal choices use them.
 
 Forge's LKI copier drops unlocked Room doors and the Prototype timestamp. Omit unknown LKI state rather than reporting false or locked; a spell ability's explicit `Prototype` parameter can recover its selected variant. A Room with both doors locked has an empty active name: retain its `PaperCard` name for visible printing identity without changing the live characteristics or weakening hidden-card redaction.
+
+Station rows come from the selected `CardState`'s intrinsic statics. Forge refreshes its packed Station view only for the current state, so the view can omit rows on alternate faces and LKI. Project the authorized face without changing the live card state; clear `stationLevels` on redaction.
 
 `CardDto.keywords` retains raw engine identifiers. Visible cards also emit `keywordLabels`, keyed by the original string and formatted with `KeywordInterface.getTitle()`. Generated rules use those labels without duplicating printed keyword lines; never expose cost DSL as rules text or parse it in the renderer. Hidden redaction clears the label map.
 

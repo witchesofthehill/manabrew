@@ -49,6 +49,8 @@ export interface StationRulesTier {
   threshold: number;
   text: string;
   canonicalText: string;
+  power?: string;
+  toughness?: string;
 }
 
 export interface StationRulesPresentation {
@@ -372,9 +374,20 @@ function parseStationRules(rulesText: string, canonical: boolean): StationRulesP
 export function stationRulesPresentation(
   rulesText: string,
   canonicalRulesText = rulesText,
+  stationLevels?: CardDto["stationLevels"],
 ): StationRulesPresentation | null {
-  const canonical = parseStationRules(canonicalRulesText, true);
-  if (!canonical || rulesText === canonicalRulesText) return canonical;
+  const canonical = parseStationRules(canonicalRulesText, !stationLevels?.length);
+  if (!canonical) return null;
+  if (stationLevels) {
+    for (const tier of canonical.tiers) {
+      const level = stationLevels.find((candidate) => candidate.threshold === tier.threshold);
+      if (level) {
+        tier.power = level.power;
+        tier.toughness = level.toughness;
+      }
+    }
+  }
+  if (rulesText === canonicalRulesText) return canonical;
   const localized = parseStationRules(rulesText, false);
   if (
     !localized ||
@@ -388,6 +401,8 @@ export function stationRulesPresentation(
     tiers: localized.tiers.map((tier, index) => ({
       ...tier,
       canonicalText: canonical.tiers[index]!.text,
+      power: canonical.tiers[index]!.power,
+      toughness: canonical.tiers[index]!.toughness,
     })),
   };
 }

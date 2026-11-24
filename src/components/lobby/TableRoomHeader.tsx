@@ -1,8 +1,10 @@
-import { useState } from "react";
-import { getPlatform } from "@/platform";
+import { useId, useState } from "react";
+import { getPlatform, getPlatformType } from "@/platform";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RELAY_FEATURE } from "@/types/server";
 import { useServerStore } from "@/stores/useServerStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useForgeWasmHostingEnabled } from "@/lib/forgeWasm";
 import { Check, ChevronDown, Copy, LockKeyhole } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -42,6 +44,7 @@ interface TableRoomHeaderProps {
   modeLabel: string;
   isController: boolean;
   isLimitedRoom: boolean;
+  startingGame: boolean;
   onSetFormat?: (format: GameFormat) => void;
   onSetMaxPlayers?: (maxPlayers: number) => void;
 }
@@ -51,6 +54,7 @@ export function TableRoomHeader({
   modeLabel,
   isController,
   isLimitedRoom,
+  startingGame,
   onSetFormat,
   onSetMaxPlayers,
 }: TableRoomHeaderProps) {
@@ -59,6 +63,21 @@ export function TableRoomHeader({
     s.relayFeatures.includes(RELAY_FEATURE.Spectators),
   );
   const inLobby = room.status === "Lobby";
+  const forgeAiRewindId = useId();
+  const username = useServerStore((s) => s.username);
+  const forgeAiRewind = useServerStore((s) => s.forgeAiRewindRoomId === room.room_id);
+  const aiController = usePreferencesStore((s) => s.aiController);
+  const forgeWasm = useForgeWasmHostingEnabled();
+  const canUseForgeAiRewind =
+    inLobby &&
+    !isLimitedRoom &&
+    !room.hosted &&
+    room.host === username &&
+    room.engine === "Forge" &&
+    aiController === "forge" &&
+    getPlatformType() === "web" &&
+    forgeWasm &&
+    room.players.some((player) => player.is_bot);
   const allowsMultiplayer = MULTIPLAYER_FORMATS.includes(room.format);
   async function copyPassword() {
     if (!roomPassword) return;
@@ -175,6 +194,25 @@ export function TableRoomHeader({
                   void getPlatform()
                     .server?.setAllowSpectators(allow === true)
                     .catch(() => toast.error("Could not update spectators."))
+                }
+              />
+            </dd>
+          </div>
+        )}
+        {canUseForgeAiRewind && (
+          <div className="flex items-center gap-2">
+            <dt className="text-muted-foreground">
+              <label htmlFor={forgeAiRewindId}>Experimental Forge AI rewind</label>
+            </dt>
+            <dd>
+              <Checkbox
+                id={forgeAiRewindId}
+                checked={forgeAiRewind}
+                disabled={startingGame}
+                onCheckedChange={(checked) =>
+                  useServerStore.setState({
+                    forgeAiRewindRoomId: checked === true ? room.room_id : null,
+                  })
                 }
               />
             </dd>

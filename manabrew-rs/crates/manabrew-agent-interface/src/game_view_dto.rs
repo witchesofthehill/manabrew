@@ -754,6 +754,7 @@ fn card_to_dto_with_face_visibility(
         class_level: visible_battlefield_class_level(card),
         class_levels,
         saga_chapters,
+        station_levels: None,
         text,
         unlocked_doors: (face_visible && card.is_room()).then(|| {
             [

@@ -2499,6 +2499,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       selectedAttackDefenderId: attackDefenderId,
       multipleAttackDefenders,
       attackAssignmentCount: attackAssignments.length,
+      attackError: chooseAttackersInput?.error,
       mustAttackHint,
       onDeclareAttackers: (attackerIds, defenderId) =>
         void respond(declareAttackersOutput(activePrompt, attackerIds, defenderId)),

@@ -64,6 +64,10 @@ rendering. The prompt pages that show cards reference this same type.
 
 <ProtocolType type="CardDto" />
 
+Forge includes `stationLevels` on visible Station faces. Each row gives a
+charge counter threshold and optional power and toughness for that tier, not
+the permanent's current stats. Hidden and redacted cards omit these rows.
+
 ## CardIdentity
 
 Which card a `CardDto` or `StackObjectDto` is - name, printing

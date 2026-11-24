@@ -67,6 +67,7 @@ export interface PromptActionSpec {
   selectedAttackDefenderId?: string | null;
   multipleAttackDefenders: boolean;
   attackAssignmentCount: number;
+  attackError?: string;
   mustAttackHint?: string | null;
   onDeclareAttackers: (attackerIds: string[], defenderId?: string) => void;
   onBeginAttackTargetPick: (attackerIds: string[]) => void;

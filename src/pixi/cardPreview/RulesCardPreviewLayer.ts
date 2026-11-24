@@ -858,7 +858,11 @@ export class RulesCardPreviewLayer {
     const stationSection =
       !display.faceless && !display.multipart ? display.sections[0] : undefined;
     const station = stationSection
-      ? stationRulesPresentation(stationSection.rulesText, stationSection.canonicalRulesText)
+      ? stationRulesPresentation(
+          stationSection.rulesText,
+          stationSection.canonicalRulesText,
+          display.currentFace ? spec.card.stationLevels : undefined,
+        )
       : null;
     const nextClassLevel =
       progression?.rail.kind === "class" && progression.rail.current < progression.rail.max

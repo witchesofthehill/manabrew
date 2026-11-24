@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from
 import { Link } from "react-router-dom";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { TablePickerDialog } from "@/components/lobby/TablePickerDialog";
@@ -16,6 +17,7 @@ import { getDeckFingerprint } from "@/lib/decks";
 import { reportPublishedDeckPlay } from "@/lib/deckPlayEvidence";
 import { trackClientUiAction } from "@/lib/clientAnalyticsFunnel";
 import { GAME_FORMATS, getFormat, validateDeckSections } from "@/lib/formats";
+import { isForgeWasmSupported } from "@/lib/forgeWasm";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { hubEntryEngines, supportsEngine } from "@/lib/engines";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
@@ -23,6 +25,7 @@ import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Deck } from "@/protocol/deck";
+import { getPlatformType } from "@/platform";
 import { Loader2, Search, Swords } from "lucide-react";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
@@ -124,12 +127,20 @@ export function DeckVsSelector({
     selectedFormat === null ? null : (getFormat(selectedFormat)?.deckFormat ?? selectedFormat);
   const [deckSearch, setDeckSearch] = useState("");
   const [starting, setStarting] = useState(false);
+  const [forgeAiRewind, setForgeAiRewind] = useState(singlePlayerSetup?.forgeAiRewind ?? false);
   const [tableDialogOpen, setTableDialogOpen] = useState(false);
   const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
   const [loadingSeatId, setLoadingSeatId] = useState<string | null>(null);
   const selectedFormatRef = useRef(selectedFormat);
   selectedFormatRef.current = selectedFormat;
   const offlineEngine = singlePlayerSetup?.engine ?? resolveOfflineEngine();
+  const preferredAiController = usePreferencesStore((state) => state.aiController);
+  const aiController = singlePlayerSetup?.aiController ?? preferredAiController;
+  const canUseForgeAiRewind =
+    offlineEngine === "Forge" &&
+    aiController === "forge" &&
+    getPlatformType() === "web" &&
+    isForgeWasmSupported();
   const { details: accountDeckDetails } = useAccountDecks();
   const forkedPresetKeys = new Set(
     Object.values(accountDeckDetails)
@@ -440,8 +451,8 @@ export function DeckVsSelector({
         seats: roster.seats.map((seat) => ({ id: seat.id, deck: seat.deck! })),
         formatId: selectedFormat!,
         engine: offlineEngine,
-        aiController:
-          singlePlayerSetup?.aiController ?? usePreferencesStore.getState().aiController,
+        aiController,
+        forgeAiRewind: canUseForgeAiRewind && forgeAiRewind,
       },
     );
     if (!started) {
@@ -802,6 +813,17 @@ export function DeckVsSelector({
           ready: true,
           connected: true,
         }))}
+        gameOptions={
+          canUseForgeAiRewind && (
+            <label className="flex min-h-11 cursor-pointer items-center gap-3 text-ui-label">
+              <Checkbox
+                checked={forgeAiRewind}
+                onCheckedChange={(checked) => setForgeAiRewind(checked === true)}
+              />
+              <span>Experimental Forge AI rewind</span>
+            </label>
+          )
+        }
         centerContent={
           selectedFormat ? (
             <span className="font-serif text-lg font-semibold text-foreground/90">

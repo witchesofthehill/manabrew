@@ -10,6 +10,7 @@ export interface SinglePlayerSetup {
   engine: EngineKind;
   runtimeKind?: GameRuntimeKind;
   aiController?: AiController;
+  forgeAiRewind?: boolean;
 }
 
 export function singlePlayerDeck(

@@ -1,17 +1,21 @@
 # Decision journal and rewind
 
 PvP and external Manabot games use `decisionJournal` and `journalRewind`.
-The Journal tab shows redacted consumed decisions from `gameView.checkpoints`;
-Forge AI games retain legacy snapshots in production. Journal mode rejects internal
-Forge AI unless the private start request explicitly selects
+The Journal tab shows redacted consumed decisions from `gameView.checkpoints`.
+Built-in Forge AI uses legacy snapshots by default. In browser Play vs AI, open
+**Choose your table** and check **Experimental Forge AI rewind** before starting
+the match. Leave it unchecked to compare against legacy snapshots. The setting
+is per match and carries over to a rematch. It isn't available for hosted or
+native desktop games.
+
+Journal mode rejects built-in Forge AI unless the private start request selects
 `forgeAiPolicy: "deterministic-v1"`.
 
 This opt-in pins a 20,000-unit work limit per Forge AI search, applied through
 `GameRules.setAiWorkLimit` before match creation. It does not change the public
-protocol or enable Forge AI journals in production launchers. An absent policy
-preserves legacy AI behavior; any supplied value other than the exact string
-`"deterministic-v1"` is rejected, including null and non-string values. There is no
-separate numeric budget option. Changing the limit requires a new policy version.
+protocol. An absent policy preserves legacy AI behavior. The engine rejects any
+value other than `"deterministic-v1"`, including null and non-string values.
+Changing the work limit requires a new policy version.
 
 The exact policy remains in the journal's original start request and applies to
 both live play and reconstruction. Replay requires the same harness/Forge artifact,

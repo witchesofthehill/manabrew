@@ -909,8 +909,11 @@ class WebGameApi implements IGameApi {
   }
 
   async startGame(params: StartGameParams): Promise<string> {
+    const forgeAi = params.aiController === "forge";
+    const forgeAiRewind = params.engine === "Forge" && forgeAi && params.forgeAiRewind;
+    const journalRewind = params.engine === "Forge" && (!forgeAi || forgeAiRewind === true);
     this.bridge.setLocalBotSlots(
-      params.engine === "Forge" && params.aiController !== "forge"
+      params.engine === "Forge" && !forgeAi
         ? (params.opponentDecks?.length ? params.opponentDecks : [params.deck]).map(
             (_, index) => `player-${index + 1}`,
           )
@@ -922,9 +925,10 @@ class WebGameApi implements IGameApi {
       commanderName: params.commanderName,
       opponentDecks: params.opponentDecks,
       engine: params.engine,
-      forgeAi: params.aiController === "forge",
-      decisionJournal: params.engine === "Forge" && params.aiController !== "forge",
-      journalRewind: params.engine === "Forge" && params.aiController !== "forge",
+      forgeAi,
+      decisionJournal: journalRewind,
+      journalRewind,
+      ...(forgeAiRewind && { forgeAiPolicy: "deterministic-v1", snapshotRecording: false }),
     });
   }
 

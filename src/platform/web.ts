@@ -755,6 +755,7 @@ class WorkerBridge {
         }
       }
     } else if (message.type === "event") {
+      if (message.event === "game:forced_end" && this.workerIsForgeWasm) this.terminate();
       this.eventBus.emit(message.event, message.payload);
     }
   }

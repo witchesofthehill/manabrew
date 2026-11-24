@@ -51,6 +51,8 @@ source. There is no idle spare or shadow engine.
   A child failure before startup returns the supervisor to its command handler
   so the same client can start another game. A client-side startup timeout
   terminates the hosting worker even if the child has not published its SABs.
+  The browser also discards the worker after a forced end, including when
+  Forge rejects the game after publishing buffers but before its first prompt.
 - JVM/native: `journal_engine.rs` owns subprocess reconstruction and promotion.
   Replay has a 120-second total deadline; subprocess RPCs have 60-second deadlines
   and poll cancellation every 20 ms. Failed transports are killed and reaped,

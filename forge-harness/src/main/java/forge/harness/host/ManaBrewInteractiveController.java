@@ -733,7 +733,10 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public CardCollection chooseCardsToDiscardFrom(
             final Player playerDiscard, final SpellAbility sa, final CardCollection validCards, final int min, final int max,
-            final CardCollectionView visibleToChooser) {
+            final DelayedReveal delayedReveal) {
+        if (playerDiscard != player && delayedReveal != null) {
+            reveal(delayedReveal);
+        }
         return session.awaitCardChoice("choose_discard", me(), validCards, min, max);
     }
 

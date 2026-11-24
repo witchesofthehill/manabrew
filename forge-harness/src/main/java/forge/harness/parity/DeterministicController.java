@@ -860,7 +860,7 @@ public class DeterministicController extends PlayerController implements Harness
 
     @Override
     public CardCollection chooseCardsToDiscardFrom(Player playerDiscard, SpellAbility sa,
-            CardCollection validCards, int min, int max, CardCollectionView visibleToChooser) {
+            CardCollection validCards, int min, int max, DelayedReveal delayedReveal) {
         final List<Card> sorted = ParityOrder.sortCardsByNameThenId(new ArrayList<Card>(validCards));
         final CardCollection result = ChoiceSpace.pickManyCards(new CardCollection(sorted), min, max, rng);
         onCallback("choose_discard", formatCards(result), String.valueOf(validCards.size()), String.valueOf(min), String.valueOf(max));

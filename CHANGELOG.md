@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.92.1](https://github.com/witchesofthehill/manabrew/compare/v3.92.0...v3.92.1) (2026-11-24)
+
+### Fixes
+
+* **ironsmith:** stop sync retries flooding the host and recover lost entries ([#1282](https://github.com/witchesofthehill/manabrew/issues/1282)) ([818d428](https://github.com/witchesofthehill/manabrew/commit/818d428aaa40fa815c5e55aa94caec2e0b8a7413))
+
 ## [3.92.0](https://github.com/witchesofthehill/manabrew/compare/v3.91.1...v3.92.0) (2026-11-24)
 
 ### Features

@@ -41,6 +41,7 @@ interface DeckSelectionCardProps {
   loading?: boolean;
   onSelect: () => void;
   onActivate?: () => void;
+  className?: string;
 }
 function getDeckTypeBreakdown(
   cards: {
@@ -82,6 +83,7 @@ export function DeckSelectionCard({
   loading = false,
   onSelect,
   onActivate,
+  className,
 }: DeckSelectionCardProps) {
   const theme = useTheme().gameTheme;
   const colorCost = isHub
@@ -133,6 +135,7 @@ export function DeckSelectionCard({
           isSelected &&
           "border-selection-border bg-selection ring-1 ring-selection-border",
         !hasAssignments && !isSelected && !isLegal && "border-warning/50",
+        className,
       )}
       style={assignmentStyle}
       titleClassName={titleColorClass}

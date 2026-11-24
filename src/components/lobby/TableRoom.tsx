@@ -2,6 +2,7 @@ import { useState } from "react";
 import { boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
 import { LibraryBig, LogOut, Swords } from "lucide-react";
 import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
+import { tableController, tableStartsAutomatically } from "@/components/lobby/tables.utils";
 import { TableRoomHeader } from "@/components/lobby/TableRoomHeader";
 import { InvitePlayersDialog } from "@/components/lobby/InvitePlayersDialog";
 import { Button } from "@/components/ui/button";
@@ -47,8 +48,8 @@ export function TableRoom({
   const [inviting, setInviting] = useState(false);
   const invitesEnabled = useServerStore((s) => s.relayFeatures.includes(RELAY_FEATURE.RoomInvites));
   const myPlayer = room.players.find((player) => player.username === username);
-  const controllerName =
-    room.players.find((player) => !player.is_bot)?.username ?? room.players[0]?.username;
+  const controllerName = tableController(room);
+  const autoStart = tableStartsAutomatically(room);
   const isController = controllerName === username;
   const isLimitedRoom = !!(room.draft_config || room.sealed_config);
   const needsFormat = room.format === "Any" && !isLimitedRoom;
@@ -78,7 +79,7 @@ export function TableRoom({
     );
   const needsDeck = !isOpenFormat && !myPlayer?.selected_deck_name;
   const readyCount = room.players.filter(
-    (player) => player.ready || player.username === controllerName,
+    (player) => player.ready || (!autoStart && player.username === controllerName),
   ).length;
   const openSeats = room.max_players - room.players.length;
   const requiredPlayers = Math.max(0, minReady - room.players.length);
@@ -134,7 +135,11 @@ export function TableRoom({
         <div className="flex items-center justify-between gap-4 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
           <div>
             <p className="text-ui-label font-medium text-primary">You're ready</p>
-            <p className="text-ui-meta text-muted-foreground">Waiting for the host to start.</p>
+            <p className="text-ui-meta text-muted-foreground">
+              {autoStart
+                ? "Starting automatically once the table is full and everyone is ready."
+                : "Waiting for the host to start."}
+            </p>
           </div>
           <button
             type="button"

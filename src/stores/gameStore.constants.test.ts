@@ -1,7 +1,9 @@
 /// <reference types="node" />
 import { execFileSync } from "node:child_process";
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/soundRuntime", () => ({ playSound: vi.fn() }));
 
 import { applyPrompt, applyState } from "./gameStore.constants";
 import type { GameState } from "./gameStore.types";

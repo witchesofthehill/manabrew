@@ -5,6 +5,7 @@
  * The game engine runs in a Web Worker for non-blocking UI.
  */
 
+import { sendBufferDrained, socketIsStale } from "./keepalive";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { deckHasCardCosmetics, normalizeCardCosmetics } from "@/lib/cardCosmetics";
@@ -42,6 +43,7 @@ import type {
   SpawnAiBotParams,
   SendChatParams,
   InviteToRoomParams,
+  EnterQueueParams,
 } from "./types";
 import {
   DUPLICATE_USERNAME_ERROR_FRAGMENT,
@@ -1144,6 +1146,9 @@ class WebServerApi implements IServerApi {
   private bots = new Map<string, BotEntry>();
   private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
   private lastInboundAt = 0;
+  // The last keepalive tick at which the socket's send buffer had shrunk.
+  private lastDrainAt = 0;
+  private lastBufferedAmount = 0;
   private lastKeepaliveTickAt = 0;
   private connectParams: ServerConnectParams | null = null;
   private connectedAt: number | null = null;
@@ -1417,17 +1422,32 @@ class WebServerApi implements IServerApi {
   private startKeepalive(): void {
     this.stopKeepalive();
     this.lastInboundAt = Date.now();
+    this.lastDrainAt = Date.now();
+    this.lastBufferedAmount = 0;
     this.lastKeepaliveTickAt = Date.now();
     this.keepaliveTimer = setInterval(() => {
       const now = Date.now();
       const sinceTick = now - this.lastKeepaliveTickAt;
       this.lastKeepaliveTickAt = now;
       if (this.ws?.readyState !== WebSocket.OPEN) return;
+      // Our pings queue behind anything already being uploaded, so a seat sending
+      // a large payload hears no pong until it is through. A buffer that keeps
+      // shrinking is a slow link, not a dead one.
+      const buffered = this.ws.bufferedAmount;
+      if (sendBufferDrained(this.lastBufferedAmount, buffered)) this.lastDrainAt = now;
+      this.lastBufferedAmount = buffered;
       // A background tab throttles timers to roughly once a minute, so a late tick
       // says nothing about the socket. Re-baseline instead of reading it as death.
       if (sinceTick > KEEPALIVE_INTERVAL_MS * 2) {
         this.lastInboundAt = now;
-      } else if (now - this.lastInboundAt > KEEPALIVE_SILENCE_MS) {
+      } else if (
+        socketIsStale({
+          now,
+          lastInboundAt: this.lastInboundAt,
+          lastDrainAt: this.lastDrainAt,
+          silenceMs: KEEPALIVE_SILENCE_MS,
+        })
+      ) {
         this.failStaleSocket();
         return;
       }
@@ -1507,6 +1527,48 @@ class WebServerApi implements IServerApi {
 
   async inviteToRoom(params: InviteToRoomParams): Promise<void> {
     this.send({ type: "InviteToRoom", username: params.username });
+  }
+
+  async enterQueue(params: EnterQueueParams): Promise<void> {
+    this.send({
+      type: "EnterQueue",
+      format: params.format,
+      pod_sizes: params.podSizes,
+      decks: params.decks,
+      can_host: params.canHost,
+    });
+  }
+
+  async acceptQueueStep(bracket: number): Promise<void> {
+    this.send({ type: "AcceptQueueStep", bracket });
+  }
+
+  async setQueueSteps(steps: number[]): Promise<void> {
+    this.send({ type: "SetQueueSteps", steps });
+  }
+
+  async acceptBotFill(): Promise<void> {
+    this.send({ type: "AcceptBotFill" });
+  }
+
+  async acceptMatch(deckIndex?: number): Promise<void> {
+    this.send({ type: "AcceptMatch", deck_index: deckIndex });
+  }
+
+  async declineMatch(): Promise<void> {
+    this.send({ type: "DeclineMatch" });
+  }
+
+  async announceTable(bracket: number | null): Promise<void> {
+    this.send({ type: "AnnounceTable", bracket });
+  }
+
+  async answerTableCall(roomId: string, join: boolean, deckIndex?: number): Promise<void> {
+    this.send({ type: "AnswerTableCall", room_id: roomId, join, deck_index: deckIndex });
+  }
+
+  async leaveQueue(): Promise<void> {
+    this.send({ type: "LeaveQueue" });
   }
 
   async createRoom(params: CreateRoomParams): Promise<string | null> {
@@ -1621,6 +1683,10 @@ class WebServerApi implements IServerApi {
     this.send({ type: "SetFormat", format: params.format });
   }
 
+  async setAutoStart(enabled: boolean): Promise<void> {
+    this.send({ type: "SetAutoStart", enabled });
+  }
+
   async setMaxPlayers(params: SetMaxPlayersParams): Promise<void> {
     this.send({ type: "SetMaxPlayers", max_players: params.maxPlayers });
   }
@@ -1670,7 +1736,8 @@ class WebServerApi implements IServerApi {
     this.send({ type: "BroadcastState", state, target_player: targetPlayer });
   }
 
-  async sendRoomMessage(message: RoomRelayEnvelope): Promise<void> {
+  async sendRoomMessage(message: RoomRelayEnvelope, options?: { direct?: boolean }): Promise<void> {
+    if (options?.direct && this.webrtc?.trySendDirect(message, message.targetPlayer)) return;
     this.send({ type: "BroadcastState", state: message, target_player: message.targetPlayer });
   }
 
@@ -2071,6 +2138,22 @@ class WebServerApi implements IServerApi {
    *   slice of it and not a second serialisation of the parsed message.
    */
   private handleServerMessage(msg: Record<string, unknown>, frameAt?: number, raw?: string): void {
+    if (msg.type === "MatchFound") {
+      const room = msg.room as RoomInfo;
+      this.eventBus.emit("server:match_found", {
+        room,
+        host: msg.host,
+        bracket: msg.bracket,
+        deck_name: msg.deck_name,
+      });
+      msg = {
+        type: "RoomCreated",
+        room_id: room.room_id,
+        room_name: room.room_name,
+        room,
+        resume_token: msg.resume_token,
+      };
+    }
     const type = msg.type as string;
     // The heartbeat would evict real traffic from the bug-report ring buffer.
     if (type === "Pong") {
@@ -2437,6 +2520,37 @@ class WebServerApi implements IServerApi {
       ChatHistory: [
         "server:chat_history",
         { scope: msg.scope, room_id: msg.room_id, messages: msg.messages },
+      ],
+      QueueStatus: [
+        "server:queue_status",
+        { queued: msg.queued, brackets: msg.brackets, waiting: msg.waiting },
+      ],
+      QueueStepOffer: [
+        "server:queue_step_offer",
+        { down: msg.down, up: msg.up, waiting: msg.waiting },
+      ],
+      QueueBotFillOffer: ["server:queue_bot_fill_offer", { players: msg.players }],
+      MatchProposal: [
+        "server:match_proposal",
+        {
+          bracket: msg.bracket,
+          pod_size: msg.pod_size,
+          players: msg.players,
+          expires_s: msg.expires_s,
+          busy: msg.busy ?? 0,
+        },
+      ],
+      MatchProposalAccepts: ["server:match_proposal_accepts", { accepted: msg.accepted }],
+      TableCall: [
+        "server:table_call",
+        {
+          room_id: msg.room_id,
+          host: msg.host,
+          bracket: msg.bracket,
+          seats: msg.seats,
+          pod_size: msg.pod_size,
+          expires_s: msg.expires_s,
+        },
       ],
       RoomInvite: [
         "server:room_invite",

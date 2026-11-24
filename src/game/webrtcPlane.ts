@@ -16,6 +16,30 @@ const PROBE_GAP_MS = 250;
 
 const MEASURE_INTERVAL_MS = 15_000;
 
+// A data channel refuses a message over its SCTP limit (262144 bytes in Chrome;
+// `RTCDataChannel.send` throws). A message at or over this many bytes goes out as
+// numbered chunks, and only when the caller opted in, because a peer that predates
+// chunks would ignore every one of them.
+const WHOLE_MESSAGE_LIMIT_BYTES = 250_000;
+// Characters per chunk. Even at three bytes a character this stays under the limit.
+const CHUNK_CHARS = 60_000;
+// An unfinished message is dropped after this long, and a peer holds at most this many.
+const CHUNK_STALE_MS = 30_000;
+const CHUNK_PENDING_MAX = 8;
+
+interface ChunkFrame {
+  __chunk: number;
+  i: number;
+  n: number;
+  d: string;
+}
+
+interface PartialMessage {
+  parts: string[];
+  got: number;
+  startedAt: number;
+}
+
 interface ProbeMessage {
   __probe: "ping" | "pong";
   seq: number;
@@ -111,6 +135,8 @@ interface Peer {
   probes: Map<number, number>;
   rtts: number[];
   probeSeq: number;
+  /** Chunked messages still arriving from this peer, by message id. */
+  partial: Map<number, PartialMessage>;
 }
 
 export class WebRtcPlane {
@@ -120,6 +146,7 @@ export class WebRtcPlane {
   private readonly now: () => number;
   private hostPeer: string | null = null;
   private isHost = false;
+  private chunkSeq = 0;
   /** Frozen at `GameStarted`; never changes for the life of the game. */
   private active = new Set<string>();
   private closed = false;
@@ -227,13 +254,42 @@ export class WebRtcPlane {
     return this.sendTo(peer, state);
   }
 
+  /**
+   * A room message that names its recipient, for an engine whose traffic is not the
+   * host's state and the seats' responses (Ironsmith's per-seat payloads). A host
+   * sends to the seat it names; a seat sends only to the room's host, since that is
+   * the one peer it has. Large messages are chunked, so the caller must know the
+   * recipient reassembles them. False means send it over the relay.
+   */
+  trySendDirect(envelope: object, targetPlayer: string | undefined): boolean {
+    if (this.closed || !this.active.size || !targetPlayer) return false;
+    if (!this.isHost && targetPlayer !== this.hostPeer) return false;
+    if (!this.active.has(targetPlayer)) return false;
+    return this.sendTo(targetPlayer, envelope, { chunk: true });
+  }
+
   /** Host proxy path: the node holds the freeze, so no `trySend` gate here. */
-  sendTo(peer: string, envelope: unknown): boolean {
+  sendTo(peer: string, envelope: unknown, options: { chunk?: boolean } = {}): boolean {
     if (this.closed) return false;
     const channel = this.peers.get(peer)?.channel;
     if (!channel || channel.readyState !== "open") return false;
     try {
-      channel.send(JSON.stringify(envelope));
+      const text = JSON.stringify(envelope);
+      if (options.chunk && utf8Length(text) >= WHOLE_MESSAGE_LIMIT_BYTES) {
+        const id = this.chunkSeq++;
+        const n = Math.ceil(text.length / CHUNK_CHARS);
+        for (let i = 0; i < n; i += 1) {
+          const frame: ChunkFrame = {
+            __chunk: id,
+            i,
+            n,
+            d: text.slice(i * CHUNK_CHARS, (i + 1) * CHUNK_CHARS),
+          };
+          channel.send(JSON.stringify(frame));
+        }
+      } else {
+        channel.send(text);
+      }
       return true;
     } catch (error) {
       console.warn(`[webrtc] send to ${peer} failed, falling back to the relay:`, error);
@@ -281,6 +337,7 @@ export class WebRtcPlane {
       probes: new Map(),
       rtts: [],
       probeSeq: 0,
+      partial: new Map(),
     };
     this.peers.set(peer, state);
 
@@ -339,6 +396,16 @@ export class WebRtcPlane {
     } catch {
       return;
     }
+    const chunk = parsed as Partial<ChunkFrame>;
+    if (typeof chunk?.__chunk === "number") {
+      const whole = this.reassemble(state, chunk);
+      if (whole === undefined) return;
+      try {
+        parsed = JSON.parse(whole);
+      } catch {
+        return;
+      }
+    }
     const probe = parsed as ProbeMessage;
     if (probe?.__probe === "ping") {
       state.channel?.send(JSON.stringify({ __probe: "pong", seq: probe.seq, at: probe.at }));
@@ -360,7 +427,48 @@ export class WebRtcPlane {
           : "[webrtc] received a prompt from the host over the data channel",
       );
     }
-    this.opts.deliver(parsed as StateEnvelope, this.isHost ? peer : "");
+    // An engine envelope from the host needs no sender; a room message does, because
+    // the runtime keys its keys and its seats on who sent it. The relay attested
+    // `peer` when it routed the signalling this connection grew from.
+    const roomMessage = (parsed as { kind?: string })?.kind === "roomRelay";
+    this.opts.deliver(parsed as StateEnvelope, this.isHost || roomMessage ? peer : "");
+  }
+
+  /** The whole message once its last chunk is in, otherwise undefined. */
+  private reassemble(state: Peer, chunk: Partial<ChunkFrame>): string | undefined {
+    const { __chunk: id, i, n, d } = chunk;
+    if (
+      typeof id !== "number" ||
+      typeof i !== "number" ||
+      typeof n !== "number" ||
+      typeof d !== "string" ||
+      !Number.isInteger(i) ||
+      !Number.isInteger(n) ||
+      n < 1 ||
+      i < 0 ||
+      i >= n
+    ) {
+      return undefined;
+    }
+    if (n === 1) return d;
+    const now = this.now();
+    for (const [key, partial] of state.partial) {
+      if (now - partial.startedAt > CHUNK_STALE_MS) state.partial.delete(key);
+    }
+    let partial = state.partial.get(id);
+    if (!partial) {
+      if (state.partial.size >= CHUNK_PENDING_MAX) return undefined;
+      partial = { parts: new Array<string>(n), got: 0, startedAt: now };
+      state.partial.set(id, partial);
+    }
+    if (partial.parts.length !== n) return undefined;
+    if (partial.parts[i] === undefined) {
+      partial.parts[i] = d;
+      partial.got += 1;
+    }
+    if (partial.got < n) return undefined;
+    state.partial.delete(id);
+    return partial.parts.join("");
   }
 
   private async probe(peer: string, state: Peer): Promise<void> {
@@ -508,4 +616,8 @@ export class WebRtcPlane {
     this.active.delete(peer);
     this.announceServing();
   }
+}
+
+function utf8Length(text: string): number {
+  return new TextEncoder().encode(text).length;
 }

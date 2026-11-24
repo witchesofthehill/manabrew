@@ -55,6 +55,10 @@ pub struct DeckSelection {
 struct PresetDeckFile {
     label: String,
     #[serde(default)]
+    format: Option<String>,
+    #[serde(default)]
+    engines: Option<Vec<String>>,
+    #[serde(default)]
     commander: Option<String>,
     cards: Vec<PresetDeckCard>,
 }
@@ -292,13 +296,50 @@ fn load_deck_selection(deck_id: &str, commander_name: Option<String>) -> DeckSel
     }
 }
 
+pub fn commander_bot_decks() -> Vec<DeckSelection> {
+    let ids: Vec<String> = match std::fs::read_to_string(preset_decks_dir().join("index.json"))
+        .map_err(|error| error.to_string())
+        .and_then(|contents| serde_json::from_str(&contents).map_err(|error| error.to_string()))
+    {
+        Ok(ids) => ids,
+        Err(error) => {
+            warn!(%error, "preset deck index unreadable; no commander bot decks");
+            return Vec::new();
+        }
+    };
+    ids.iter()
+        .filter_map(|id| read_preset_file(id).ok())
+        .filter(|preset| {
+            preset.format.as_deref() == Some("commander")
+                && preset.commander.is_some()
+                && preset
+                    .engines
+                    .as_ref()
+                    .is_none_or(|engines| engines.iter().any(|engine| engine == "Forge"))
+        })
+        .map(|preset| preset_deck_selection(preset, None))
+        .collect()
+}
+
+fn read_preset_file(
+    deck_id: &str,
+) -> Result<PresetDeckFile, Box<dyn std::error::Error + Send + Sync>> {
+    let path = preset_decks_dir().join(format!("{deck_id}.json"));
+    let contents = std::fs::read_to_string(&path)?;
+    Ok(serde_json::from_str(&contents)?)
+}
+
 fn load_preset_deck(
     deck_id: &str,
     commander_name: Option<String>,
 ) -> Result<DeckSelection, Box<dyn std::error::Error + Send + Sync>> {
-    let path = preset_decks_dir().join(format!("{deck_id}.json"));
-    let contents = std::fs::read_to_string(&path)?;
-    let preset: PresetDeckFile = serde_json::from_str(&contents)?;
+    Ok(preset_deck_selection(
+        read_preset_file(deck_id)?,
+        commander_name,
+    ))
+}
+
+fn preset_deck_selection(preset: PresetDeckFile, commander_name: Option<String>) -> DeckSelection {
     let mut cards = Vec::new();
     for entry in preset.cards {
         for _ in 0..entry.count {
@@ -313,7 +354,7 @@ fn load_preset_deck(
         }
     }
     let label = preset.label;
-    Ok(DeckSelection {
+    DeckSelection {
         deck: Deck {
             name: label.clone(),
             cards,
@@ -321,7 +362,7 @@ fn load_preset_deck(
         },
         name: label,
         commander_name: commander_name.or(preset.commander),
-    })
+    }
 }
 
 fn preset_decks_dir() -> PathBuf {

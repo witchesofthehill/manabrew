@@ -9,6 +9,7 @@ import type {
   RoomRelayEnvelope,
   SealedConfig,
   LocalGameKind,
+  QueuedDeck,
   RematchIntent,
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
@@ -100,6 +101,13 @@ export interface InviteToRoomParams {
   username: string;
 }
 
+export interface EnterQueueParams {
+  format: GameFormat;
+  podSizes: number[];
+  decks: QueuedDeck[];
+  canHost: boolean;
+}
+
 export interface StartServerGameParams {
   format?: GameFormat;
 }
@@ -149,6 +157,15 @@ export interface IServerApi {
   setLocalGame(kind: LocalGameKind | null): Promise<void>;
   sendChat(params: SendChatParams): Promise<void>;
   inviteToRoom(params: InviteToRoomParams): Promise<void>;
+  enterQueue(params: EnterQueueParams): Promise<void>;
+  acceptQueueStep(bracket: number): Promise<void>;
+  setQueueSteps(steps: number[]): Promise<void>;
+  acceptBotFill(): Promise<void>;
+  acceptMatch(deckIndex?: number): Promise<void>;
+  declineMatch(): Promise<void>;
+  announceTable(bracket: number | null): Promise<void>;
+  answerTableCall(roomId: string, join: boolean, deckIndex?: number): Promise<void>;
+  leaveQueue(): Promise<void>;
   createRoom(params: CreateRoomParams): Promise<string | null>;
   stopRoom(): Promise<void>;
   joinRoom(params: JoinRoomParams): Promise<void>;
@@ -159,6 +176,7 @@ export interface IServerApi {
   setDeckSelection(params: SetDeckSelectionParams): Promise<void>;
   setFormat(params: SetFormatParams): Promise<void>;
   setMaxPlayers(params: SetMaxPlayersParams): Promise<void>;
+  setAutoStart(enabled: boolean): Promise<void>;
   setAllowSpectators(allow: boolean): Promise<void>;
   startGame(params?: StartServerGameParams): Promise<void>;
   endGame(gameId: string): Promise<void>;
@@ -169,7 +187,12 @@ export interface IServerApi {
   reportGameOutcome(gameId: string, outcome: GameOutcomeReport): Promise<void>;
   requestResync(): Promise<void>;
   broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void>;
-  sendRoomMessage(message: RoomRelayEnvelope): Promise<void>;
+  /**
+   * `direct` offers the message to the room's peer-to-peer plane first, when the
+   * caller knows the recipient reads it from there. It still reaches the recipient
+   * over the relay when the plane cannot carry it.
+   */
+  sendRoomMessage(message: RoomRelayEnvelope, options?: { direct?: boolean }): Promise<void>;
   spawnAiBot(params: SpawnAiBotParams): Promise<void>;
   restoreAiBots(roomId: string): Promise<string[]>;
   setAiBotDeck(username: string, params: SetDeckSelectionParams): Promise<void>;

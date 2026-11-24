@@ -1340,6 +1340,7 @@ async fn run_client_loop(
         })
         .unwrap_or_default();
     let mut forge_ai = config.forge_ai;
+    let mut bot_fill_spawned = false;
 
     loop {
         tokio::select! {
@@ -1428,6 +1429,7 @@ async fn run_client_loop(
                     outbound_tx,
                     &mut bot_usernames,
                     &mut forge_ai,
+                    &mut bot_fill_spawned,
                     bridge,
                     message,
                 ).await {
@@ -1449,6 +1451,7 @@ async fn handle_server_message(
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
     bot_usernames: &mut HashSet<String>,
     forge_ai: &mut bool,
+    bot_fill_spawned: &mut bool,
     bridge: Option<&Arc<ShellBridge>>,
     message: ServerMessage,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -1471,6 +1474,8 @@ async fn handle_server_message(
             } else {
                 end_game_without_humans(engine_session, snapshot, outbound_tx, &room);
             }
+            maybe_fill_matchmade_seats(config, &room, bot_state, forge_ai, bot_fill_spawned);
+            maybe_start_matchmade_room(client, config, &room).await?;
             maybe_auto_start_room(client, config, &room).await?;
         }
         ServerMessage::StateUpdate { from_player, state } => {
@@ -1708,6 +1713,64 @@ fn deck_selection_from_payload(deck: SpawnBotDeckPayload) -> DeckSelection {
     }
 }
 
+fn maybe_fill_matchmade_seats(
+    config: &Config,
+    room: &RoomInfo,
+    bot_state: &SharedBotState,
+    forge_ai: &mut bool,
+    bot_fill_spawned: &mut bool,
+) {
+    if room.host != config.username || !room.players.iter().any(|player| !player.is_bot) {
+        *bot_fill_spawned = false;
+        return;
+    }
+    if *bot_fill_spawned || room.status != RoomStatus::Lobby || !room.matchmade_bot_fill {
+        return;
+    }
+    let open_seats = (room.max_players as usize).saturating_sub(room.players.len());
+    if open_seats == 0 {
+        return;
+    }
+    let presets = crate::config::commander_bot_decks();
+    if presets.is_empty() {
+        warn!(room_id = %room.room_id, "no commander presets to fill matchmade seats");
+        return;
+    }
+    let mut rng = rand::thread_rng();
+    let decks: Vec<DeckSelection> = (0..open_seats)
+        .map(|_| presets[rng.gen_range(0..presets.len())].clone())
+        .collect();
+    info!(room_id = %room.room_id, open_seats, "filling matchmade seats with bots");
+    *bot_fill_spawned = true;
+    *forge_ai = config.forge_ai;
+    spawn_bots(config, &decks, &room.room_id, bot_state);
+}
+
+async fn maybe_start_matchmade_room(
+    client: &mut RelayClient,
+    config: &Config,
+    room: &RoomInfo,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    if room.host != config.username
+        || room.status != RoomStatus::Lobby
+        || room.matchmade_bracket.is_none()
+        || !room.auto_start
+        || room.players.len() < 2
+        || room.players.len() != room.max_players as usize
+        || !room
+            .players
+            .iter()
+            .all(|player| player.connected && player.ready && player.selected_deck_name.is_some())
+    {
+        return Ok(());
+    }
+    info!(room_id = %room.room_id, players = room.players.len(), "starting matchmade game");
+    client
+        .send(&ClientMessage::StartGame { format: None })
+        .await?;
+    Ok(())
+}
+
 async fn maybe_auto_start_room(
     client: &mut RelayClient,
     config: &Config,
@@ -1721,6 +1784,7 @@ async fn maybe_auto_start_room(
     }
     if room.host != config.username
         || room.status != RoomStatus::Lobby
+        || room.matchmade_bracket.is_some()
         || room.players.len() < config.max_players as usize
     {
         return Ok(());

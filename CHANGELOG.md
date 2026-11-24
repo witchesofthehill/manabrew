@@ -1,5 +1,29 @@
 # Changelog
 
+## [3.93.0](https://github.com/witchesofthehill/manabrew/compare/v3.92.1...v3.93.0) (2026-11-24)
+
+### Features
+
+* **ironsmith:** carry private traffic over the peer-to-peer plane ([#1283](https://github.com/witchesofthehill/manabrew/issues/1283)) ([9cc86a5](https://github.com/witchesofthehill/manabrew/commit/9cc86a5a3730750f97aeedbaa2db9eb17a9ae936))
+
+## [3.92.1](https://github.com/witchesofthehill/manabrew/compare/v3.92.0...v3.92.1) (2026-11-24)
+
+### Fixes
+
+* **ironsmith:** stop sync retries flooding the host and recover lost entries ([#1282](https://github.com/witchesofthehill/manabrew/issues/1282)) ([818d428](https://github.com/witchesofthehill/manabrew/commit/818d428aaa40fa815c5e55aa94caec2e0b8a7413))
+
+## [3.92.0](https://github.com/witchesofthehill/manabrew/compare/v3.91.1...v3.92.0) (2026-11-24)
+
+### Features
+
+* **matchmaking:** commander queue with bracket step offers ([#1214](https://github.com/witchesofthehill/manabrew/issues/1214)) ([af58211](https://github.com/witchesofthehill/manabrew/commit/af582111eac239e701aa571927e225b56dc10b0f))
+
+## [3.91.1](https://github.com/witchesofthehill/manabrew/compare/v3.91.0...v3.91.1) (2026-11-24)
+
+### Fixes
+
+* **ironsmith:** update ironsmith-wasm to 1.0.0 ([#1278](https://github.com/witchesofthehill/manabrew/issues/1278)) ([cbac60e](https://github.com/witchesofthehill/manabrew/commit/cbac60e4a2cd6acce67b830b711346da39fcf6fc))
+
 ## [3.91.0](https://github.com/witchesofthehill/manabrew/compare/v3.90.0...v3.91.0) (2026-11-23)
 
 ### Features

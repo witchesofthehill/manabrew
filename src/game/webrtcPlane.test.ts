@@ -17,9 +17,14 @@ class FakeChannel {
   readyState = "connecting";
   readonly sent: string[] = [];
   peer: FakeChannel | null = null;
+  /** What a browser's SCTP transport refuses over, in bytes. */
+  maxBytes = Number.POSITIVE_INFINITY;
 
   send(data: string): void {
     if (this.readyState !== "open") throw new Error("not open");
+    if (new TextEncoder().encode(data).length > this.maxBytes) {
+      throw new TypeError("Trying to send message larger than the limit");
+    }
     this.sent.push(data);
     queueMicrotask(() => this.peer?.onmessage?.({ data }));
   }
@@ -407,5 +412,180 @@ describe("measurement", () => {
     channel.onmessage?.({ data: JSON.stringify({ __probe: "ping", seq: 0, at: 1 }) });
     expect(JSON.parse(channel.sent.at(-1)!)).toMatchObject({ __probe: "pong", seq: 0 });
     expect(h.delivered).toHaveLength(0);
+  });
+});
+
+describe("room messages sent straight to a peer", () => {
+  async function connectedHost(now?: () => number) {
+    const host = member("alice", ["webrtc"], true);
+    const connections = new Map<string, FakeConnection>();
+    const delivered: Delivery[] = [];
+    const plane = new WebRtcPlane({
+      username: "alice",
+      signal: () => {},
+      deliver: (envelope, from) => delivered.push({ envelope, from }),
+      createConnection: () => {
+        const connection = new FakeConnection();
+        connections.set("bob", connection);
+        return connection as unknown as RTCPeerConnection;
+      },
+      now,
+    });
+    plane.onRoster([member("alice", ["webrtc"]), member("bob", ["webrtc"])], host);
+    await vi.waitFor(() => expect(connections.get("bob")?.channel).toBeTruthy());
+    const channel = connections.get("bob")!.channel!;
+    channel.open();
+    return { plane, channel, delivered };
+  }
+
+  async function connectedSeat(now?: () => number) {
+    const delivered: Delivery[] = [];
+    const connections = new Map<string, FakeConnection>();
+    const plane = new WebRtcPlane({
+      username: "bob",
+      signal: () => {},
+      deliver: (envelope, from) => delivered.push({ envelope, from }),
+      createConnection: () => {
+        const connection = new FakeConnection();
+        connections.set("alice", connection);
+        return connection as unknown as RTCPeerConnection;
+      },
+      now,
+    });
+    await plane.onSignal("alice", { sdp: { type: "offer", sdp: "offer-sdp" } });
+    const channel = new FakeChannel();
+    connections.get("alice")!.ondatachannel?.({ channel });
+    channel.open();
+    plane.onRoster(
+      [member("alice", ["webrtc"]), member("bob", ["webrtc"])],
+      member("alice", ["webrtc"], true),
+    );
+    return { plane, channel, delivered };
+  }
+
+  // What the plane sent, without its own round-trip probes.
+  const frames = (channel: FakeChannel) =>
+    channel.sent.filter((raw) => !(JSON.parse(raw) as { __probe?: string }).__probe);
+
+  const roomMessage = (extra: Record<string, unknown> = {}) => ({
+    kind: "roomRelay",
+    protocol: "ironsmith-trusted",
+    payload: { type: "private", ...extra },
+  });
+
+  it("goes to the seat a host names, once the transport is frozen", async () => {
+    const { plane, channel } = await connectedHost();
+    expect(plane.trySendDirect(roomMessage(), "bob")).toBe(false);
+    plane.freeze();
+    expect(plane.trySendDirect(roomMessage(), "bob")).toBe(true);
+    expect(envelopes(channel)).toEqual([roomMessage()]);
+  });
+
+  it("stays on the relay when it names no one, or someone the plane does not serve", async () => {
+    const { plane } = await connectedHost();
+    plane.freeze();
+    expect(plane.trySendDirect(roomMessage(), undefined)).toBe(false);
+    expect(plane.trySendDirect(roomMessage(), "carol")).toBe(false);
+  });
+
+  it("goes from a seat only to the room's host, the one peer it has", async () => {
+    const { plane, channel } = await connectedSeat();
+    plane.freeze();
+    expect(plane.trySendDirect(roomMessage(), "carol")).toBe(false);
+    expect(plane.trySendDirect(roomMessage(), "alice")).toBe(true);
+    expect(envelopes(channel)).toEqual([roomMessage()]);
+  });
+
+  it("falls back to the relay once the channel closes", async () => {
+    const { plane, channel } = await connectedHost();
+    plane.freeze();
+    channel.close();
+    expect(plane.trySendDirect(roomMessage(), "bob")).toBe(false);
+  });
+
+  it("splits a message over the size limit into chunks the channel accepts", async () => {
+    const { plane, channel } = await connectedHost();
+    channel.maxBytes = 262_144;
+    plane.freeze();
+    const big = roomMessage({ data: "A".repeat(760_000) });
+    expect(plane.trySendDirect(big, "bob")).toBe(true);
+    expect(frames(channel).length).toBeGreaterThan(10);
+    for (const frame of frames(channel)) {
+      expect(new TextEncoder().encode(frame).length).toBeLessThanOrEqual(262_144);
+    }
+  });
+
+  it("rebuilds a chunked message on the other end and names who sent it", async () => {
+    const host = await connectedHost();
+    const seat = await connectedSeat();
+    host.channel.maxBytes = 262_144;
+    host.plane.freeze();
+    const big = roomMessage({ data: 'héllo "quoted" '.repeat(60_000) });
+    expect(host.plane.trySendDirect(big, "bob")).toBe(true);
+    for (const frame of frames(host.channel)) seat.channel.onmessage?.({ data: frame });
+    expect(seat.delivered).toEqual([{ envelope: big, from: "alice" }]);
+  });
+
+  it("does not chunk an ordinary send, so a peer that predates chunks is never handed one", async () => {
+    const { plane, channel } = await connectedHost();
+    channel.maxBytes = 262_144;
+    expect(plane.sendTo("bob", roomMessage({ data: "A".repeat(760_000) }))).toBe(false);
+    expect(frames(channel)).toEqual([]);
+  });
+
+  it("sends a message under the limit whole, in the shape every peer already reads", async () => {
+    const { plane, channel } = await connectedHost();
+    plane.freeze();
+    const medium = roomMessage({ data: "A".repeat(200_000) });
+    expect(plane.trySendDirect(medium, "bob")).toBe(true);
+    expect(frames(channel)).toEqual([JSON.stringify(medium)]);
+  });
+
+  it("ignores a chunk that is malformed, repeated, or from a message that never finishes", async () => {
+    let clock = 0;
+    const seat = await connectedSeat(() => clock);
+    const feed = (frame: unknown) => seat.channel.onmessage?.({ data: JSON.stringify(frame) });
+    feed({ __chunk: 1, i: 5, n: 2, d: "x" });
+    feed({ __chunk: 1, i: 0, n: 0, d: "x" });
+    feed({ __chunk: 1, i: 0, n: 2, d: 7 });
+    feed({ __chunk: 2, i: 0, n: 2, d: '{"kind":"roomRelay",' });
+    feed({ __chunk: 2, i: 0, n: 2, d: '{"kind":"roomRelay",' });
+    expect(seat.delivered).toEqual([]);
+    feed({ __chunk: 2, i: 1, n: 2, d: '"payload":{}}' });
+    expect(seat.delivered).toEqual([
+      { envelope: { kind: "roomRelay", payload: {} }, from: "alice" },
+    ]);
+    // A message whose rest never comes is dropped rather than held for good.
+    feed({ __chunk: 3, i: 0, n: 2, d: '{"kind":"roomRelay",' });
+    clock += 31_000;
+    feed({ __chunk: 4, i: 0, n: 1, d: '{"kind":"roomRelay","payload":{"late":true}}' });
+    feed({ __chunk: 3, i: 1, n: 2, d: '"payload":{}}' });
+    expect(seat.delivered).toHaveLength(2);
+  });
+
+  it("holds only a few unfinished messages from one peer", async () => {
+    const seat = await connectedSeat();
+    const feed = (frame: unknown) => seat.channel.onmessage?.({ data: JSON.stringify(frame) });
+    for (let id = 0; id < 8; id += 1) feed({ __chunk: id, i: 0, n: 2, d: '{"kind":"roomRelay",' });
+    // A ninth unfinished message is refused, so completing it delivers nothing...
+    feed({ __chunk: 100, i: 0, n: 2, d: '{"kind":"roomRelay",' });
+    feed({ __chunk: 100, i: 1, n: 2, d: '"payload":{}}' });
+    expect(seat.delivered).toEqual([]);
+    // ...while one of the eight that were held still completes.
+    feed({ __chunk: 3, i: 1, n: 2, d: '"payload":{}}' });
+    expect(seat.delivered).toHaveLength(1);
+    // And a message of one chunk never needs a slot.
+    feed({ __chunk: 200, i: 0, n: 1, d: '{"kind":"roomRelay","payload":{}}' });
+    expect(seat.delivered).toHaveLength(2);
+  });
+
+  it("names the host as the sender of a room message, and leaves engine envelopes unnamed", async () => {
+    const { channel, delivered } = await connectedSeat();
+    channel.onmessage?.({ data: JSON.stringify({ kind: "state" }) });
+    channel.onmessage?.({ data: JSON.stringify(roomMessage()) });
+    expect(delivered).toEqual([
+      { envelope: { kind: "state" }, from: "" },
+      { envelope: roomMessage(), from: "alice" },
+    ]);
   });
 });

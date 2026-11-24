@@ -21,6 +21,10 @@ export function announceLocalGame(kind: LocalGameKind): void {
   void push();
 }
 
+export function localGameActive(): boolean {
+  return announced !== null;
+}
+
 export function clearLocalGame(): void {
   if (announced === null) return;
   announced = null;

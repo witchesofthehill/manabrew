@@ -15,7 +15,9 @@ use manabrew_protocol::prompts::{PromptInput, PromptOutput};
 use manabrew_protocol::transport::{
     AgentPrompt, ClientToServerMessage, DirectiveInput, EngineDirective, ProtocolError, StateUpdate,
 };
-use manabrew_relay_protocol::{RematchInfo, ResumeRoomRequest, PROTOCOL_VERSION};
+use manabrew_relay_protocol::{
+    QueueBracketCount, QueuedDeck, RematchInfo, ResumeRoomRequest, PROTOCOL_VERSION,
+};
 use ts_rs::TS;
 
 const HEADER: &str =
@@ -62,6 +64,8 @@ fn main() {
     CardPrintingSelection::export_all_to(&out).expect("export CardPrintingSelection");
     DisplayEvent::export_all_to(&out).expect("export DisplayEvent");
     ResumeRoomRequest::export_all_to(&out).expect("export ResumeRoomRequest");
+    QueuedDeck::export_all_to(&out).expect("export QueuedDeck");
+    QueueBracketCount::export_all_to(&out).expect("export QueueBracketCount");
     RematchInfo::export_all_to(&out).expect("export RematchInfo");
 
     let prompts_dir = out.join("prompts");

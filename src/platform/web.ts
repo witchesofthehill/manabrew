@@ -42,6 +42,7 @@ import type {
   SpawnAiBotParams,
   SendChatParams,
   InviteToRoomParams,
+  EnterQueueParams,
 } from "./types";
 import {
   DUPLICATE_USERNAME_ERROR_FRAGMENT,
@@ -1495,6 +1496,48 @@ class WebServerApi implements IServerApi {
     this.send({ type: "InviteToRoom", username: params.username });
   }
 
+  async enterQueue(params: EnterQueueParams): Promise<void> {
+    this.send({
+      type: "EnterQueue",
+      format: params.format,
+      pod_sizes: params.podSizes,
+      decks: params.decks,
+      can_host: params.canHost,
+    });
+  }
+
+  async acceptQueueStep(bracket: number): Promise<void> {
+    this.send({ type: "AcceptQueueStep", bracket });
+  }
+
+  async setQueueSteps(steps: number[]): Promise<void> {
+    this.send({ type: "SetQueueSteps", steps });
+  }
+
+  async acceptBotFill(): Promise<void> {
+    this.send({ type: "AcceptBotFill" });
+  }
+
+  async acceptMatch(deckIndex?: number): Promise<void> {
+    this.send({ type: "AcceptMatch", deck_index: deckIndex });
+  }
+
+  async declineMatch(): Promise<void> {
+    this.send({ type: "DeclineMatch" });
+  }
+
+  async announceTable(bracket: number | null): Promise<void> {
+    this.send({ type: "AnnounceTable", bracket });
+  }
+
+  async answerTableCall(roomId: string, join: boolean, deckIndex?: number): Promise<void> {
+    this.send({ type: "AnswerTableCall", room_id: roomId, join, deck_index: deckIndex });
+  }
+
+  async leaveQueue(): Promise<void> {
+    this.send({ type: "LeaveQueue" });
+  }
+
   async createRoom(params: CreateRoomParams): Promise<string | null> {
     if (params.engine === "Forge" && !isForgeWasmHostingEnabled()) {
       throw new Error("Forge engine is not supported on the web");
@@ -1605,6 +1648,10 @@ class WebServerApi implements IServerApi {
 
   async setFormat(params: SetFormatParams): Promise<void> {
     this.send({ type: "SetFormat", format: params.format });
+  }
+
+  async setAutoStart(enabled: boolean): Promise<void> {
+    this.send({ type: "SetAutoStart", enabled });
   }
 
   async setMaxPlayers(params: SetMaxPlayersParams): Promise<void> {
@@ -2057,6 +2104,22 @@ class WebServerApi implements IServerApi {
    *   slice of it and not a second serialisation of the parsed message.
    */
   private handleServerMessage(msg: Record<string, unknown>, frameAt?: number, raw?: string): void {
+    if (msg.type === "MatchFound") {
+      const room = msg.room as RoomInfo;
+      this.eventBus.emit("server:match_found", {
+        room,
+        host: msg.host,
+        bracket: msg.bracket,
+        deck_name: msg.deck_name,
+      });
+      msg = {
+        type: "RoomCreated",
+        room_id: room.room_id,
+        room_name: room.room_name,
+        room,
+        resume_token: msg.resume_token,
+      };
+    }
     const type = msg.type as string;
     // The heartbeat would evict real traffic from the bug-report ring buffer.
     if (type === "Pong") {
@@ -2423,6 +2486,37 @@ class WebServerApi implements IServerApi {
       ChatHistory: [
         "server:chat_history",
         { scope: msg.scope, room_id: msg.room_id, messages: msg.messages },
+      ],
+      QueueStatus: [
+        "server:queue_status",
+        { queued: msg.queued, brackets: msg.brackets, waiting: msg.waiting },
+      ],
+      QueueStepOffer: [
+        "server:queue_step_offer",
+        { down: msg.down, up: msg.up, waiting: msg.waiting },
+      ],
+      QueueBotFillOffer: ["server:queue_bot_fill_offer", { players: msg.players }],
+      MatchProposal: [
+        "server:match_proposal",
+        {
+          bracket: msg.bracket,
+          pod_size: msg.pod_size,
+          players: msg.players,
+          expires_s: msg.expires_s,
+          busy: msg.busy ?? 0,
+        },
+      ],
+      MatchProposalAccepts: ["server:match_proposal_accepts", { accepted: msg.accepted }],
+      TableCall: [
+        "server:table_call",
+        {
+          room_id: msg.room_id,
+          host: msg.host,
+          bracket: msg.bracket,
+          seats: msg.seats,
+          pod_size: msg.pod_size,
+          expires_s: msg.expires_s,
+        },
       ],
       RoomInvite: [
         "server:room_invite",

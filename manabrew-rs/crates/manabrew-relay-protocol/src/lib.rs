@@ -317,6 +317,10 @@ pub enum ClientMessage {
         max_players: u8,
     },
 
+    SetAutoStart {
+        enabled: bool,
+    },
+
     StartGame {
         #[serde(default)]
         format: Option<GameFormat>,
@@ -397,6 +401,66 @@ pub enum ClientMessage {
     InviteToRoom {
         username: String,
     },
+
+    EnterQueue {
+        format: GameFormat,
+        pod_sizes: Vec<u8>,
+        decks: Vec<QueuedDeck>,
+        #[serde(default)]
+        can_host: bool,
+    },
+
+    AcceptQueueStep {
+        bracket: u8,
+    },
+
+    /// Replaces every bracket searched beyond the queued decks' own.
+    SetQueueSteps {
+        steps: Vec<u8>,
+    },
+
+    AcceptBotFill,
+
+    AcceptMatch {
+        #[serde(default)]
+        deck_index: Option<usize>,
+    },
+
+    DeclineMatch,
+
+    AnnounceTable {
+        bracket: Option<u8>,
+    },
+
+    AnswerTableCall {
+        room_id: String,
+        join: bool,
+        #[serde(default)]
+        deck_index: Option<usize>,
+    },
+
+    LeaveQueue,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "lobby/index.ts")]
+pub struct QueuedDeck {
+    pub deck_name: String,
+    pub deck: Deck,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub published_deck_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub commander_name: Option<String>,
+    pub bracket: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "lobby/index.ts")]
+pub struct QueueBracketCount {
+    pub bracket: u8,
+    pub players: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -533,6 +597,66 @@ pub enum ServerMessage {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         password: Option<String>,
     },
+
+    QueueStatus {
+        queued: bool,
+        brackets: Vec<u8>,
+        waiting: Vec<QueueBracketCount>,
+    },
+
+    /// No full pod formed at the queued brackets yet. The client asks the
+    /// player whether to take an adjacent one; `AcceptQueueStep` or
+    /// `SetQueueSteps` widens it.
+    QueueStepOffer {
+        down: Option<u8>,
+        up: Option<u8>,
+        waiting: Vec<QueueBracketCount>,
+    },
+
+    /// Players share a bracket but the pod is not full. The client asks
+    /// whether to start with Manabot in the empty seats; `AcceptBotFill`
+    /// opts in. A partial pod forms only when every member opted in.
+    QueueBotFillOffer {
+        players: u32,
+    },
+
+    /// A pod formed. The relay seats it once every member sent `AcceptMatch`
+    /// and left any local game; `busy` members were in one when it formed.
+    MatchProposal {
+        bracket: u8,
+        pod_size: u8,
+        players: u32,
+        expires_s: u32,
+        #[serde(default)]
+        busy: u32,
+    },
+
+    /// How many members of the pending `MatchProposal` have accepted. Sent to
+    /// every member after each accept.
+    MatchProposalAccepts {
+        accepted: u32,
+    },
+
+    /// An open table at one of the player's queued brackets needs players.
+    /// The first `AnswerTableCall` joins take the seats; extra joins open a
+    /// new table that is called the same way.
+    TableCall {
+        room_id: String,
+        host: String,
+        bracket: u8,
+        seats: u8,
+        pod_size: u8,
+        expires_s: u32,
+    },
+
+    MatchFound {
+        room: RoomInfo,
+        host: String,
+        bracket: u8,
+        deck_name: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        resume_token: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -640,6 +764,14 @@ pub struct RoomInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sealed_config: Option<SealedConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub matchmade_bracket: Option<u8>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub matchmade_bot_fill: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub table_bracket: Option<u8>,
+    #[serde(default)]
+    pub auto_start: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rematch: Option<RematchInfo>,
 }
 
@@ -722,6 +854,9 @@ pub struct PlayerInfo {
     /// at the same time as `room_id`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub local_game: Option<LocalGameKind>,
+    /// Brackets this player is searching for a match at; empty when not searching.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub searching_brackets: Vec<u8>,
     /// Opaque to clients: the session's IP sealed together with its handle,
     /// which only the hub can open. Carried verbatim into chat reports.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -755,11 +890,19 @@ pub const FEATURE_CARD_COSMETICS: &str = "card_cosmetics";
 pub const FEATURE_CARD_COSMETICS_V2: &str = "card_cosmetics_v2";
 pub const FEATURE_CARD_COSMETICS_V3: &str = "card_cosmetics_v3";
 
+/// Names [`ClientMessage::EnterQueue`] in `AuthResult::features`.
+pub const FEATURE_MATCHMAKING: &str = "matchmaking";
+
+/// Names [`ClientMessage::SetQueueSteps`] in `AuthResult::features`.
+pub const FEATURE_QUEUE_STEPS: &str = "queue_steps";
+
 pub const FEATURE_SPECTATORS: &str = "spectators";
 
 pub const FEATURES: &[&str] = &[
     FEATURE_SPECTATORS,
     FEATURE_LOCAL_GAME,
+    FEATURE_MATCHMAKING,
+    FEATURE_QUEUE_STEPS,
     FEATURE_ROOM_TRANSPORT,
     FEATURE_PEER_SIGNAL,
     FEATURE_PLANE_QUALITY,

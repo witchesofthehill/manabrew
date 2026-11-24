@@ -10,6 +10,13 @@ import { getPlatform } from "@/platform";
 import { type BotRecovery, newBotRecovery, recoverBotAnswer } from "./ironsmithBotRecovery";
 import { withBothCardParts } from "./ironsmithDeckFaces";
 import { createRoomRelayEnvelope, isRoomRelayProtocol } from "./roomRelay";
+import {
+  HEAD_INTERVAL_MS,
+  HEAD_RESTART_STRIKES,
+  isDuplicateFullSync,
+  judgeHead,
+  syncRetryDelay,
+} from "./ironsmithSyncPolicy";
 import type {
   IGameApi,
   RespondParams,
@@ -110,6 +117,9 @@ type IronsmithPrivatePayload =
       more: boolean;
     }
   | { type: "entry"; entry: IronsmithTranscriptEntry }
+  // Host to seat, every HEAD_INTERVAL_MS: how long the host's transcript is and
+  // the digest of its last entry. A seat that missed an entry notices here.
+  | { type: "head"; seq: number; digest: string | null }
   | { type: "fatal"; message: string }
   // Seat to host.
   | { type: "syncRequest"; have: number; restart: boolean }
@@ -122,7 +132,6 @@ type IronsmithRoomRelayPayload =
 
 const IRONSMITH_TRANSCRIPT_VERSION = 1;
 const SYNC_CHUNK_ENTRIES = 200;
-const SYNC_RETRY_MS = 2000;
 
 // Trusted mode encrypts per-seat payloads against casual room observers, but it
 // is not a cryptographic identity system. Seat identity is bound only to the
@@ -152,7 +161,15 @@ export class IronsmithTrustedGameApi implements IGameApi {
   private work: Promise<void> = Promise.resolve();
   private needsSync = false;
   private syncRestart = false;
-  private syncTimer: ReturnType<typeof setInterval> | null = null;
+  private syncTimer: ReturnType<typeof setTimeout> | null = null;
+  private syncAttempts = 0;
+  // True while this seat is rebuilding its engine from a sync. It is not asking
+  // for anything then, and a request would only draw a second copy.
+  private syncApplying = false;
+  // Host only: the last full sync each seat was sent, to not repeat it at once.
+  private fullSyncs = new Map<string, { at: number; length: number }>();
+  private headTimer: ReturnType<typeof setInterval> | null = null;
+  private headStrikes = 0;
   private roomUnsubscribes: Array<() => void> = [];
   private versionMismatchReported = false;
   // The local seat's last input the host has not put in the transcript yet.
@@ -259,8 +276,11 @@ export class IronsmithTrustedGameApi implements IGameApi {
     this.versionMismatchReported = false;
     this.pendingInput = null;
     this.resendPending = false;
-    if (this.syncTimer) clearInterval(this.syncTimer);
-    this.syncTimer = null;
+    this.stopSyncRetry();
+    this.syncApplying = false;
+    this.fullSyncs.clear();
+    this.stopHeartbeat();
+    this.headStrikes = 0;
   }
 
   private createEngine(): IronsmithEngine {
@@ -347,6 +367,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
       }
       await this.afterChange();
     });
+    this.startHeartbeat();
   }
 
   // A seat's input goes to the host, which orders it into the transcript.
@@ -524,7 +545,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
     do {
       const entries = this.entries.slice(cursor, cursor + SYNC_CHUNK_ENTRIES);
       const more = cursor + entries.length < this.entries.length;
-      await this.sendPrivateRelay(slot, {
+      const sent = await this.sendPrivateRelay(slot, {
         type: "sync",
         ...(withConfig && cursor === from ? { config: this.config } : {}),
         from: cursor,
@@ -532,28 +553,106 @@ export class IronsmithTrustedGameApi implements IGameApi {
         more,
       });
       this.assertGeneration(generation);
+      // Only a sync that went out counts: with no key for the seat yet nothing did.
+      if (sent && withConfig && cursor === from) {
+        this.fullSyncs.set(slot, { at: Date.now(), length: this.entries.length });
+      }
       cursor += entries.length;
     } while (cursor < this.entries.length);
   }
 
-  // Seat only: ask the host for the transcript until it arrives. `restart`
-  // rebuilds the local engine from the match setup instead of extending it.
+  // Seat only: ask the host for the transcript until it arrives, backing off so
+  // a slow seat does not make the host resend it every couple of seconds.
+  // `restart` rebuilds the local engine from the match setup instead of
+  // extending it.
   private requestSync(restart: boolean): void {
     this.needsSync = true;
     this.syncRestart = this.syncRestart || restart || !this.game;
-    const ask = () => {
-      if (!this.needsSync || this.isHost || !this.hostPlayerSlot) return;
-      const slot = this.hostPlayerSlot;
-      this.runBackground(async () => {
-        await this.sendPrivateRelay(slot, {
-          type: "syncRequest",
-          have: this.entries.length,
-          restart: this.syncRestart,
-        });
+    this.sendSyncRequest();
+    this.scheduleSyncRetry();
+  }
+
+  private sendSyncRequest(): void {
+    if (!this.needsSync || this.isHost || !this.hostPlayerSlot) return;
+    const slot = this.hostPlayerSlot;
+    this.runBackground(async () => {
+      await this.sendPrivateRelay(slot, {
+        type: "syncRequest",
+        have: this.entries.length,
+        restart: this.syncRestart,
       });
-    };
-    ask();
-    this.syncTimer ??= setInterval(ask, SYNC_RETRY_MS);
+    });
+  }
+
+  private scheduleSyncRetry(): void {
+    if (this.syncTimer) return;
+    const delay = syncRetryDelay(this.syncAttempts);
+    this.syncTimer = setTimeout(() => {
+      this.syncTimer = null;
+      if (!this.needsSync || this.isHost) return;
+      if (!this.syncApplying) {
+        this.syncAttempts += 1;
+        this.sendSyncRequest();
+      }
+      this.scheduleSyncRetry();
+    }, delay);
+  }
+
+  private stopSyncRetry(): void {
+    if (this.syncTimer) clearTimeout(this.syncTimer);
+    this.syncTimer = null;
+    this.syncAttempts = 0;
+  }
+
+  // Host only: tell every seat how long the transcript is. Entries and syncs
+  // are only ever sent once, so a seat that missed one would otherwise wait on a
+  // prompt the host already answered, and the host on a seat that never saw it.
+  private startHeartbeat(): void {
+    if (this.headTimer || !this.isMultiplayer) return;
+    this.headTimer = setInterval(() => {
+      if (!this.isHost || !this.game) return;
+      this.runBackground(() =>
+        this.enqueue(async () => {
+          if (!this.isHost || !this.game || !this.config) return;
+          const generation = this.generation;
+          const last = this.entries[this.entries.length - 1];
+          for (const slot of this.remoteHumanSlots()) {
+            await this.sendPrivateRelay(slot, {
+              type: "head",
+              seq: this.entries.length,
+              digest: last?.digest ?? null,
+            });
+            this.assertGeneration(generation);
+          }
+        }),
+      );
+    }, HEAD_INTERVAL_MS);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.headTimer) clearInterval(this.headTimer);
+    this.headTimer = null;
+  }
+
+  // Seat only: compare the host's head with the local transcript. A seat that is
+  // behind asks for what it is missing; one that disagrees about what it has
+  // rebuilds its engine, but only on a repeat, since a single reading can cross
+  // an entry in flight.
+  private checkHead(head: Extract<IronsmithPrivatePayload, { type: "head" }>): void {
+    if (this.isHost || !this.game || this.needsSync) return;
+    const verdict = judgeHead(head, this.entries);
+    if (verdict === "agrees") {
+      this.headStrikes = 0;
+    } else if (verdict === "behind") {
+      this.requestSync(false);
+    } else {
+      this.headStrikes += 1;
+      if (this.headStrikes >= HEAD_RESTART_STRIKES) {
+        this.headStrikes = 0;
+        console.warn("[Ironsmith] local transcript disagrees with the host's; rebuilding");
+        this.requestSync(true);
+      }
+    }
   }
 
   private async applySync(
@@ -571,7 +670,12 @@ export class IronsmithTrustedGameApi implements IGameApi {
       this.botRecovery.clear();
       this.game?.dispose();
       this.createEngine();
-      await this.callEngine("start", payload.config, false);
+      this.syncApplying = true;
+      try {
+        await this.callEngine("start", payload.config, false);
+      } finally {
+        this.syncApplying = false;
+      }
       this.config = payload.config;
       this.entries = [];
       this.concededPlayerSlots.clear();
@@ -589,8 +693,8 @@ export class IronsmithTrustedGameApi implements IGameApi {
     }
     if (payload.more) return;
     this.needsSync = false;
-    if (this.syncTimer) clearInterval(this.syncTimer);
-    this.syncTimer = null;
+    this.stopSyncRetry();
+    this.headStrikes = 0;
     await this.emitLocalView();
     this.assertGeneration(generation);
     await this.resubmitPending();
@@ -637,8 +741,9 @@ export class IronsmithTrustedGameApi implements IGameApi {
     this.roomUnsubscribes = [
       // The room's public view carries no hidden cards. A seat that receives
       // it draws its own view again on top, whatever order the two arrived in.
-      events.on<{ state?: { kind?: string } }>("server:state_update", (payload) => {
-        if (!this.isMultiplayer || this.isHost || payload?.state?.kind !== "state") return;
+      // The platform hands the public view to the store as `game:remote_state`.
+      events.on<{ kind?: string }>("game:remote_state", (payload) => {
+        if (!this.isMultiplayer || this.isHost || payload?.kind !== "state") return;
         const generation = this.generation;
         setTimeout(() => {
           if (generation !== this.generation) return;
@@ -674,6 +779,8 @@ export class IronsmithTrustedGameApi implements IGameApi {
       // Another seat hosts now. Its transcript is the game: catch up to it,
       // or restart from it if this seat got ahead of it.
       this.isHost = false;
+      this.stopHeartbeat();
+      this.fullSyncs.clear();
       if (this.game) await this.callEngine("clearBots");
       this.botRecovery.clear();
       this.requestSync(false);
@@ -687,8 +794,8 @@ export class IronsmithTrustedGameApi implements IGameApi {
     }
     this.isHost = true;
     this.needsSync = false;
-    if (this.syncTimer) clearInterval(this.syncTimer);
-    this.syncTimer = null;
+    this.stopSyncRetry();
+    this.startHeartbeat();
     await this.broadcastPublicState();
     this.assertGeneration(generation);
     await this.afterChange();
@@ -807,6 +914,10 @@ export class IronsmithTrustedGameApi implements IGameApi {
           if (await this.applyEntry(privatePayload.entry)) await this.emitLocalView();
         });
         return;
+      case "head":
+        if (this.isHost || sender !== this.hostPlayerSlot) return;
+        await this.enqueue(async () => this.checkHead(privatePayload));
+        return;
       case "fatal":
         if (sender !== this.hostPlayerSlot) return;
         getPlatform().events.emit("game:fatal", { message: privatePayload.message });
@@ -814,6 +925,15 @@ export class IronsmithTrustedGameApi implements IGameApi {
       case "syncRequest":
         await this.enqueue(async () => {
           if (!this.isHost || !this.game) return;
+          if (
+            isDuplicateFullSync({
+              request: privatePayload,
+              transcriptLength: this.entries.length,
+              lastFullSync: this.fullSyncs.get(sender),
+              now: Date.now(),
+            })
+          )
+            return;
           await this.sendSync(sender, privatePayload.have, privatePayload.restart);
         });
         return;

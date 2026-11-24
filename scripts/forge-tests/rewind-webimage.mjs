@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter, once } from "node:events";
+import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { ForgeEngine } from "../../packages/forge-wasm/node.js";
 import {
@@ -17,8 +18,8 @@ const states = new Map();
 const prompts = [];
 let failure;
 const engine = new ForgeEngine({
-  launcherUrl: values.launcher,
-  wasmUrl: values.wasm,
+  launcherUrl: values.launcher && resolve(values.launcher),
+  wasmUrl: values.wasm && resolve(values.wasm),
   onState({ gameView }, seat) {
     states.set(seat, gameView);
     changes.emit("update");

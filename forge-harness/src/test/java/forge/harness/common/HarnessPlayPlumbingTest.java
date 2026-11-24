@@ -56,6 +56,7 @@ public final class HarnessPlayPlumbingTest {
         priorityPassesWhenWorkRunsOut();
         exhaustedAttackStillMeetsRequirements();
         exhaustedBlockStillMeetsRequirements();
+        exhaustedBlockCompletesRequiredMenaceGroup();
         System.exit(0);
     }
 
@@ -204,6 +205,25 @@ public final class HarnessPlayPlumbingTest {
         final String invalid = CombatUtil.validateBlocks(combat, defender);
         if (invalid != null || !combat.getBlockers(large).contains(required) || !combat.getBlockers(small).isEmpty()) {
             throw new AssertionError("exhausted block did not leave only the required block: " + invalid);
+        }
+    }
+
+    private static void exhaustedBlockCompletesRequiredMenaceGroup() {
+        final Game game = newGame();
+        game.getRules().setAiWorkLimit(1);
+        final Player attacker = game.getPhaseHandler().getPlayerTurn();
+        final Player defender = game.getNextPlayerAfter(attacker);
+        final Card menace = add("Maulfist Squad", attacker, ZoneType.Battlefield);
+        final Card required = add("Razorgrass Screen", defender, ZoneType.Battlefield);
+        final Card helper = add("Memnite", defender, ZoneType.Battlefield);
+        game.getPhaseHandler().devModeSet(PhaseType.COMBAT_DECLARE_BLOCKERS, attacker);
+        final Combat combat = new Combat(attacker);
+        combat.addAttacker(menace, defender);
+        ((PlayerControllerAi) defender.getController()).getAi().declareBlockersFor(defender, combat);
+        final CardCollection blockers = combat.getBlockers(menace);
+        final String invalid = CombatUtil.validateBlocks(combat, defender);
+        if (invalid != null || blockers.size() != 2 || !blockers.contains(required) || !blockers.contains(helper)) {
+            throw new AssertionError("exhausted block did not complete the required menace block: " + blockers + "; " + invalid);
         }
     }
 

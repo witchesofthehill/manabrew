@@ -59,9 +59,14 @@ export function PlayHome() {
   const openTables = rooms.filter(
     (room) => room.status === "Lobby" && room.engine !== "Manabrew",
   ).length;
+  const searching = players.filter((player) => (player.searching_brackets?.length ?? 0) > 0).length;
   const lobbyTeaser =
     connected && (openTables > 0 || players.length > 0)
-      ? `${openTables} ${openTables === 1 ? "table" : "tables"} open · ${players.length} online`
+      ? [
+          `${openTables} ${openTables === 1 ? "table" : "tables"} open`,
+          `${players.length} online`,
+          ...(searching > 0 ? [`${searching} finding a match`] : []),
+        ].join(" · ")
       : null;
   const communityEnabled = isFeatureEnabled("deckHub");
   useEffect(() => {

@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.92.0](https://github.com/witchesofthehill/manabrew/compare/v3.91.1...v3.92.0) (2026-11-24)
+
+### Features
+
+* **matchmaking:** commander queue with bracket step offers ([#1214](https://github.com/witchesofthehill/manabrew/issues/1214)) ([af58211](https://github.com/witchesofthehill/manabrew/commit/af582111eac239e701aa571927e225b56dc10b0f))
+
+## [3.91.1](https://github.com/witchesofthehill/manabrew/compare/v3.91.0...v3.91.1) (2026-11-24)
+
+### Fixes
+
+* **ironsmith:** update ironsmith-wasm to 1.0.0 ([#1278](https://github.com/witchesofthehill/manabrew/issues/1278)) ([cbac60e](https://github.com/witchesofthehill/manabrew/commit/cbac60e4a2cd6acce67b830b711346da39fcf6fc))
+
 ## [3.91.0](https://github.com/witchesofthehill/manabrew/compare/v3.90.0...v3.91.0) (2026-11-23)
 
 ### Features

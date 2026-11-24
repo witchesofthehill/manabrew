@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getPlatform } from "@/platform";
+import type { SpawnAiBotParams } from "@/platform/types";
 import { peekSpawnedBots } from "@/lib/spawnedBots";
 import { stripUsernameTag } from "@/lib/username";
 import { useServerStore } from "@/stores/useServerStore";
@@ -111,6 +112,20 @@ export function useLobbyDeckSelection({
     setOpen(true);
   }
 
+  async function spawnBot(params: SpawnAiBotParams) {
+    await getPlatform().server!.spawnAiBot(params);
+    if (useServerStore.getState().currentRoom?.room_id !== params.roomId) return;
+    setOwned((currentOwned) => ({
+      roomId: params.roomId,
+      names: [
+        ...new Set([
+          ...(currentOwned?.roomId === params.roomId ? currentOwned.names : []),
+          params.username,
+        ]),
+      ],
+    }));
+  }
+
   async function addBot(seatIndex: number) {
     const server = getPlatform().server;
     const current = useServerStore.getState().currentRoom;
@@ -141,7 +156,7 @@ export function useLobbyDeckSelection({
     pending.current = true;
     setBusy(true);
     try {
-      await server.spawnAiBot({
+      await spawnBot({
         roomId: current.room_id,
         username: botName,
         roomPassword: useServerStore.getState().roomPassword,
@@ -149,15 +164,6 @@ export function useLobbyDeckSelection({
       });
       const latest = useServerStore.getState().currentRoom;
       if (latest?.room_id !== current.room_id) return;
-      setOwned((currentOwned) => ({
-        roomId: current.room_id,
-        names: [
-          ...new Set([
-            ...(currentOwned?.roomId === current.room_id ? currentOwned.names : []),
-            botName,
-          ]),
-        ],
-      }));
       if (latest.status !== "Lobby" || latest.format !== current.format) return;
       setTarget({ roomId: current.room_id, username: botName });
       setOpen(true);
@@ -264,6 +270,7 @@ export function useLobbyDeckSelection({
     selectSeat,
     selectDeck,
     addBot,
+    spawnBot,
     removeBot,
     ownedBots,
     busy,

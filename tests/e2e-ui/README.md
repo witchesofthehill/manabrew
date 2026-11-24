@@ -35,6 +35,15 @@ Each script prints `PASS: …` and exits 0, or `FAIL: …` and exits non-zero.
 Env knobs: `BASE`, `RELAY_HOST`, `RELAY_PORT`, `RELAY_PW`, `DECK` (as in the
 Ironsmith suite), plus `SHOT=<dir>` to write screenshots of the key states.
 
+## Commander matchmaking relay
+
+Run `cargo build -p manabrew-server`, then `node tests/e2e-ui/commander-matchmaking-relay.mjs`.
+This standalone protocol suite starts an isolated relay and drives WebSocket clients; it needs
+Node 24 but no browser or game engine. It covers deck selection, local-game deferral, declines,
+disconnects, node-room reuse, table invitations, auto-start authorization, proposal expiry,
+and opt-in bot filling. It prints the relay log path and exits nonzero on failure.
+`MATCHMAKING_TEST_PORT` overrides the default port 19514; the health endpoint uses the next port.
+
 ## The browser Forge engine
 
 `forge-wasm-*.mjs` drive Forge compiled to WebAssembly, the offline engine.

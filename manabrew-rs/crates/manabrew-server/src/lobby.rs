@@ -768,6 +768,30 @@ pub fn set_max_players_sync(
     Ok(room_id)
 }
 
+pub fn set_auto_start_sync(
+    state: &Arc<ServerState>,
+    player_id: &str,
+    enabled: bool,
+) -> Result<String, ServerError> {
+    let room_id = state
+        .players
+        .get(player_id)
+        .and_then(|p| p.room_id.clone())
+        .ok_or(ServerError::NotInRoom)?;
+    let mut room = state
+        .rooms
+        .get_mut(&room_id)
+        .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
+    if !room.is_controller(player_id) {
+        return Err(ServerError::NotHost);
+    }
+    if room.status != RoomStatus::Lobby {
+        return Err(ServerError::GameAlreadyStarted);
+    }
+    room.auto_start = enabled;
+    Ok(room_id)
+}
+
 pub fn start_game_sync(
     state: &Arc<ServerState>,
     player_id: &str,
@@ -787,7 +811,8 @@ pub fn start_game_sync(
             .get_mut(&room_id)
             .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
 
-        if !room.is_controller(player_id) {
+        let matchmade_host = room.matchmade_bracket.is_some() && room.is_host(player_id);
+        if !room.is_controller(player_id) && !matchmade_host {
             return Err(ServerError::NotHost);
         }
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getPlatform } from "@/platform";
+import { TableMatchmakingSettings } from "@/components/lobby/TableMatchmakingSettings";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RELAY_FEATURE } from "@/types/server";
 import { useServerStore } from "@/stores/useServerStore";
@@ -211,6 +212,9 @@ export function TableRoomHeader({
           </div>
         )}
       </dl>
+      <div className="basis-full">
+        <TableMatchmakingSettings room={room} isController={isController} />
+      </div>
     </header>
   );
 }

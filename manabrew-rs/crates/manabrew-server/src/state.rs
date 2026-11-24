@@ -8,6 +8,7 @@ use crate::analytics::AnalyticsHandle;
 use crate::chat::ChatHistory;
 use crate::client_build::ClientBuild;
 use crate::identity::{IdentityVerifier, SessionIdentity};
+use crate::matchmaking::MatchQueue;
 use crate::protocol::identity_token::GUEST_SUBJECT_PREFIX;
 use crate::protocol::LocalGameKind;
 use crate::room::Room;
@@ -90,6 +91,7 @@ pub struct ServerState {
     pub lobby_chat: Mutex<ChatHistory>,
     pub seal: Option<MessageSealer>,
     pub art_base_url: Option<String>,
+    pub queue: Mutex<MatchQueue>,
 }
 
 impl ServerState {
@@ -115,6 +117,7 @@ impl ServerState {
             lobby_chat: Mutex::new(ChatHistory::default()),
             seal,
             art_base_url: None,
+            queue: Mutex::new(MatchQueue::default()),
         }
     }
 

@@ -186,7 +186,12 @@ export interface IServerApi {
   reportGameOutcome(gameId: string, outcome: GameOutcomeReport): Promise<void>;
   requestResync(): Promise<void>;
   broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void>;
-  sendRoomMessage(message: RoomRelayEnvelope): Promise<void>;
+  /**
+   * `direct` offers the message to the room's peer-to-peer plane first, when the
+   * caller knows the recipient reads it from there. It still reaches the recipient
+   * over the relay when the plane cannot carry it.
+   */
+  sendRoomMessage(message: RoomRelayEnvelope, options?: { direct?: boolean }): Promise<void>;
   spawnAiBot(params: SpawnAiBotParams): Promise<void>;
   restoreAiBots(roomId: string): Promise<string[]>;
   setAiBotDeck(username: string, params: SetDeckSelectionParams): Promise<void>;

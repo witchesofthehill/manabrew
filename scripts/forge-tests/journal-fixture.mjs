@@ -7,6 +7,46 @@ export const deck = {
   ],
 };
 
+export const forgeAiDeck = {
+  format: "standard",
+  cards: [
+    { name: "Mountain", count: 24 },
+    { name: "Goblin Brigand", count: 24 },
+    { name: "Shock", count: 12 },
+  ],
+};
+
+export const forgeAiOpponentDeck = {
+  format: "standard",
+  cards: [
+    { name: "Forest", count: 36 },
+    { name: "Llanowar Elves", count: 24 },
+  ],
+};
+
+export function forgeAiActivity(states) {
+  const bot = "player-2";
+  return {
+    targetedSpell: states.some((state) =>
+      state.stack.some(
+        (item) =>
+          item.controllerId === bot &&
+          item.sourceCard?.identity.name === "Shock" &&
+          !item.isCasting &&
+          item.targets.length > 0,
+      ),
+    ),
+    attack: states.some((state) =>
+      state.zones.some(
+        (zone) =>
+          zone.zone === "battlefield" &&
+          zone.ownerId === bot &&
+          zone.cards.some((card) => card.isAttacking),
+      ),
+    ),
+  };
+}
+
 export function scriptedAnswer({ prompt }) {
   const input = prompt.input;
   let output;

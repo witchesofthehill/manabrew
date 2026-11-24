@@ -249,11 +249,7 @@ function commanderNames(deck, fallback) {
   return single ? [single] : [];
 }
 
-/**
- * The clock unless the caller pins one. A pinned seed makes a bench rerun start
- * from the same shuffle; it does not make the game replay, because the AI's
- * timeouts and the host's scheduling still vary.
- */
+/** Use the clock only when the caller has not supplied a seed. */
 function gameSeed(args) {
   const seed = args && Number(args.seed);
   return Number.isInteger(seed) && seed > 0 ? seed % 2147483647 : Date.now() % 2147483647;
@@ -312,6 +308,7 @@ async function startGame(requestId, args) {
     snapshotRecording: !args || args.snapshotRecording !== false,
     decisionJournal: args?.decisionJournal === true,
     journalRewind: args?.journalRewind === true,
+    forgeAiPolicy: args?.forgeAiPolicy,
     players: [
       {
         name: "You",
@@ -414,6 +411,7 @@ async function startMultiplayerGame(requestId, args) {
     snapshotRecording: !args || args.snapshotRecording !== false,
     decisionJournal: args?.decisionJournal === true,
     journalRewind: args?.journalRewind === true,
+    forgeAiPolicy: args?.forgeAiPolicy,
     players: decks.map((deck, index) => ({
       name: playerNames[index] || `Player ${index + 1}`,
       ai: forgeAiSeats.has(index),

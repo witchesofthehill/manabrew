@@ -91,8 +91,9 @@ public final class ManaBrewEngineAdapter {
         Objects.requireNonNull(request, "request");
         requireInitialized();
 
-        if (request.journalStart != null && request.getPlayers().stream().anyMatch(PlayerConfig::isAi)) {
-            throw new IllegalArgumentException("decision journal requires a seeded game with external decisions");
+        if (request.journalStart != null && request.forgeAiPolicy == null
+                && request.getPlayers().stream().anyMatch(PlayerConfig::isAi)) {
+            throw new IllegalArgumentException("decision journal with Forge AI requires forgeAiPolicy deterministic-v1");
         }
         if (sessions.containsKey(request.getGameId())) {
             throw new IllegalArgumentException("session already exists: " + request.getGameId());
@@ -113,6 +114,9 @@ public final class ManaBrewEngineAdapter {
         final GameRules rules = new GameRules(gameType);
         rules.setAppliedVariants(variants);
         rules.setSimTimeout(120);
+        if (request.forgeAiPolicy == ForgeAiPolicy.DETERMINISTIC_V1) {
+            rules.setAiWorkLimit(20000);
+        }
         final boolean pauperCommander = PAUPER_COMMANDER.equals(request.getVariant());
         if (pauperCommander) {
             rules.setCommanderDamageToLose(PAUPER_COMMANDER_DAMAGE_TO_LOSE);
@@ -574,6 +578,14 @@ public final class ManaBrewEngineAdapter {
         final StartGameRequest request = new StartGameRequest(
                 gameId, variant, startingLife, seed, snapshotRecording, players);
         request.startingLifeSpecified = root.has("startingLife");
+        if (root.has("forgeAiPolicy")) {
+            final JsonElement policy = root.get("forgeAiPolicy");
+            if (!policy.isJsonPrimitive() || !policy.getAsJsonPrimitive().isString()
+                    || !"deterministic-v1".equals(policy.getAsString())) {
+                throw new IllegalArgumentException("forgeAiPolicy must be \"deterministic-v1\"");
+            }
+            request.forgeAiPolicy = ForgeAiPolicy.DETERMINISTIC_V1;
+        }
         request.checkpointMetrics = root.has("checkpointMetrics") && root.get("checkpointMetrics").getAsBoolean();
         request.journalRewind = root.has("journalRewind") && root.get("journalRewind").getAsBoolean();
         if (root.has("replaySnapshot")) {
@@ -635,6 +647,10 @@ public final class ManaBrewEngineAdapter {
         return object.get(key).getAsString();
     }
 
+    private enum ForgeAiPolicy {
+        DETERMINISTIC_V1
+    }
+
     public static final class StartGameRequest {
         private boolean journalRewind;
         private JsonObject replaySnapshot;
@@ -647,6 +663,7 @@ public final class ManaBrewEngineAdapter {
         private boolean checkpointMetrics;
         private String journalStart;
         private boolean journalCommitBarrier;
+        private ForgeAiPolicy forgeAiPolicy;
         private final List<PlayerConfig> players;
 
         public StartGameRequest(

@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { parseArgs } from "node:util";
 import { harness } from "./journal-harness.mjs";
-import { scriptedAnswer } from "./journal-fixture.mjs";
+import {
+  deck,
+  forgeAiActivity,
+  forgeAiDeck,
+  forgeAiOpponentDeck,
+  scriptedAnswer,
+} from "./journal-fixture.mjs";
 
 const { values } = parseArgs({
   options: {
@@ -12,24 +18,29 @@ const { values } = parseArgs({
     },
     "forge-home": { type: "string", default: "forge/forge-gui" },
     native: { type: "string" },
+    "forge-ai": { type: "boolean" },
   },
 });
 const sessionId = "journal-rewind-regression";
 const options = { ...values, forgeHome: values["forge-home"], sessionId };
-const deck = [
-  ...Array.from({ length: 20 }, () => ({ name: "Forest" })),
-  ...Array.from({ length: 20 }, () => ({ name: "Memnite" })),
-  ...Array.from({ length: 20 }, () => ({ name: "Sprout" })),
-];
+const flatten = (deck) =>
+  deck.cards.flatMap(({ name, count }) => Array.from({ length: count }, () => ({ name })));
+const forgeAi = values["forge-ai"];
+const humanDeck = flatten(forgeAi ? forgeAiOpponentDeck : deck);
+const targets = forgeAi ? [140] : [1, 4, 24, 60];
 const request = {
   gameId: sessionId,
   variant: "Constructed",
-  startingLife: 20,
+  startingLife: forgeAi ? 1000 : 20,
   seed: 42,
   decisionJournal: true,
   journalRewind: true,
   snapshotRecording: false,
-  players: [0, 1].map((seat) => ({ name: `Player ${seat}`, ai: false, deck })),
+  players: [
+    ...[0, 1].map((seat) => ({ name: `Player ${seat}`, ai: false, deck: humanDeck })),
+    ...(forgeAi ? [{ name: "Forge AI", ai: true, deck: flatten(forgeAiDeck) }] : []),
+  ],
+  ...(forgeAi && { forgeAiPolicy: "deterministic-v1" }),
 };
 const pause = () => new Promise((resolve) => setTimeout(resolve, 10));
 async function until(read, predicate) {
@@ -73,7 +84,7 @@ try {
   await source.call("startGame", { payload: JSON.stringify(request) });
   const boundaries = [];
   let prompt = await source.prompt();
-  for (let index = 0; index < 100; index++) {
+  for (let index = 0; index < (forgeAi ? 330 : 100); index++) {
     const state = await view(source);
     assert(state.decisionHistory);
     assert.equal(state.snapshotRecording, false);
@@ -82,8 +93,15 @@ try {
     prompt = await source.prompt(prompt.promptId);
   }
   const original = board(await view(source));
-  for (const target of [1, 4, 24, 60]) {
+  if (forgeAi) {
+    assert.deepEqual(forgeAiActivity(boundaries.slice(targets[0] - 1).map(({ state }) => state)), {
+      targetedSpell: true,
+      attack: true,
+    });
+  }
+  for (const target of targets) {
     const snapshot = await requestRewind(source, target);
+    const continuation = boundaries.slice(target - 1, forgeAi ? undefined : target + 7);
     const restored = harness(options);
     try {
       const start = JSON.parse(snapshot.journal.startRequest);
@@ -97,7 +115,7 @@ try {
       const restoredView = await view(restored);
       assert.equal(restoredView.restoreVote.status.type, "approved");
       assert.equal(restoredView.checkpoints.length, target - 1);
-      for (const boundary of boundaries.slice(target - 1, target + 7)) {
+      for (const boundary of continuation) {
         assert.deepEqual(
           JSON.parse(await restored.call("getPrompt", { playerIndex: 0 })),
           boundary.prompt,
@@ -106,8 +124,14 @@ try {
         await restored.call("submitAction", { payload: JSON.stringify(boundary.action) });
         await restored.prompt(boundary.prompt.promptId);
       }
+      if (forgeAi) assert.deepEqual(board(await view(restored)), original);
       console.log(
-        JSON.stringify({ runtime: values.native ? "native" : "jvm", target, continued: 8 }),
+        JSON.stringify({
+          runtime: values.native ? "native" : "jvm",
+          forgeAi: !!forgeAi,
+          target,
+          continued: continuation.length,
+        }),
       );
     } finally {
       restored.close();
@@ -119,7 +143,7 @@ try {
       assert.deepEqual(board(await view(source)), original);
     }
   }
-  const snapshot = await requestRewind(source, 24);
+  const snapshot = await requestRewind(source, forgeAi ? targets[0] : 24);
   snapshot.verification.state = "corrupt";
   const rejected = harness(options);
   try {
@@ -146,13 +170,20 @@ try {
   await source.call("submitAction", { payload: JSON.stringify(scriptedAnswer({ prompt })) });
   await source.prompt(prompt.promptId);
   console.log(JSON.stringify({ rejectedCorruptReplay: true, originalContinues: true }));
-  await requestRewind(source, 24);
+  await requestRewind(source, forgeAi ? targets[0] : 24);
   await directive(source, 0, { type: "concede" });
   assert.equal(await source.call("getRewindRequest"), "", "pending concede cancels promotion");
-  await until(
-    () => source.call("getGameOver"),
-    (over) => over === "true",
-  );
+  if (forgeAi) {
+    await until(
+      () => view(source),
+      (state) => state.players.find((player) => player.id === "player-0")?.status === "conceded",
+    );
+  } else {
+    await until(
+      () => source.call("getGameOver"),
+      (over) => over === "true",
+    );
+  }
   console.log(JSON.stringify({ queuedConcedePreserved: true }));
 } finally {
   source.close();

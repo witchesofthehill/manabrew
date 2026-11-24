@@ -48,6 +48,7 @@
     "build:harness": "node scripts/harness.mjs build",
     "test:forge-supervisor": "node --test packages/forge-wasm/forge-engine.worker.test.mjs",
     "test:forge-rewind": "node scripts/forge-tests/rewind.mjs",
+    "test:forge-webimage-rewind": "node scripts/forge-tests/rewind-webimage.mjs",
     "bench:stress": "node scripts/engine-bench/stress.mjs",
     "bench:manabot": "node scripts/engine-bench/manabot-game.mjs",
     "bench:manabot-pop": "node scripts/engine-bench/manabot-pop.mjs",

@@ -2,8 +2,22 @@
 
 PvP and external Manabot games use `decisionJournal` and `journalRewind`.
 The Journal tab shows redacted consumed decisions from `gameView.checkpoints`;
-Forge AI games retain legacy snapshots. Internal Forge AI is not deterministic
-under replay and is rejected by journal mode.
+Forge AI games retain legacy snapshots in production. Journal mode rejects internal
+Forge AI unless the private start request explicitly selects
+`forgeAiPolicy: "deterministic-v1"`.
+
+This opt-in pins a 20,000-unit work limit per Forge AI search, applied through
+`GameRules.setAiWorkLimit` before match creation. It does not change the public
+protocol or enable Forge AI journals in production launchers. An absent policy
+preserves legacy AI behavior; any supplied value other than the exact string
+`"deterministic-v1"` is rejected, including null and non-string values. There is no
+separate numeric budget option. Changing the limit requires a new policy version.
+
+The exact policy remains in the journal's original start request and applies to
+both live play and reconstruction. Replay requires the same harness/Forge artifact,
+assets and effective preferences, with the same seed and policy. This opt-in does
+not support replay across artifacts, versions or runtimes, and does not relax
+prompt, state or RNG verification or the single-game isolation requirement.
 
 Legacy `GameSnapshot` rewind has a control-restoration limitation. After an
 assimilated permanent returns to its owner through Saga chapter III, restoring
@@ -89,10 +103,31 @@ through the end of turn 12. A fixture that no longer adds counters or dungeon pr
 after the target fails rather than passing with weaker coverage.
 `ReplayOrderingTest` keeps Room choice order independent of JVM identity hashes.
 
-`yarn test:forge-rewind [--native <node binary>]` (`scripts/forge-tests/rewind.mjs`)
-rewinds the JVM, native or container engine, checks continued play, and checks that a
-failed or corrupted rewind resumes the original game unchanged and that a pending
-concede cancels promotion.
+The Forge AI case in `JournalRewindTest` uses two human seats and one built-in AI.
+It requires bot attacks and paid, targeted casts on both sides of the rewind
+target, compares continuation prompts, views and state/RNG witnesses, and checks
+that a corrupt witness rejects the candidate without discarding the source.
+
+Run the worker regressions against artifacts built from the same checkout:
+
+```sh
+yarn test:forge-rewind
+yarn test:forge-rewind --forge-ai
+yarn test:forge-rewind --forge-ai --native target/debug/self-hosted-node
+yarn test:forge-webimage-rewind
+```
+
+`test:forge-rewind` defaults to the JVM harness jar. The native command needs
+`libforgeharness` and a node binary built with `graal-forge`. Both check continued
+play, corrupt replay rejection and concession during a pending rewind. For the
+Web Image test, stage `forgeharness.js` and `forgeharness.js.wasm` in
+`packages/forge-wasm/`, or pass `--launcher <path> --wasm <path>` to use build
+outputs directly. It runs the Node package with real workers and SABs, checks bot
+combat and targeting after the rewind target, then compares continued play after
+the supervisor promotes the candidate.
+
+Qualify each runtime before enabling its launcher. A macOS native build uses
+Serial GC and does not qualify the Linux hosted build, which uses G1.
 
 `journal_engine` unit tests cover node promotion, hung or crashed candidates and process
 cleanup. `yarn test:forge-supervisor` covers browser worker promotion and teardown.

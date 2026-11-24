@@ -66,6 +66,7 @@ export interface ForgeStartGameOptions {
   commanderName?: string;
   /** Uses Forge's internal AI for opponent seats instead of external SAB clients. */
   forgeAi?: boolean;
+  forgeAiPolicy?: "deterministic-v1";
   /** Pins the shuffle. Omitted, the engine seeds from the clock. */
   seed?: number;
   /** Off, the engine takes no restore snapshots. Defaults to on. */
@@ -81,6 +82,7 @@ export interface ForgeStartMultiplayerGameOptions {
   enginePlayerIndex: number;
   /** Seats controlled by Forge's internal AI instead of external SAB clients. */
   forgeAiSeats?: number[];
+  forgeAiPolicy?: "deterministic-v1";
   /**
    * SAB seats a Manabot plays rather than a person. The engine describes the
    * board to such a seat only when it is prompted, and books the time its

@@ -31,14 +31,22 @@ await createRoom(page, { name: "ForgeSmoke", format: FORMAT });
 await pickPreset(page, () => deckButton(page).click(), DECK);
 await pickBotPreset(page, DECK);
 await page.getByRole("button", { name: /Start (Game|Table)/i }).click();
-await page.waitForURL(/\/play(?:[/?#]|$)/, { timeout: 60000 }).catch(() => {});
+const board = page.locator("canvas");
+const boardReady = await page
+  .waitForURL(/\/play(?:[/?#]|$)/, { timeout: 60000 })
+  .then(() => board.first().waitFor({ state: "visible", timeout: 60000 }))
+  .then(
+    () => true,
+    () => false,
+  );
 
 const url = page.url();
-const canvas = await page.locator("canvas").count();
+const canvas = await board.count();
 const live = await livePromptType(page);
 const prompt = live.checked ? (live.type ?? "none") : "not checked: no dev game store";
 if (SHOT) await page.screenshot({ path: `${SHOT}/engine-Forge.png`, fullPage: true });
-const onBoard = /\/play|\/game/.test(url) && canvas > 0 && (!live.checked || Boolean(live.type));
+const onBoard =
+  boardReady && /\/play|\/game/.test(url) && canvas > 0 && (!live.checked || Boolean(live.type));
 console.log(
   `ENGINE=Forge deck=${DECK} url=${url} canvas=${canvas} prompt=${prompt} -> ${onBoard ? "PLAYS ✓" : "FAILED ✗"}`,
 );

@@ -52,6 +52,10 @@ node tests/e2e-ironsmith/ironsmith-manabot.mjs
 # Also checks chunked recovery and requested rollback; dev server only, no relay.
 node tests/e2e-ironsmith/ironsmith-mulligan-sync.mjs
 
+# Three humans: repeated sync requests draw at most one more copy of the match config,
+# and a seat that loses an entry catches up from the host's heartbeat. Dev server only, no relay.
+node tests/e2e-ironsmith/ironsmith-sync-recovery.mjs
+
 # Relay-only host selection: skip bots and never elect a bot when the last human leaves.
 # Uses Node 22+ WebSocket; no browser or dev server needed.
 node tests/e2e-ironsmith/ironsmith-bot-host.mjs

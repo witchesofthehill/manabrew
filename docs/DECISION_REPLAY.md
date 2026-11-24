@@ -108,6 +108,10 @@ It requires bot attacks and paid, targeted casts on both sides of the rewind
 target, compares continuation prompts, views and state/RNG witnesses, and checks
 that a corrupt witness rejects the candidate without discarding the source.
 
+`HarnessPlayPlumbingTest` forces the AI to exhaust its combat budget and verifies
+that a required menace block uses a legal helper when another candidate cannot
+block with that group.
+
 Run the worker regressions against artifacts built from the same checkout:
 
 ```sh

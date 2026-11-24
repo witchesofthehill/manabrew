@@ -215,6 +215,7 @@ public final class HarnessPlayPlumbingTest {
         final Player defender = game.getNextPlayerAfter(attacker);
         final Card menace = add("Maulfist Squad", attacker, ZoneType.Battlefield);
         final Card required = add("Razorgrass Screen", defender, ZoneType.Battlefield);
+        add("Okk", defender, ZoneType.Battlefield);
         final Card helper = add("Memnite", defender, ZoneType.Battlefield);
         game.getPhaseHandler().devModeSet(PhaseType.COMBAT_DECLARE_BLOCKERS, attacker);
         final Combat combat = new Combat(attacker);

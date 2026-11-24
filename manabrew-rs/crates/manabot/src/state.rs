@@ -6,7 +6,7 @@ use manabrew_agent_interface::protocol::{
     ServerMessage, StateEnvelope,
 };
 use manabrew_protocol::deck_dto::Deck;
-use manabrew_relay_protocol::state_delta;
+use manabrew_relay_protocol::{state_delta, FEATURE_ROOM_SEATS};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::{debug, warn};
@@ -39,15 +39,28 @@ pub struct BotConfig {
     pub room_id: String,
     #[serde(default)]
     pub room_password: Option<String>,
-    pub deck_name: String,
-    pub deck: Deck,
     #[serde(default)]
-    pub commander_name: Option<String>,
+    pub seat_index: Option<u8>,
+    #[serde(flatten)]
+    pub selection: Option<BotDeckSelection>,
     /// Which built-in AI to plug into the bot. Defaults to `Simple`.
     #[serde(default)]
     pub agent: AgentKind,
     #[serde(default)]
     pub answer_delay_ms: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BotDeckSelection {
+    pub deck_name: String,
+    pub deck: Deck,
+    #[serde(default)]
+    pub published_deck_id: Option<String>,
+    #[serde(default)]
+    pub commander_name: Option<String>,
+    #[serde(default)]
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,6 +88,9 @@ pub struct BotState {
     failure: Option<String>,
     board: Option<Board>,
     resync_pending: bool,
+    room_status: Option<RoomStatus>,
+    selection_pending: bool,
+    selection_dirty: bool,
 }
 
 fn unix_now() -> i64 {
@@ -121,7 +137,46 @@ impl BotState {
             failure: None,
             board: None,
             resync_pending: false,
+            room_status: None,
+            selection_pending: false,
+            selection_dirty: false,
         }
+    }
+
+    pub fn set_deck_selection(
+        &mut self,
+        selection: BotDeckSelection,
+    ) -> Result<Vec<ClientMessage>, String> {
+        if matches!(self.phase, Phase::Playing { .. } | Phase::Failed)
+            || self
+                .room_status
+                .as_ref()
+                .is_some_and(|status| *status != RoomStatus::Lobby)
+        {
+            return Err("Bot decks can only be changed in the lobby.".into());
+        }
+        self.config.selection = Some(selection);
+        self.selection_dirty = true;
+        if self.phase == Phase::AwaitingGameStart && self.room_status == Some(RoomStatus::Lobby) {
+            Ok(self.select_deck())
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
+    fn select_deck(&mut self) -> Vec<ClientMessage> {
+        let Some(selection) = self.config.selection.as_ref() else {
+            return Vec::new();
+        };
+        self.selection_pending = true;
+        self.selection_dirty = false;
+        vec![ClientMessage::SetDeckSelection {
+            deck_name: selection.deck_name.clone(),
+            deck: selection.deck.clone(),
+            published_deck_id: selection.published_deck_id.clone(),
+            commander_name: selection.commander_name.clone(),
+            avatar_url: selection.avatar_url.clone(),
+        }]
     }
 
     pub fn on_open(&mut self) -> Vec<ClientMessage> {
@@ -152,10 +207,18 @@ impl BotState {
                     success,
                     reconnected,
                     error,
+                    features,
                     ..
                 },
             ) => {
                 if *success {
+                    if self.config.seat_index.is_some()
+                        && !features.iter().any(|feature| feature == FEATURE_ROOM_SEATS)
+                    {
+                        return self.fail(
+                            "Update the relay before adding a bot to a selected seat.".into(),
+                        );
+                    }
                     if *reconnected == Some(true) {
                         self.phase = Phase::AwaitingGameStart;
                         vec![ClientMessage::RequestResync]
@@ -166,6 +229,7 @@ impl BotState {
                             observe: false,
                             as_bot: true,
                             password: self.config.room_password.clone(),
+                            seat_index: self.config.seat_index,
                         }]
                     }
                 } else {
@@ -180,23 +244,63 @@ impl BotState {
                         .any(|player| player.username == self.config.username) =>
             {
                 self.phase = Phase::AwaitingGameStart;
-                if room.status == RoomStatus::InGame {
+                self.room_status = Some(room.status.clone());
+                if room.status != RoomStatus::Lobby {
                     vec![ClientMessage::RequestResync]
                 } else {
-                    vec![
-                        ClientMessage::SetDeckSelection {
-                            deck_name: self.config.deck_name.clone(),
-                            deck: self.config.deck.clone(),
-                            published_deck_id: None,
-                            commander_name: self.config.commander_name.clone(),
-                            avatar_url: None,
-                        },
-                        ClientMessage::SetReady { ready: true },
-                    ]
+                    self.select_deck()
                 }
             }
             (Phase::AwaitingRoomJoin, ServerMessage::Error { message, .. }) => {
                 self.fail(format!("room join failed: {message}"))
+            }
+            (
+                Phase::AwaitingGameStart | Phase::Playing { .. },
+                ServerMessage::RoomUpdate { room },
+            ) if room.room_id == self.config.room_id => {
+                let Some(player) = room
+                    .players
+                    .iter()
+                    .find(|player| player.username == self.config.username)
+                else {
+                    return Vec::new();
+                };
+                match room.status {
+                    RoomStatus::Finished => {
+                        self.room_status = Some(RoomStatus::Finished);
+                        self.phase = Phase::AwaitingGameStart;
+                        self.resync_pending = false;
+                        Vec::new()
+                    }
+                    RoomStatus::Lobby => {
+                        self.room_status = Some(RoomStatus::Lobby);
+                        self.phase = Phase::AwaitingGameStart;
+                        self.board = None;
+                        self.resync_pending = false;
+                        let Some(selection) = self.config.selection.as_ref() else {
+                            return Vec::new();
+                        };
+                        if self.selection_dirty
+                            || (!self.selection_pending && player.selected_deck_name.is_none())
+                        {
+                            return self.select_deck();
+                        }
+                        if self.selection_pending
+                            && player.selected_deck_name.as_ref() != Some(&selection.deck_name)
+                        {
+                            return Vec::new();
+                        }
+                        self.selection_pending = false;
+                        if !player.ready {
+                            return vec![ClientMessage::SetReady { ready: true }];
+                        }
+                        Vec::new()
+                    }
+                    RoomStatus::InGame => {
+                        self.room_status = Some(RoomStatus::InGame);
+                        Vec::new()
+                    }
+                }
             }
             (
                 Phase::AwaitingGameStart | Phase::Playing { .. },
@@ -212,6 +316,7 @@ impl BotState {
                         self.board = None;
                         self.resync_pending = false;
                         self.phase = Phase::Playing { player_slot: slot };
+                        self.room_status = Some(RoomStatus::InGame);
                         Vec::new()
                     }
                     None => self.fail(format!(

@@ -2,11 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
+import { Button } from "@/components/ui/button";
 import type { PromptActionSpec } from "@/components/game/game.types";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { useTheme } from "@/hooks/useTheme";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { registerModal } from "@/lib/modalStack";
+import { playSound } from "@/lib/soundRuntime";
 import type { BoardOverlayPreviewSpec } from "@/pixi/BoardOverlayCanvas";
 import { DesktopBoardOverlayCanvas } from "@/pixi/DesktopBoardOverlayCanvas";
 import { MobileBoardOverlayCanvas } from "@/pixi/MobileBoardOverlayCanvas";
@@ -41,6 +43,13 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
   const panelRef = useRef<HTMLDivElement>(null);
   useEffect(() => registerModal(panelRef.current!), []);
   const [damageOrder, setDamageOrder] = useState<string[]>([]);
+  const [rematchRequests, setRematchRequests] = useState<string[]>([]);
+  const toggleRematchRequest = (playerId: string) => {
+    if (!rematchRequests.includes(playerId)) playSound("roomInvite");
+    setRematchRequests((current) =>
+      current.includes(playerId) ? current.filter((id) => id !== playerId) : [...current, playerId],
+    );
+  };
   const input = useMemo(() => previewInput(preview, fixtures), [preview, fixtures]);
   const prompt = useMemo<Prompt>(() => ({ input }) as Prompt, [input]);
   const blockerCards = useMemo(() => FALLBACK_CARDS.slice(1, 3), []);
@@ -159,7 +168,23 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
               opponents: fixtures.opponents,
               turn: fixtures.gameView.turn,
               engineCrash: null,
-              onEndGame: onClose,
+              statusMessage: rematchRequests.length
+                ? null
+                : `Waiting on ${new Intl.ListFormat("en").format(
+                    fixtures.opponents.map((player) => player.name),
+                  )}`,
+              playerStatuses: Object.fromEntries(
+                fixtures.opponents.map((player) => [
+                  player.id,
+                  rematchRequests.includes(player.id) ? "Ready" : "Deciding",
+                ]),
+              ),
+              rematchRequests,
+              ready: false,
+              busy: false,
+              onPlayAgain: onClose,
+              onChangeDeck: onClose,
+              onHome: onClose,
             }
           : null,
       modalHidden: false,
@@ -168,7 +193,17 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
       onShowModal: noAction,
       onOpenPhaseStopsHelp: noAction,
     };
-  }, [blockerCards, damageOrder, fixtures, input.type, onClose, preview, prompt, turnColor]);
+  }, [
+    blockerCards,
+    damageOrder,
+    fixtures,
+    input.type,
+    onClose,
+    preview,
+    prompt,
+    rematchRequests,
+    turnColor,
+  ]);
 
   return createPortal(
     <>
@@ -198,6 +233,23 @@ export function PromptModalPreview({ preview, fixtures, onClose }: PromptModalPr
               );
             }}
           />
+          {preview === "game-over" && (
+            <div className="pointer-events-auto fixed left-1/2 top-4 z-[1] flex -translate-x-1/2 flex-wrap justify-center gap-2 rounded-md border border-border bg-card p-2 text-ui-label">
+              {fixtures.opponents.map((player) => {
+                const requested = rematchRequests.includes(player.id);
+                return (
+                  <Button
+                    key={player.id}
+                    size="sm"
+                    variant={requested ? "selected" : "outline"}
+                    onClick={() => toggleRematchRequest(player.id)}
+                  >
+                    {requested ? `${player.name}: cancel vote` : `${player.name}: play again`}
+                  </Button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
       {previewStyle === "printed" && (

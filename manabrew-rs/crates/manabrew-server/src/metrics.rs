@@ -245,10 +245,14 @@ pub fn refresh_gauges(state: &ServerState) {
     let mut lobby_hosted = 0u32;
     let mut in_game_player = 0u32;
     let mut in_game_hosted = 0u32;
+    let mut finished_player = 0u32;
+    let mut finished_hosted = 0u32;
     let mut lobby_human_players = 0u32;
     let mut lobby_bot_players = 0u32;
     let mut in_game_human_players = 0u32;
     let mut in_game_bot_players = 0u32;
+    let mut finished_human_players = 0u32;
+    let mut finished_bot_players = 0u32;
     for entry in state.rooms.iter() {
         let room = entry.value();
         for slot in &room.players {
@@ -263,6 +267,8 @@ pub fn refresh_gauges(state: &ServerState) {
                 (RoomStatus::Lobby, true) => lobby_bot_players += 1,
                 (RoomStatus::InGame, false) => in_game_human_players += 1,
                 (RoomStatus::InGame, true) => in_game_bot_players += 1,
+                (RoomStatus::Finished, false) => finished_human_players += 1,
+                (RoomStatus::Finished, true) => finished_bot_players += 1,
             }
         }
         match (&room.status, room.hosted) {
@@ -270,6 +276,8 @@ pub fn refresh_gauges(state: &ServerState) {
             (RoomStatus::Lobby, true) => lobby_hosted += 1,
             (RoomStatus::InGame, false) => in_game_player += 1,
             (RoomStatus::InGame, true) => in_game_hosted += 1,
+            (RoomStatus::Finished, false) => finished_player += 1,
+            (RoomStatus::Finished, true) => finished_hosted += 1,
         }
     }
 
@@ -315,6 +323,18 @@ pub fn refresh_gauges(state: &ServerState) {
     set_rooms(RoomStatus::Lobby, true, lobby_hosted);
     set_rooms(RoomStatus::InGame, false, in_game_player);
     set_rooms(RoomStatus::InGame, true, in_game_hosted);
+    set_players(
+        RoomStatus::Finished,
+        ConnectionKind::Human,
+        finished_human_players,
+    );
+    set_players(
+        RoomStatus::Finished,
+        ConnectionKind::Bot,
+        finished_bot_players,
+    );
+    set_rooms(RoomStatus::Finished, false, finished_player);
+    set_rooms(RoomStatus::Finished, true, finished_hosted);
     for kind in LocalGameKind::ALL {
         let count = local_games.get(kind.as_str()).copied().unwrap_or(0);
         gauge!(LOCAL_GAMES, LABEL_KIND => kind.as_str()).set(count as f64);
@@ -347,6 +367,7 @@ fn status_label(status: RoomStatus) -> &'static str {
     match status {
         RoomStatus::Lobby => "lobby",
         RoomStatus::InGame => "in_game",
+        RoomStatus::Finished => "finished",
     }
 }
 

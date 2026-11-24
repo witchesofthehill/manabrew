@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { matchPath, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { cancelPendingGameLaunch, useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
@@ -18,16 +18,33 @@ import {
   activeGameSessionAtPageLoad,
   isActiveGameSessionAtPageLoadCurrent,
 } from "@/lib/activeGameSession";
+import type { SinglePlayerSetup } from "@/game/singlePlayerSetup";
 
 const consumedMultiplayerLaunches = new Set<string>();
 
 export default function Play() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isGameActive, gameView, startGame, startMultiplayerGame, setMultiplayerState } =
-    useGameStore();
+  const {
+    isGameActive,
+    gameView,
+    currentPrompt,
+    gameInstanceId,
+    isRestartingGame,
+    startGame,
+    startMultiplayerGame,
+    setMultiplayerState,
+  } = useGameStore();
   const multiplayerStarted = useRef(false);
   const gameWasActive = useRef(false);
+  const completedGame = useRef(false);
+  const routeKey = useRef(location.key);
+  useLayoutEffect(() => {
+    routeKey.current = location.key;
+    gameWasActive.current = false;
+    multiplayerStarted.current = false;
+    completedGame.current = false;
+  }, [location.key]);
   const pathname =
     location.pathname.length > 1 ? location.pathname.replace(/\/+$/, "") : location.pathname;
   const routeState = location.state;
@@ -61,6 +78,21 @@ export default function Play() {
     typeof routeState.preSelectedDeck === "object"
       ? (routeState.preSelectedDeck as SelectedDeck)
       : undefined;
+  const gamePurpose =
+    routeState &&
+    typeof routeState === "object" &&
+    "gamePurpose" in routeState &&
+    routeState.gamePurpose === "playtest"
+      ? "playtest"
+      : "match";
+  const singlePlayerSetup =
+    routeState &&
+    typeof routeState === "object" &&
+    "singlePlayerSetup" in routeState &&
+    routeState.singlePlayerSetup &&
+    typeof routeState.singlePlayerSetup === "object"
+      ? (routeState.singlePlayerSetup as SinglePlayerSetup)
+      : undefined;
   const mpState = useMemo(
     () => (isLiveEngineGameRouteState(routeState) ? routeState : null),
     [routeState],
@@ -71,8 +103,11 @@ export default function Play() {
   useEffect(() => {
     if (isGameActive) {
       gameWasActive.current = true;
+      completedGame.current =
+        (gameView?.gameOver ?? false) || currentPrompt?.input.type === "gameOver";
       return;
     }
+    if (isRestartingGame) return;
     const limited = peekLimitedMatchReturn();
     if (limited) {
       const recovering = activeGameSessionAtPageLoad();
@@ -95,6 +130,10 @@ export default function Play() {
       }
       return;
     }
+    if (completedGame.current) {
+      gameWasActive.current = false;
+      return;
+    }
     if (gameWasActive.current && mpState?.multiplayer) {
       gameWasActive.current = false;
       multiplayerStarted.current = false;
@@ -114,6 +153,12 @@ export default function Play() {
       const server = useServerStore.getState();
       const cleanup = mpState.isHost ? server.endGame().catch(() => undefined) : server.leaveRoom();
       void cleanup.finally(() => {
+        if (
+          routeKey.current !== location.key ||
+          useGameStore.getState().isGameActive ||
+          useGameStore.getState().isRestartingGame
+        )
+          return;
         navigate(ROUTES.LOBBY, {
           replace: true,
         });
@@ -124,7 +169,16 @@ export default function Play() {
       gameWasActive.current = false;
       navigate(exitTo, { replace: true });
     }
-  }, [isGameActive, gameView, mpState, navigate, exitTo, location.key]);
+  }, [
+    isGameActive,
+    gameView,
+    currentPrompt,
+    mpState,
+    navigate,
+    exitTo,
+    location.key,
+    isRestartingGame,
+  ]);
   useEffect(() => {
     const active = useGameStore.getState().isGameActive;
     if (
@@ -154,7 +208,12 @@ export default function Play() {
       botPlayerSlots,
     } = mpState;
     const recoverFromFailedStart = async () => {
-      if (!multiplayerStarted.current) return;
+      if (
+        !multiplayerStarted.current ||
+        routeKey.current !== location.key ||
+        useGameStore.getState().isRestartingGame
+      )
+        return;
       multiplayerStarted.current = false;
       const limited = peekLimitedMatchReturn();
       if (limited) {
@@ -174,8 +233,8 @@ export default function Play() {
         replace: true,
       });
     };
-    const engineIndex = parseInt(myPlayerSlot.replace("player-", ""), 10);
-    if (Number.isNaN(engineIndex) || engineIndex < 0) {
+    const engineIndex = mpState.spectator ? -1 : parseInt(myPlayerSlot.replace("player-", ""), 10);
+    if (!mpState.spectator && (Number.isNaN(engineIndex) || engineIndex < 0)) {
       void recoverFromFailedStart();
       return;
     }
@@ -207,10 +266,10 @@ export default function Play() {
       if (!started) void recoverFromFailedStart();
     });
   }, [mpState, navigate, setMultiplayerState, startMultiplayerGame, location.key]);
-  if (isGameActive) {
+  if (isGameActive || isRestartingGame) {
     return (
       <div className="h-full min-h-0 no-scrollbar">
-        <Game exitTo={exitTo} />
+        <Game key={gameInstanceId} exitTo={exitTo} />
       </div>
     );
   }
@@ -251,12 +310,23 @@ export default function Play() {
     <OfflinePlayShell>
       {(modeToggle) => (
         <OfflinePlaySetup
+          key={location.key}
+          singlePlayerSetup={singlePlayerSetup}
           leadingControl={modeToggle}
           preSelectedDeckId={preSelectedDeckId}
           preSelectedHubDeckId={preSelectedHubDeckId}
           preSelectedDeck={preSelectedDeck}
-          onStart={(playerDeck, opponentDecks, formatId, commanderName) =>
-            startGame(playerDeck, formatId, commanderName, opponentDecks, resolveOfflineEngine())
+          onStart={(playerDeck, opponentDecks, formatId, commanderName, setup) =>
+            startGame(
+              gamePurpose,
+              playerDeck,
+              formatId,
+              commanderName,
+              opponentDecks,
+              setup?.engine ?? resolveOfflineEngine(),
+              undefined,
+              setup,
+            )
           }
         />
       )}

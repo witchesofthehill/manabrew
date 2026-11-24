@@ -10,6 +10,7 @@ import type {
   SealedConfig,
   LocalGameKind,
   QueuedDeck,
+  RematchIntent,
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
 import type { DirectiveInput, Prompt, PromptOutput, ResumeRoomRequest } from "@/protocol";
@@ -120,10 +121,11 @@ export interface SetMaxPlayersParams {
 
 export type BotAgentKind = "simple";
 
-export interface SpawnAiBotParams extends SetDeckSelectionParams {
+export interface SpawnAiBotParams extends Partial<SetDeckSelectionParams> {
   roomId: string;
   username: string;
   roomPassword?: string | null;
+  seatIndex?: number;
   /** Defaults to `"simple"` when omitted. */
   agent?: BotAgentKind;
 }
@@ -174,14 +176,20 @@ export interface IServerApi {
   setFormat(params: SetFormatParams): Promise<void>;
   setMaxPlayers(params: SetMaxPlayersParams): Promise<void>;
   setAutoStart(enabled: boolean): Promise<void>;
+  setAllowSpectators(allow: boolean): Promise<void>;
   startGame(params?: StartServerGameParams): Promise<void>;
   endGame(gameId: string): Promise<void>;
+  finishGame(gameId: string): Promise<void>;
+  setRematchIntent(gameId: string, intent: RematchIntent): Promise<void>;
+  returnToLobby(gameId: string): Promise<void>;
   reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void>;
   reportGameOutcome(gameId: string, outcome: GameOutcomeReport): Promise<void>;
   requestResync(): Promise<void>;
   broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void>;
   sendRoomMessage(message: RoomRelayEnvelope): Promise<void>;
   spawnAiBot(params: SpawnAiBotParams): Promise<void>;
+  restoreAiBots(roomId: string): Promise<string[]>;
+  setAiBotDeck(username: string, params: SetDeckSelectionParams): Promise<void>;
   removeAiBot(username: string): Promise<void>;
 }
 

@@ -28,7 +28,12 @@ import type {
   InviteToRoomParams,
   EnterQueueParams,
 } from "./types";
-import type { GameOutcomeReport, LocalGameKind, RoomRelayEnvelope } from "@/types/server";
+import type {
+  GameOutcomeReport,
+  LocalGameKind,
+  RematchIntent,
+  RoomRelayEnvelope,
+} from "@/types/server";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 // Tauri Server API — delegates to the web relay client, except Forge hosting
@@ -149,6 +154,9 @@ class TauriServerApi implements IServerApi {
     return this.inner.setAutoStart(enabled);
   }
 
+  setAllowSpectators(allow: boolean): Promise<void> {
+    return this.inner.setAllowSpectators(allow);
+  }
   setMaxPlayers(params: SetMaxPlayersParams): Promise<void> {
     return this.inner.setMaxPlayers(params);
   }
@@ -168,6 +176,15 @@ class TauriServerApi implements IServerApi {
   endGame(gameId: string): Promise<void> {
     return this.inner.endGame(gameId);
   }
+  finishGame(gameId: string): Promise<void> {
+    return this.inner.finishGame(gameId);
+  }
+  setRematchIntent(gameId: string, intent: RematchIntent): Promise<void> {
+    return this.inner.setRematchIntent(gameId, intent);
+  }
+  returnToLobby(gameId: string): Promise<void> {
+    return this.inner.returnToLobby(gameId);
+  }
   requestResync(): Promise<void> {
     return this.inner.requestResync();
   }
@@ -179,6 +196,12 @@ class TauriServerApi implements IServerApi {
   }
   spawnAiBot(params: SpawnAiBotParams): Promise<void> {
     return this.inner.spawnAiBot(params);
+  }
+  restoreAiBots(roomId: string): Promise<string[]> {
+    return this.inner.restoreAiBots(roomId);
+  }
+  setAiBotDeck(username: string, params: SetDeckSelectionParams): Promise<void> {
+    return this.inner.setAiBotDeck(username, params);
   }
   removeAiBot(username: string): Promise<void> {
     return this.inner.removeAiBot(username);

@@ -12,6 +12,34 @@ The relay is the multiplayer trust boundary. Only the room's engine host may emi
 
 Per-seat `State`, `Prompt`, and `Error` envelopes can contain hidden information. A hosted node must set `BroadcastState.target_player` for all three; this transport target is the authenticated relay username, not an engine slot. `fromPlayer` and encrypted `private.to` remain engine slots. `forPlayer` inside the envelope is for client dispatch and replay indexing, not transport privacy.
 
+## Physical lobby seats
+
+`room_seats` advertises `JoinRoom.seat_index` and `RoomPlayerInfo.seat_index`. Explicit positions must be free and below `max_players`; invalid requests return `invalid_seat` before mutation. Unspecified joins take the lowest free position. Existing disconnected seats are reclaimed by username without moving them.
+
+`RoomSlot.seat_index` controls lobby placement only. Preserve `Room.players` join order for engine slots, controller selection, and `player_order`; never sort it by physical position. Departures leave other positions unchanged. Capacity reductions relocate only out-of-range occupants. Limited child rooms have their own positions and leave parent positions intact.
+
+`ResumeRoom.seat_indices` aligns with `player_order`; indices must be unique and in range. Retained positions take precedence, while missing positions use free slots. Browser bot recovery parameters follow authoritative room positions after resizing; a lobby bot disconnect is a departure, so its next join must request the updated position.
+
+## Completed games and rematches
+
+`game_rematch` gates `FinishGame`, `SetRematchIntent` and `ReturnToLobby`. After final state and `ReportGameOutcome`, the engine host sends `FinishGame` for a successful ordinary game. The relay enters `Finished`, retains seats, deck snapshots, settings and final replay, and records completion once. Crashes, aborts, Limited parents and child matches keep their existing teardown paths.
+
+A `Finished` room still forwards the engine host's envelopes and drops player responses. A browser host sends `FinishGame` when its own seat sees the end; other seats' final `gameOver` prompts leave through separate async seat readers and can reach the relay after it. Dropping them leaves those seats without an end screen until the room is torn down.
+
+`RoomInfo.rematch` fixes the required human roster at the completed game's launch, including humans who left or lost earlier. Each remaining human chooses `Deciding`, `ChoosingDeck` or `Ready`; changing a deck clears only that human's consent. The relay launches one fresh game ID when every required human is connected and ready, every retained seat has a deck and connection, and the engine host is connected. Bots do not vote.
+
+A temporary disconnect clears that human's consent during reconnect grace. Explicit departure or grace expiry cancels the agreement and clears consent. A surviving participant may then send `ReturnToLobby`, preserving the remaining seats, decks and settings for explicit reconfiguration. Engine-host loss never migrates ownership.
+
+Finished-room `RequestResync` still returns the completed `GameStarted` and final state. Clients distinguish that replay from a fresh launch by room status and game ID; replay must not restart the finished engine.
+
+## Spectators
+
+`FEATURE_SPECTATORS` advertises `SetAllowSpectators` and live observation. Public tables allow spectators by default; password-protected tables default off. The controller changes the setting only in Lobby, and `ResumeRoom.allow_spectators` preserves it across relay restarts (older hosts restore privately). `RoomInfo.can_spectate` requires a running Forge game with a cached public snapshot and excludes Draft/Sealed sessions and their child matches. Local games never acquire a broadcast feed from presence alone.
+
+`JoinRoom.observe` admits watchers only when `can_spectate` is true and the password matches. Observers consume no seats, cannot submit engine inputs or room-relay messages, and cannot keep an abandoned game alive. Both start metadata and replay redact their deck lists; replay requires a current seat before returning private state, prompts or directives, even if a watcher's username appears in the original player order. Observer broadcasts carry only untargeted public state envelopes. Room reset releases watchers along with the players while retaining an engine-host observer.
+
+Browser Forge hosts generate the public snapshot with viewer `-1`, send it through the relay even when players use WebRTC, and retain it for resync. Rebuild WebImage after changing this producer. Never synthesize public snapshots by forwarding a seated player's view.
+
 ## Limited sessions
 
 `AuthResult.features` advertises `limited_sessions` and `limited_session_recovery`; clients require both before creating durable multiplayer Draft or Sealed sessions. `src/game/limitedSession.ts` coordinates the `limited-session-v1` room relay. The original room host owns generation and validates each build against its seat's acquired occurrence IDs, printing and finish. Every acquired card must appear exactly once across Main and Sideboard; added basics require real Scryfall printings, and readiness requires at least 40 main cards. Human Sealed build suggestions are opt-in.

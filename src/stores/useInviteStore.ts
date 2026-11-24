@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { toast } from "sonner";
 import { useServerStore } from "@/stores/useServerStore";
+import { leaveRoomWithClientAnalytics } from "@/lib/clientAnalyticsLobby";
+import { noteClientInviteAccepted, trackClientUiAction } from "@/lib/clientAnalyticsFunnel";
 import { USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type { RoomInvitePayload, ServerErrorCode } from "@/types/server";
 
@@ -46,8 +48,9 @@ export const useInviteStore = create<InviteState>()((set, get) => ({
     const server = useServerStore.getState();
     if (server.currentRoom?.room_id === invite.room.room_id) return true;
     try {
-      if (server.currentRoom) await server.leaveRoom();
+      if (server.currentRoom) await leaveRoomWithClientAnalytics();
       await server.joinRoom(invite.room.room_id, invite.password);
+      noteClientInviteAccepted(invite.room.room_id);
       return true;
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
@@ -60,6 +63,7 @@ export const useInviteStore = create<InviteState>()((set, get) => ({
 
   async send(username) {
     if (get().sent.has(username)) return;
+    trackClientUiAction("lobby_invite");
     set({ sent: new Set(get().sent).add(username) });
     try {
       await useServerStore.getState().inviteToRoom(username);

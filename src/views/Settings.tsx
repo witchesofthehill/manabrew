@@ -714,6 +714,28 @@ export default function Settings() {
             </PreferenceCard>
 
             <PreferenceCard
+              title={`Usage Analytics`}
+              description={`Sends which screens you open and how many clicks it takes to reach your first game, under a pseudonymous ID. No deck contents, text or click positions. Browsers with Global Privacy Control never send it.`}
+            >
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={prefs.usageAnalytics ? "selected" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setUsageAnalytics(true)}
+                >
+                  Share
+                </Button>
+                <Button
+                  variant={!prefs.usageAnalytics ? "selected" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setUsageAnalytics(false)}
+                >
+                  Off
+                </Button>
+              </div>
+            </PreferenceCard>
+
+            <PreferenceCard
               title={`Battlefield Card Style`}
               description={`Manabrew shows a composed card with current game information. Realistic shows the printed scan. Art-forward uses artwork with compact labels. This setting only affects battlefield cards.`}
             >

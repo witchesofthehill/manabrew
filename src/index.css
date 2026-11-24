@@ -190,6 +190,46 @@
   --animate-splash-step-out: splash-step-out 600ms cubic-bezier(0.4, 0, 0.6, 1) both;
   --animate-hurray-pop: hurray-pop 650ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
   --animate-hurray-sparkle: hurray-sparkle 1.4s ease-in-out infinite;
+  --animate-seat-actions-in: seat-actions-in 180ms ease-out both;
+  --animate-seat-actions-out: seat-actions-out 130ms ease-in both;
+  --animate-seat-bubble-in: seat-bubble-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-seat-bubble-out: seat-bubble-out 130ms ease-in both;
+
+  @keyframes seat-actions-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes seat-actions-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes seat-bubble-in {
+    from {
+      transform: translate(var(--seat-action-shift-x), var(--seat-action-shift-y)) scale(0.7);
+    }
+    to {
+      transform: translate(0, 0) scale(1);
+    }
+  }
+
+  @keyframes seat-bubble-out {
+    from {
+      transform: translate(0, 0) scale(1);
+    }
+    to {
+      transform: translate(var(--seat-action-shift-x), var(--seat-action-shift-y)) scale(0.7);
+    }
+  }
 
   @keyframes draft-pack-arrive {
     from {

@@ -130,7 +130,7 @@ export function useGameSessionResume() {
       return;
     }
     const me = username ?? session.username;
-    if (!currentRoom.players.some((p) => p.username === me)) {
+    if (!session.spectator && !currentRoom.players.some((p) => p.username === me)) {
       rlog(
         `resync-effect: '${me}' NOT among room players [${currentRoom.players.map((p) => p.username).join(", ")}] — membership check failed`,
       );

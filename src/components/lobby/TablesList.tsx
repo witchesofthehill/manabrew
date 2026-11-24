@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 const HIDDEN_ROOM_NAMES = new Set(["free room", "free pod"]);
+import type { TableRoomDeckSelection } from "./tableRoom.types";
 interface TablesListProps {
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
@@ -31,20 +32,19 @@ interface TablesListProps {
   refreshDisabled: boolean;
   disabled?: boolean;
   onJoinRoom: (roomId: string, password?: string, format?: GameFormat) => Promise<void>;
+  onWatchRoom: (roomId: string, password?: string) => Promise<void>;
   onLeaveRoom: () => void;
   onSetReady: (ready: boolean) => void;
   onSetFormat?: (format: GameFormat) => void;
   onSetMaxPlayers?: (maxPlayers: number) => void;
-  onOpenDeckDialog: () => void;
+  deckSelection?: TableRoomDeckSelection;
   onStartGame: () => void;
   onStartDraft?: () => void;
   onStartSealed?: () => void;
   startingLimited?: boolean;
   startingGame?: boolean;
-  onAddBot?: () => void;
+  onAddBot?: (seatIndex: number) => void;
   onRemoveBot?: (username: string) => void;
-  /** Bots this host process spawned — used to show the remove button. The
-   *  relay has no isBot field; tracking lives client-local. */
   mySpawnedBots?: string[];
 }
 export function TablesList({
@@ -58,11 +58,12 @@ export function TablesList({
   refreshDisabled,
   disabled = false,
   onJoinRoom,
+  onWatchRoom,
   onLeaveRoom,
   onSetReady,
   onSetFormat,
   onSetMaxPlayers,
-  onOpenDeckDialog,
+  deckSelection,
   onStartGame,
   onStartDraft,
   onStartSealed,
@@ -89,7 +90,9 @@ export function TablesList({
     if (joiningRoomId) return;
     setJoiningRoomId(roomId);
     try {
-      await onJoinRoom(roomId, password, format);
+      const room = rooms.find((entry) => entry.room_id === roomId);
+      if (room?.status === "InGame") await onWatchRoom(roomId, password);
+      else await onJoinRoom(roomId, password, format);
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
       const message = USER_FACING_ERROR_MESSAGES[code as ServerErrorCode];
@@ -109,6 +112,10 @@ export function TablesList({
     }
   }
   async function joinThenChooseFormat(room: RoomInfo, password: string) {
+    if (room.status === "InGame") {
+      await onWatchRoom(room.room_id, password);
+      return;
+    }
     await onJoinRoom(room.room_id, password);
     if (needsFormatChoice(room)) {
       setFormatAfterJoin(true);
@@ -139,7 +146,7 @@ export function TablesList({
           onSetReady={onSetReady}
           onSetFormat={onSetFormat}
           onSetMaxPlayers={onSetMaxPlayers}
-          onOpenDeckDialog={onOpenDeckDialog}
+          deckSelection={deckSelection}
           onStartGame={onStartGame}
           onStartDraft={onStartDraft}
           onStartSealed={onStartSealed}
@@ -155,14 +162,23 @@ export function TablesList({
   }
   const trimmedSearch = search.trim().toLowerCase();
   const ordinaryRooms = rooms
-    .filter((room) => !HIDDEN_ROOM_NAMES.has(room.room_name.trim().toLowerCase()))
-    .filter((room) => room.status === "Lobby")
+    .filter(
+      (room) =>
+        !HIDDEN_ROOM_NAMES.has(room.room_name.trim().toLowerCase()) ||
+        room.players.some((player) => !player.is_bot),
+    )
     .filter((room) => !room.official || room.players.length > 0);
   const visibleRooms = ordinaryRooms.filter(
     (room) =>
       !trimmedSearch ||
       room.room_name.toLowerCase().includes(trimmedSearch) ||
-      room.host.toLowerCase().includes(trimmedSearch),
+      room.host.toLowerCase().includes(trimmedSearch) ||
+      room.format.toLowerCase().includes(trimmedSearch) ||
+      room.players.some(
+        (player) =>
+          player.username.toLowerCase().includes(trimmedSearch) ||
+          player.selected_deck_name?.toLowerCase().includes(trimmedSearch),
+      ),
   );
   const hasTables = ordinaryRooms.length > 0;
   return (
@@ -199,7 +215,7 @@ export function TablesList({
                   shortTouch && "hidden",
                 )}
               >
-                Join a table that is already waiting for players.
+                Join an open table or watch a game in progress.
               </p>
             </div>
 
@@ -244,7 +260,7 @@ export function TablesList({
             ) : (
               <div className="flex flex-col items-center gap-3 py-5 text-center">
                 <p className="text-ui-body text-muted-foreground">
-                  {hasTables ? "No tables match your search." : "No player tables are waiting."}
+                  {hasTables ? "No tables match your search." : "No player tables are active."}
                 </p>
                 {!hasTables && (
                   <Button

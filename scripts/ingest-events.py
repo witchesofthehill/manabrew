@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS client_connections (
   reconnected INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_client_connections_ts ON client_connections(ts);
+CREATE INDEX IF NOT EXISTS idx_client_connections_user ON client_connections(username);
 CREATE TABLE IF NOT EXISTS plane_attempts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ts TEXT NOT NULL,
@@ -99,6 +100,7 @@ CREATE INDEX IF NOT EXISTS idx_game_players_publication
   ON game_players(published_deck_id, deck_fingerprint)
   WHERE is_bot = 0 AND published_deck_id IS NOT NULL AND deck_fingerprint IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_deck_cards_name ON deck_cards(name);
+CREATE INDEX IF NOT EXISTS idx_deck_cards_deck ON deck_cards(deck_id);
 CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);
 CREATE TABLE IF NOT EXISTS engine_stats (
   report_id TEXT PRIMARY KEY,
@@ -228,6 +230,7 @@ def open_db(path: Path) -> sqlite3.Connection:
     ensure_column(db, "engine_stats", "checkpoints", "TEXT")
     ensure_column(db, "games", "source", "TEXT")
     ensure_column(db, "games", "reported_at", "TEXT")
+    ensure_column(db, "games", "rematch_of", "TEXT")
     # Whether the engine host filed the outcome. Relay rows from before the
     # host reported it carry NULL: their outcome was read off the state stream.
     ensure_column(db, "games", "reported", "INTEGER")
@@ -562,10 +565,13 @@ def sync_offline_games(db, hub) -> int:
     watermark = db.execute(
         "SELECT coalesce(max(reported_at), '') FROM games WHERE source = 'offline'"
     ).fetchone()[0]
+    rematch_column = "rematch_of" if any(
+        row[1] == "rematch_of" for row in hub.execute("PRAGMA table_info(offline_play_games)")
+    ) else "NULL"
     games = hub_rows(
         hub,
-        """SELECT id, reported_at, started_at, ended_at, duration_s, format, engine,
-                  starting_life, end_reason, game_over, winner, seats
+        f"""SELECT id, reported_at, started_at, ended_at, duration_s, format, engine,
+                  starting_life, end_reason, game_over, winner, seats, {rematch_column}
            FROM offline_play_games
            WHERE reported_at > ?
            ORDER BY reported_at""",
@@ -605,13 +611,15 @@ def sync_offline_games(db, hub) -> int:
             game_over,
             winner,
             seat_count,
+            rematch_of,
         ) in games:
             cursor = db.execute(
                 """INSERT OR IGNORE INTO games
                      (game_id, room_id, started_at, ended_at, duration_s, format,
                       engine, hosted, official, starting_life, player_count,
-                      end_reason, game_over, winner, reported, source, reported_at)
-                   VALUES (?, NULL, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, 1, 'offline', ?)""",
+                      end_reason, game_over, winner, reported, source, reported_at,
+                      rematch_of)
+                   VALUES (?, NULL, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, 1, 'offline', ?, ?)""",
                 (
                     game_id,
                     started_at,
@@ -625,6 +633,7 @@ def sync_offline_games(db, hub) -> int:
                     int(bool(game_over) and end_reason not in ("engine_error", "engine_fatal")),
                     winner,
                     reported_at,
+                    rematch_of,
                 ),
             )
             # `decks` has an autoincrement key, so a game already on file must

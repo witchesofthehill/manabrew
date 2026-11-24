@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { boardBackgroundUrl } from "@/pixi/board/boardBackgrounds";
-import { Shield, Swords } from "lucide-react";
+import { LibraryBig, LogOut, Swords } from "lucide-react";
 import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { tableController, tableStartsAutomatically } from "@/components/lobby/tables.utils";
-import { TableRoomSidebar } from "@/components/lobby/TableRoomSidebar";
+import { TableRoomHeader } from "@/components/lobby/TableRoomHeader";
+import { InvitePlayersDialog } from "@/components/lobby/InvitePlayersDialog";
 import { Button } from "@/components/ui/button";
-import type { GameFormat, RoomInfo } from "@/types/server";
+import { RELAY_FEATURE, type GameFormat, type RoomInfo } from "@/types/server";
+import { useServerStore } from "@/stores/useServerStore";
+import type { TableRoomDeckSelection } from "./tableRoom.types";
 interface TableRoomProps {
   room: RoomInfo;
   roomPassword?: string | null;
@@ -13,13 +17,13 @@ interface TableRoomProps {
   onSetReady: (ready: boolean) => void;
   onSetFormat?: (format: GameFormat) => void;
   onSetMaxPlayers?: (maxPlayers: number) => void;
-  onOpenDeckDialog: () => void;
+  deckSelection?: TableRoomDeckSelection;
   onStartGame: () => void;
   onStartDraft?: () => void;
   onStartSealed?: () => void;
   startingLimited?: boolean;
   startingGame?: boolean;
-  onAddBot?: () => void;
+  onAddBot?: (seatIndex: number) => void;
   onRemoveBot?: (username: string) => void;
   mySpawnedBots?: string[];
 }
@@ -31,7 +35,7 @@ export function TableRoom({
   onSetReady,
   onSetFormat,
   onSetMaxPlayers,
-  onOpenDeckDialog,
+  deckSelection,
   onStartGame,
   onStartDraft,
   onStartSealed,
@@ -41,6 +45,8 @@ export function TableRoom({
   onRemoveBot,
   mySpawnedBots = [],
 }: TableRoomProps) {
+  const [inviting, setInviting] = useState(false);
+  const invitesEnabled = useServerStore((s) => s.relayFeatures.includes(RELAY_FEATURE.RoomInvites));
   const myPlayer = room.players.find((player) => player.username === username);
   const controllerName = tableController(room);
   const autoStart = tableStartsAutomatically(room);
@@ -64,7 +70,13 @@ export function TableRoom({
     isLimitedRoom ||
     !!room.players.find((player) => player.username === controllerName)?.selected_deck_name;
   const canStart =
-    room.status === "Lobby" && !needsFormat && allOtherPlayersReady && controllerHasDeck;
+    room.status === "Lobby" &&
+    !needsFormat &&
+    allOtherPlayersReady &&
+    controllerHasDeck &&
+    room.players.every(
+      (player) => player.connected && (isOpenFormat || !!player.selected_deck_name),
+    );
   const needsDeck = !isOpenFormat && !myPlayer?.selected_deck_name;
   const readyCount = room.players.filter(
     (player) => player.ready || (!autoStart && player.username === controllerName),
@@ -76,6 +88,11 @@ export function TableRoom({
     : room.sealed_config
       ? (room.sealed_config.cube_name ?? room.sealed_config.set_code ?? `Sealed`)
       : room.format;
+  const canChooseDeck = !isOpenFormat && room.status === "Lobby" && !!deckSelection;
+  const onInvitePlayer =
+    room.status === "Lobby" && openSeats > 0 && invitesEnabled
+      ? () => setInviting(true)
+      : undefined;
   function renderPrimaryAction() {
     if (room.status !== "Lobby") {
       return (
@@ -89,16 +106,14 @@ export function TableRoom({
       return (
         <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-center sm:text-right">
           <p className="text-ui-label font-medium">Choose a format</p>
-          <p className="text-ui-meta text-muted-foreground">
-            Select one in Table settings to continue.
-          </p>
+          <p className="text-ui-meta text-muted-foreground">Select a format above to continue.</p>
         </div>
       );
     }
     if (needsDeck) {
       return (
-        <Button variant="primary" size="lg" onClick={onOpenDeckDialog} className="w-full sm:w-auto">
-          <Shield /> Choose a deck
+        <Button variant="primary" size="lg" disabled className="w-full sm:w-auto">
+          {isController ? "Start game" : "Ready up"}
         </Button>
       );
     }
@@ -108,6 +123,7 @@ export function TableRoom({
           variant="primary"
           size="lg"
           onClick={() => onSetReady(true)}
+          disabled={deckSelection?.busy}
           className="w-full sm:w-auto"
         >
           Ready up
@@ -116,13 +132,23 @@ export function TableRoom({
     }
     if (!isController && myPlayer?.ready) {
       return (
-        <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-center sm:text-right">
-          <p className="text-ui-label font-medium text-primary">You're ready</p>
-          <p className="text-ui-meta text-muted-foreground">
-            {autoStart
-              ? "Starting automatically once the table is full and everyone is ready."
-              : "Waiting for the host to start."}
-          </p>
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
+          <div>
+            <p className="text-ui-label font-medium text-primary">You're ready</p>
+            <p className="text-ui-meta text-muted-foreground">
+              {autoStart
+                ? "Starting automatically once the table is full and everyone is ready."
+                : "Waiting for the host to start."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onSetReady(false)}
+            disabled={deckSelection?.busy}
+            className="rounded-sm text-ui-meta text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:no-underline"
+          >
+            Unready
+          </button>
         </div>
       );
     }
@@ -158,7 +184,7 @@ export function TableRoom({
           variant="primary"
           size="lg"
           onClick={onStartGame}
-          disabled={startingGame}
+          disabled={startingGame || deckSelection?.busy}
           className="w-full sm:w-auto"
         >
           <Swords /> {startingGame ? `Starting...` : `Start game`}
@@ -179,10 +205,19 @@ export function TableRoom({
     );
   }
   return (
-    <div className="h-full overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
-      <div className="grid min-h-full gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <section className="flex min-h-[30rem] flex-col overflow-hidden rounded-2xl border border-primary/30 bg-card/85 shadow-xl backdrop-blur-md">
-          <div className="flex flex-1 items-center justify-center p-4 sm:p-8">
+    <div className="flex h-full min-h-0 flex-col px-4 py-3 sm:px-6 lg:px-8">
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-card/85">
+        <TableRoomHeader
+          room={room}
+          roomPassword={roomPassword}
+          modeLabel={modeLabel}
+          isController={isController}
+          isLimitedRoom={isLimitedRoom}
+          onSetFormat={onSetFormat}
+          onSetMaxPlayers={onSetMaxPlayers}
+        />
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="flex min-h-64 flex-1 items-center justify-center p-4 [container-type:size] sm:p-6">
             <OpenTableSeats
               players={room.players}
               maxPlayers={room.max_players}
@@ -190,13 +225,21 @@ export function TableRoom({
               openFormat={isOpenFormat}
               youUsername={username}
               removableBots={isController && room.status === "Lobby" ? mySpawnedBots : []}
-              onRemoveBot={onRemoveBot}
+              onRemoveBot={deckSelection?.busy ? undefined : onRemoveBot}
+              selectedUsername={canChooseDeck ? deckSelection?.selectedUsername : undefined}
+              onSelectSeat={
+                canChooseDeck && !deckSelection?.busy ? deckSelection?.onSelectSeat : undefined
+              }
+              onAddBot={
+                canChooseDeck && isController && !deckSelection?.busy ? onAddBot : undefined
+              }
+              onInvitePlayer={onInvitePlayer}
               size="room"
-              className="max-w-3xl"
+              className="w-[min(100%,160cqh)] max-w-none"
               backgroundUrl={boardBackgroundUrl(room.table_style)}
               centerContent={
                 <span className="flex flex-col items-center gap-1">
-                  <span className="font-serif text-lg font-semibold text-foreground/90 sm:text-2xl">
+                  <span className="font-serif text-lg font-semibold text-foreground/90 sm:text-xl">
                     {modeLabel}
                   </span>
                   <span className="text-ui-meta font-medium text-muted-foreground">
@@ -206,45 +249,48 @@ export function TableRoom({
               }
             />
           </div>
-          <div className="flex flex-col gap-4 border-t border-border/60 bg-background/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-            <div className="min-w-0">
-              <p className="text-ui-meta font-medium uppercase tracking-wide text-muted-foreground">
-                Your seat
-              </p>
-              <p className="mt-1 break-words text-ui-label font-medium">
-                {isController
-                  ? autoStart
-                    ? `Starts automatically when all ${room.max_players} seats are ready`
-                    : `You control when the game begins`
-                  : isOpenFormat
-                    ? myPlayer?.ready
-                      ? `Ready to play`
-                      : `Confirm when you're ready`
-                    : (myPlayer?.selected_deck_name ?? `Choose the deck you want to play`)}
-              </p>
+          {canChooseDeck && isController && (
+            <p className="px-3 pb-3 text-center text-ui-meta text-muted-foreground">
+              Select a bot to choose its deck. Hover or tap + for seat actions.
+            </p>
+          )}
+        </div>
+        <footer className="flex shrink-0 flex-col gap-4 border-t px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6">
+          {canChooseDeck ? (
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => username && deckSelection?.onSelectSeat(username)}
+              disabled={deckSelection?.busy}
+              className="w-full min-w-0 sm:w-auto sm:max-w-sm"
+            >
+              <LibraryBig />
+              <span className="truncate">{myPlayer?.selected_deck_name ?? "Choose deck"}</span>
+            </Button>
+          ) : (
+            <div className="min-w-0 sm:flex-1">
+              <span className="block text-ui-meta text-muted-foreground">Your deck</span>
+              <span className="block truncate text-ui-label font-medium">
+                {isOpenFormat
+                  ? "Ready when you are"
+                  : (myPlayer?.selected_deck_name ?? "Choose your deck")}
+              </span>
             </div>
+          )}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onLeaveRoom}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <LogOut /> Leave table
+            </Button>
             {renderPrimaryAction()}
           </div>
-        </section>
-
-        <TableRoomSidebar
-          room={room}
-          roomPassword={roomPassword}
-          modeLabel={modeLabel}
-          isController={isController}
-          isLimitedRoom={isLimitedRoom}
-          isOpenFormat={isOpenFormat}
-          needsDeck={needsDeck}
-          myPlayerReady={myPlayer?.ready === true}
-          openSeats={openSeats}
-          onLeaveRoom={onLeaveRoom}
-          onSetReady={onSetReady}
-          onSetFormat={onSetFormat}
-          onSetMaxPlayers={onSetMaxPlayers}
-          onOpenDeckDialog={onOpenDeckDialog}
-          onAddBot={onAddBot}
-        />
-      </div>
+        </footer>
+      </section>
+      <InvitePlayersDialog open={inviting && !!onInvitePlayer} onClose={() => setInviting(false)} />
     </div>
   );
 }

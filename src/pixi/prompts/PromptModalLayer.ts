@@ -84,6 +84,9 @@ const MODAL_SCROLL_SNAP_PIXELS = 0.5;
 type PromptModalHeaderLayout = "stacked" | "inline-guidance";
 
 export abstract class PromptModalLayer extends PromptLayerBase {
+  protected rematchBadges: Array<{ container: Container; face: Container; baseY: number }> = [];
+  protected announcedRematchRequests = new Set<string>();
+
   private get successForeground(): string {
     return ensureTextContrast(
       this.theme.gameTheme.success,
@@ -1182,6 +1185,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     );
     const cardWidth = Math.max(0, ...cardSizes.map((size) => size.width));
     const cardHeight = Math.max(0, ...cardSizes.map((size) => size.height));
+    const rowHeight = cardHeight + PROMPT_CARD_ROW_GAP;
     const columns = horizontalScroll
       ? Math.max(1, visibleCount)
       : Math.max(
@@ -1207,10 +1211,7 @@ export abstract class PromptModalLayer extends PromptLayerBase {
               cardWidth + PROMPT_CARD_GAP,
               Math.max(0, (cardAreaWidth - cardWidth) / (visibleCount - 1)),
             );
-    const height = Math.min(
-      this.viewportHeight - 24,
-      244 + rows * (cardHeight + PROMPT_CARD_ROW_GAP) + headersHeight,
-    );
+    const height = Math.min(this.viewportHeight - 24, 244 + rows * rowHeight + headersHeight);
     const { panel, body, footer } = this.createModalShell(
       width,
       height,
@@ -1330,18 +1331,21 @@ export abstract class PromptModalLayer extends PromptLayerBase {
           rowX(cardsInRow) +
             column * (horizontalScroll ? compactCardSpacing : cardWidth + PROMPT_CARD_GAP) +
             (cardWidth - cardSize.width) / 2,
-          cardsTop + row * (cardHeight + PROMPT_CARD_ROW_GAP) + (cardHeight - cardSize.height) / 2,
+          cardsTop + row * rowHeight + (cardHeight - cardSize.height) / 2,
         );
+        if (!reveal && card.zone === "battlefield") {
+          tile.accessibleTitle += card.tapped ? ", tapped" : ", untapped";
+          tile.accessibleHint = `${tile.accessibleTitle}. ${tile.accessibleHint}`;
+          if (card.tapped) tile.addChild(this.createTappedBadge(cardSize.width, cardSize.height));
+        }
         (cardRow ?? body).addChild(tile);
         position++;
       });
-      if (!horizontalScroll)
-        sectionTop +=
-          Math.ceil(section.indices.length / columns) * (cardHeight + PROMPT_CARD_ROW_GAP);
+      if (!horizontalScroll) sectionTop += Math.ceil(section.indices.length / columns) * rowHeight;
     });
     if (cardRow) {
       const panLimit = cardAreaWidth - compactScrollRowWidth;
-      const rowsHeight = rows * (cardHeight + PROMPT_CARD_ROW_GAP) + sectionHeaderHeight;
+      const rowsHeight = rows * rowHeight + sectionHeaderHeight;
       const pitch = cardWidth + compactCardSpacing;
       const promptId = this.spec?.currentPrompt?.promptId ?? null;
       if (this.compactScrollPan?.promptId !== promptId) {
@@ -1459,6 +1463,33 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       grid.position.set(confirm.x - grid.buttonWidth - 8, 0);
       footer.addChild(grid);
     }
+  }
+
+  private createTappedBadge(cardWidth: number, cardHeight: number): Container {
+    const badge = new Container();
+    badge.eventMode = "none";
+    const { card, foreground } = this.theme.appTheme;
+    const ink = ensureTextContrast(foreground, card, foreground, 4.5);
+    const label = promptText("Tapped", 12, ink, { weight: "700" });
+    const iconSize = Math.min(32, cardWidth * 0.22);
+    const width = Math.max(iconSize, label.width) + 16;
+    const height = iconSize + label.height + 12;
+    const inset = 8;
+    const controlsBottom = cardHeight * 0.12 + Math.max(20, getUiControlFloor());
+    badge.position.set(
+      cardWidth - width - inset,
+      Math.min(controlsBottom + inset, cardHeight - height - inset),
+    );
+    const background = new Graphics()
+      .roundRect(0, 0, width, height, 8)
+      .fill({ color: hexToNum(card) })
+      .stroke({ color: hexToNum(ink), width: 1, alpha: 0.55 });
+    const icon = this.makeIcon("lucide-rotate-cw-bold", iconSize, ink);
+    icon.position.set(width / 2, 6 + iconSize / 2);
+    label.anchor.set(0.5, 0);
+    label.position.set(width / 2, 6 + iconSize);
+    badge.addChild(background, icon, label);
+    return badge;
   }
 
   protected createCardTile(
@@ -3902,33 +3933,28 @@ export abstract class PromptModalLayer extends PromptLayerBase {
   protected renderGameOver(): void {
     const gameOver = this.spec!.gameOver!;
     const players = [gameOver.me, ...gameOver.opponents];
-    const anyConceded = players.some((player) => player.status === "conceded");
     let heading = "Draw";
     let color = this.theme.appTheme["muted-foreground"];
     if (gameOver.engineCrash) {
       heading = "Engine Crashed";
       color = this.theme.appTheme.destructive;
-    } else if (gameOver.me.status === "conceded") {
-      heading = "You Conceded";
-      color = this.theme.appTheme.destructive;
+    } else if (gameOver.spectator) {
+      heading = "Game Over";
     } else if (gameOver.winnerId === gameOver.me.id) {
-      heading = "Victory";
+      heading = "You win";
       color = this.successForeground;
-    } else if (gameOver.winnerId != null) {
-      heading = "Defeat";
+    } else if (gameOver.me.status === "conceded" || gameOver.winnerId != null) {
+      heading = "You lose";
       color = this.theme.appTheme.destructive;
-    } else if (anyConceded) {
-      const names = gameOver.opponents
-        .filter((player) => player.status === "conceded")
-        .map((player) => player.name);
-      if (names.length) heading = `${names.join(" and ")} Conceded`;
     }
     const winner = players.find((player) => player.id === gameOver.winnerId);
     const summary = gameOver.engineCrash
       ? gameOver.engineCrash.split("\n")[0]
-      : winner
-        ? `${winner.name} won on turn ${gameOver.turn}`
-        : `Game ended in a draw on turn ${gameOver.turn}`;
+      : gameOver.me.status === "conceded"
+        ? `You conceded on turn ${gameOver.turn}`
+        : winner
+          ? `${winner.name} won on turn ${gameOver.turn}`
+          : `Game ended in a draw on turn ${gameOver.turn}`;
     const backdrop = new Graphics()
       .rect(0, 0, this.viewportWidth, this.viewportHeight)
       .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.72 });
@@ -3936,6 +3962,9 @@ export abstract class PromptModalLayer extends PromptLayerBase {
     this.container.addChild(backdrop);
     const panelWidth = Math.min(520, this.layoutWidth - 24);
     const rowHeight = Math.max(60, Math.ceil(getUiFontSize("meta") * 1.35) * 2 + 20);
+    const buttonHeight = Math.max(44, getUiControlFloor());
+    const buttonGap = 8;
+    const footerContentHeight = buttonHeight * 3 + buttonGap * 2;
     const {
       panel: group,
       body,
@@ -3945,8 +3974,8 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       this.viewportHeight - 24,
       { title: heading, description: summary, targets: [] },
       false,
-      64,
-      44,
+      footerContentHeight + 16,
+      footerContentHeight,
       false,
       "stacked",
       { size: 34, color },
@@ -3957,40 +3986,77 @@ export abstract class PromptModalLayer extends PromptLayerBase {
       .fill({ color: hexToNum(color) });
     group.addChild(accent);
     let playerY = 4;
+    if (gameOver.statusMessage) {
+      const waiting = promptText(gameOver.statusMessage, 13, this.theme.appTheme.foreground, {
+        width: panelWidth - PANEL_PADDING * 2,
+        role: "label",
+      });
+      waiting.position.set(0, playerY);
+      waiting.accessible = true;
+      waiting.accessibleTitle = gameOver.statusMessage;
+      body.addChild(waiting);
+      playerY += waiting.height + 16;
+    }
+    const freshRequests = gameOver.rematchRequests.filter(
+      (id) => !this.announcedRematchRequests.has(id),
+    );
+    this.announcedRematchRequests = new Set(gameOver.rematchRequests);
+    const badgeRadius = Math.min(18, (rowHeight - 16) / 2);
     for (const player of players) {
       const isWinner = player.id === gameOver.winnerId;
-      const rowColor = isWinner
-        ? this.successForeground
-        : player.status === "conceded"
-          ? this.theme.appTheme.destructive
-          : this.theme.appTheme.border;
+      const requested = gameOver.rematchRequests.includes(player.id);
+      const rowColor = requested
+        ? this.theme.appTheme.primary
+        : isWinner
+          ? this.successForeground
+          : player.status === "conceded"
+            ? this.theme.appTheme.destructive
+            : this.theme.appTheme.border;
       const row = new Graphics()
         .roundRect(0, playerY, panelWidth - PANEL_PADDING * 2, rowHeight, 7)
         .fill({ color: hexToNum(this.theme.appTheme.background), alpha: 0.5 })
-        .stroke({ color: hexToNum(rowColor), width: isWinner ? 2 : 1, alpha: 0.65 });
+        .stroke({
+          color: hexToNum(rowColor),
+          width: requested || isWinner ? 2 : 1,
+          alpha: requested ? 1 : 0.65,
+        });
+      const textX = requested ? 20 + badgeRadius * 2 : 10;
       const name = promptText(
         player.id === gameOver.me.id ? `${player.name} · You` : player.name,
         11,
         this.theme.appTheme.foreground,
         {
           weight: "600",
-          width: panelWidth - PANEL_PADDING * 2 - 20,
+          width: panelWidth - PANEL_PADDING * 2 - textX - 10,
           truncate: true,
           role: "label",
         },
       );
-      name.position.set(10, playerY + 8);
-      const life = promptText(`${player.life} life`, 11, this.theme.appTheme["muted-foreground"], {
-        weight: "600",
-      });
-      life.position.set(10, name.y + name.height + 4);
+      name.position.set(textX, playerY + 8);
+      const nextGameStatus = requested ? "Wants to play again" : gameOver.playerStatuses[player.id];
+      const life = promptText(
+        nextGameStatus ? `${player.life} life · ${nextGameStatus}` : `${player.life} life`,
+        11,
+        requested
+          ? ensureTextContrast(
+              this.theme.appTheme.primary,
+              this.theme.appTheme.background,
+              this.theme.appTheme.foreground,
+              4.5,
+            )
+          : this.theme.appTheme["muted-foreground"],
+        { weight: "600", width: panelWidth - PANEL_PADDING * 2 - textX - 90, truncate: true },
+      );
+      life.position.set(textX, name.y + name.height + 4);
       const statusLabel = isWinner
         ? "WINNER"
         : player.status === "conceded"
           ? "CONCEDED"
           : player.status === "lost"
             ? "LOST"
-            : "PLAYING";
+            : gameOver.winnerId == null
+              ? "DRAW"
+              : "LOST";
       const status = promptText(statusLabel, 9, isWinner ? this.successForeground : rowColor, {
         weight: "700",
         letterSpacing: 0.7,
@@ -4001,17 +4067,74 @@ export abstract class PromptModalLayer extends PromptLayerBase {
         name.y + name.height + 4 + status.height / 2,
       );
       body.addChild(row, name, life, status);
+      if (requested) {
+        const badge = this.makeRematchBadge(badgeRadius, freshRequests.includes(player.id));
+        const baseY = playerY + rowHeight / 2;
+        badge.container.position.set(10 + badgeRadius, baseY);
+        body.addChild(badge.container);
+        this.rematchBadges.push({ ...badge, baseY });
+      }
       playerY += rowHeight + 8;
     }
 
-    const button = this.makeButton("RETURN TO MENU", gameOver.onEndGame, {
-      color,
-      width: 170,
-      height: 44,
+    const width = panelWidth - PANEL_PADDING * 2;
+    const playAgain = this.makeButton(
+      gameOver.ready ? "Ready · cancel" : "Play again",
+      () => this.spec?.gameOver?.onPlayAgain?.(),
+      {
+        width,
+        height: buttonHeight,
+        variant: "primary",
+        disabled: gameOver.busy || !gameOver.onPlayAgain,
+        icon: "lucide-rotate-ccw",
+      },
+    );
+    const changeDeck = this.makeButton(
+      "Play again with another deck",
+      () => this.spec?.gameOver?.onChangeDeck?.(),
+      {
+        width,
+        height: buttonHeight,
+        variant: "secondary",
+        outline: true,
+        disabled: gameOver.busy || !gameOver.onChangeDeck,
+      },
+    );
+    changeDeck.y = buttonHeight + buttonGap;
+    const home = this.makeButton("Home", () => this.spec?.gameOver?.onHome(), {
+      width,
+      height: buttonHeight,
+      variant: "secondary",
+      outline: true,
+      disabled: gameOver.busy,
       icon: "lucide-log-out",
     });
-    button.position.set((panelWidth - PANEL_PADDING * 2 - button.buttonWidth) / 2, 0);
-    footer.addChild(button);
+    home.y = (buttonHeight + buttonGap) * 2;
+    footer.addChild(playAgain, changeDeck, home);
     this.finalizeModalScroll();
+  }
+
+  private makeRematchBadge(
+    radius: number,
+    pop: boolean,
+  ): { container: Container; face: Container } {
+    const ink = hexToNum(this.theme.appTheme["primary-foreground"]);
+    const disc = new Graphics()
+      .circle(0, 0, radius)
+      .fill({ color: hexToNum(this.theme.appTheme.primary) })
+      .stroke({ color: ink, width: 3, alignment: 0 })
+      .roundRect(-3.5, -radius * 0.62, 7, radius * 0.8, 3.5)
+      .fill({ color: ink })
+      .circle(0, radius * 0.52, 4)
+      .fill({ color: ink });
+    const face = new Container();
+    face.addChild(disc);
+    const container = new Container();
+    container.eventMode = "none";
+    container.addChild(face);
+    if (pop && animationsEnabled()) {
+      gsap.fromTo(face.scale, { x: 0, y: 0 }, { x: 1, y: 1, duration: 0.6, ease: "back.out(3)" });
+    }
+    return { container, face };
   }
 }

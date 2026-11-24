@@ -277,6 +277,8 @@ pub enum ClientMessage {
 
     JoinRoom {
         room_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        seat_index: Option<u8>,
         #[serde(default)]
         observe: bool,
         #[serde(default)]
@@ -307,6 +309,10 @@ pub enum ClientMessage {
         format: GameFormat,
     },
 
+    SetAllowSpectators {
+        allow: bool,
+    },
+
     SetMaxPlayers {
         max_players: u8,
     },
@@ -321,6 +327,19 @@ pub enum ClientMessage {
     },
 
     EndGame {
+        game_id: String,
+    },
+
+    FinishGame {
+        game_id: String,
+    },
+
+    SetRematchIntent {
+        game_id: String,
+        intent: RematchIntent,
+    },
+
+    ReturnToLobby {
         game_id: String,
     },
 
@@ -677,6 +696,9 @@ pub struct ResumeRoomRequest {
     pub format: GameFormat,
     #[serde(default)]
     pub hosted: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub allow_spectators: Option<bool>,
     #[serde(default)]
     pub engine: EngineKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -698,6 +720,9 @@ pub struct ResumeRoomRequest {
     #[ts(optional)]
     pub sealed_config: Option<SealedConfig>,
     pub player_order: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub seat_indices: Option<Vec<u8>>,
     pub player_decks: Vec<PlayerDeckInfo>,
     pub starting_life: i32,
     #[serde(default)]
@@ -718,6 +743,12 @@ pub struct RoomInfo {
     pub official: bool,
     #[serde(default)]
     pub password_protected: bool,
+    #[serde(default)]
+    pub allow_spectators: bool,
+    #[serde(default)]
+    pub can_spectate: bool,
+    #[serde(default)]
+    pub spectator_count: usize,
     pub players: Vec<RoomPlayerInfo>,
     pub max_players: u8,
     pub format: GameFormat,
@@ -740,6 +771,8 @@ pub struct RoomInfo {
     pub table_bracket: Option<u8>,
     #[serde(default)]
     pub auto_start: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rematch: Option<RematchInfo>,
 }
 
 pub const DEFAULT_RECONNECT_TIMEOUT_S: u32 = 60;
@@ -794,6 +827,8 @@ pub struct DraftConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoomPlayerInfo {
     pub username: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seat_index: Option<u8>,
     pub ready: bool,
     pub connected: bool,
     #[serde(default)]
@@ -839,6 +874,8 @@ pub const FEATURE_GAME_OUTCOME: &str = "game_outcome";
 pub const FEATURE_LIMITED_SESSIONS: &str = "limited_sessions";
 pub const FEATURE_LIMITED_DRAFT_CLOCKS: &str = "limited_draft_clocks";
 pub const FEATURE_LIMITED_SESSION_RECOVERY: &str = "limited_session_recovery";
+pub const FEATURE_GAME_REMATCH: &str = "game_rematch";
+pub const FEATURE_ROOM_SEATS: &str = "room_seats";
 
 /// Names [`ClientMessage::AnnounceTransport`] in `AuthResult::features`.
 pub const FEATURE_ROOM_TRANSPORT: &str = "room_transport";
@@ -859,7 +896,10 @@ pub const FEATURE_MATCHMAKING: &str = "matchmaking";
 /// Names [`ClientMessage::SetQueueSteps`] in `AuthResult::features`.
 pub const FEATURE_QUEUE_STEPS: &str = "queue_steps";
 
+pub const FEATURE_SPECTATORS: &str = "spectators";
+
 pub const FEATURES: &[&str] = &[
+    FEATURE_SPECTATORS,
     FEATURE_LOCAL_GAME,
     FEATURE_MATCHMAKING,
     FEATURE_QUEUE_STEPS,
@@ -869,6 +909,8 @@ pub const FEATURES: &[&str] = &[
     FEATURE_CHAT,
     FEATURE_ROOM_INVITES,
     FEATURE_GAME_OUTCOME,
+    FEATURE_GAME_REMATCH,
+    FEATURE_ROOM_SEATS,
     FEATURE_CARD_COSMETICS,
     FEATURE_CARD_COSMETICS_V2,
     FEATURE_CARD_COSMETICS_V3,
@@ -921,4 +963,28 @@ impl LocalGameKind {
 pub enum RoomStatus {
     Lobby,
     InGame,
+    Finished,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "lobby/index.ts")]
+pub enum RematchIntent {
+    Deciding,
+    ChoosingDeck,
+    Ready,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "lobby/index.ts")]
+pub struct RematchPlayerInfo {
+    pub username: String,
+    pub intent: RematchIntent,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "lobby/index.ts")]
+pub struct RematchInfo {
+    pub game_id: String,
+    pub players: Vec<RematchPlayerInfo>,
+    pub cancelled: bool,
 }

@@ -134,6 +134,13 @@ public final class HarnessPlayPlumbing {
     }
 
     public boolean handlePlayingSpellAbility(final Player ai, SpellAbility sa, final Game game) {
+        if (sa.isLandAbility()) {
+            if (sa.canPlay()) {
+                sa.resolve();
+            }
+            return true;
+        }
+
         sa = chooseOptionalAdditionalCosts(ai, sa);
         if (sa == null) {
             return false;

@@ -58,6 +58,7 @@ import type {
   ReconnectingPayload,
   DisconnectedPayload,
   RelayFeature,
+  RematchIntent,
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
 import { resendLocalGame } from "@/lib/localGamePresence";
@@ -118,7 +119,7 @@ interface ServerState {
     password?: string,
     tableStyle?: BoardBackgroundId,
   ): Promise<void>;
-  joinRoom(roomId: string, password?: string): Promise<void>;
+  joinRoom(roomId: string, password?: string, observe?: boolean): Promise<void>;
   resumeRoomAfterRestart(): Promise<void>;
   leaveRoom(requireServerLeave?: boolean): Promise<void>;
   setReady(ready: boolean): Promise<void>;
@@ -132,6 +133,8 @@ interface ServerState {
   setMaxPlayers(maxPlayers: number): Promise<void>;
   startGame(format?: GameFormat): Promise<void>;
   endGame(): Promise<void>;
+  setRematchIntent(intent: RematchIntent): Promise<void>;
+  returnToLobby(): Promise<void>;
   inviteToRoom(username: string): Promise<void>;
   hasRelayFeature(feature: RelayFeature): boolean;
   setupListeners(): () => void;
@@ -394,14 +397,14 @@ export const useServerStore = create<ServerState>()(
           await get().joinRoom(roomId, password);
         }
       },
-      async joinRoom(roomId, password) {
+      async joinRoom(roomId, password, observe = false) {
         const platform = getPlatform();
         if (!platform.server) return;
         await pendingRoomDeparture;
         await confirmRoomLeave();
         settlePendingJoin(new Error("join_superseded"));
         set({ roomPassword: password ? password : null });
-        await platform.server.joinRoom({ roomId, password });
+        await platform.server.joinRoom({ roomId, password, observe });
         await new Promise<void>((resolve, reject) => {
           const timer = setTimeout(() => {
             pendingJoin = null;
@@ -413,25 +416,67 @@ export const useServerStore = create<ServerState>()(
             settle: (error) => (error ? reject(error) : resolve()),
           };
         });
+        if (observe) {
+          try {
+            await new Promise<void>((resolve, reject) => {
+              const finish = (error?: Error) => {
+                clearTimeout(timer);
+                offStarted();
+                offError();
+                if (error) reject(error);
+                else resolve();
+              };
+              const offStarted = platform.events.on<GameStartedPayload>(
+                "server:game_started",
+                (payload) => {
+                  if (payload.room_id === roomId) finish();
+                },
+              );
+              const offError = platform.events.on<ServerErrorPayload>("server:error", (payload) => {
+                if (
+                  payload.code === SERVER_ERROR_CODE.GameNotInProgress ||
+                  payload.code === SERVER_ERROR_CODE.NotInRoom
+                )
+                  finish(new Error(payload.code));
+              });
+              const timer = setTimeout(
+                () => finish(new Error("watch_timeout")),
+                JOIN_CONFIRM_TIMEOUT_MS,
+              );
+              void platform.server!.requestResync().catch(finish);
+            });
+          } catch (error) {
+            if (get().currentRoom?.room_id === roomId) await get().leaveRoom();
+            throw error;
+          }
+        }
       },
       async resumeRoomAfterRestart() {
         const platform = getPlatform();
         const { currentRoom, gameId, playerOrder, playerDecks, startingLife, roomPassword } = get();
         if (!platform.server?.resumeRoom || !currentRoom || playerOrder.length === 0 || !gameId)
           return;
+        const seatIndices = playerOrder.map(
+          (username) =>
+            currentRoom.players.find((player) => player.username === username)?.seat_index,
+        );
         await platform.server.resumeRoom({
           room_id: currentRoom.room_id,
           room_name: currentRoom.room_name,
           max_players: currentRoom.max_players,
           format: currentRoom.format,
           hosted: currentRoom.hosted,
-          engine: "Manabrew",
+          allow_spectators: currentRoom.allow_spectators,
+          engine: currentRoom.engine,
           password: roomPassword ?? undefined,
           reconnect_timeout_s: currentRoom.reconnect_timeout_s,
           table_style: currentRoom.table_style,
           draft_config: currentRoom.draft_config,
           sealed_config: currentRoom.sealed_config,
           player_order: playerOrder,
+          seat_indices: seatIndices.every((seat): seat is number => seat !== undefined)
+            ? seatIndices
+            : undefined,
           player_decks: playerDecks,
           starting_life: startingLife,
           bot_players: currentRoom.players.filter((p) => p.is_bot).map((p) => p.username),
@@ -548,6 +593,22 @@ export const useServerStore = create<ServerState>()(
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.endGame(get().gameId);
+      },
+      async setRematchIntent(intent) {
+        const server = getPlatform().server;
+        const rematch = get().currentRoom?.rematch;
+        if (!server || !rematch || !get().hasRelayFeature("game_rematch")) {
+          throw new Error("This table does not support rematches. Update the server.");
+        }
+        await server.setRematchIntent(rematch.game_id, intent);
+      },
+      async returnToLobby() {
+        const server = getPlatform().server;
+        const rematch = get().currentRoom?.rematch;
+        if (!server || !rematch || !get().hasRelayFeature("game_rematch")) {
+          throw new Error("This table does not support rematches. Update the server.");
+        }
+        await server.returnToLobby(rematch.game_id);
       },
       async inviteToRoom(username) {
         const platform = getPlatform();
@@ -733,7 +794,10 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<ServerErrorPayload>("server:error", (payload) => {
             console.error("[server] error:", payload.code, payload.message);
-            if (payload.code === SERVER_ERROR_CODE.GameNotInProgress) return;
+            if (payload.code === SERVER_ERROR_CODE.GameNotInProgress) {
+              settlePendingJoin(new Error(payload.code));
+              return;
+            }
             if (CHAT_ERROR_CODES.has(payload.code as ServerErrorCode)) return;
             if (payload.code === SERVER_ERROR_CODE.AlreadyInRoom) {
               void get().listPlayers();

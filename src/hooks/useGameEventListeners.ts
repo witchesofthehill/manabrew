@@ -92,7 +92,11 @@ async function rejoinAfterRelayRestart() {
       try {
         await useServerStore
           .getState()
-          .joinRoom(roomId, useServerStore.getState().roomPassword ?? undefined);
+          .joinRoom(
+            roomId,
+            useServerStore.getState().roomPassword ?? undefined,
+            getState().isSpectator,
+          );
         void getPlatform().server?.requestResync();
         setReconnectPhase("idle");
         return;
@@ -166,11 +170,30 @@ function reportHostOutcome(state: GameState): void {
       fatal_message: state.fatalError ?? undefined,
       turns: view?.turn,
     })
+    .then(() => {
+      if (
+        over &&
+        !state.fatalError &&
+        !state.engineCrash &&
+        server.hasRelayFeature(RELAY_FEATURE.GameRematch) &&
+        !server.currentRoom?.draft_config &&
+        !server.currentRoom?.sealed_config &&
+        server.currentRoom?.format !== "Draft" &&
+        server.currentRoom?.format !== "Sealed"
+      ) {
+        return getPlatform().server?.finishGame(gameId);
+      }
+    })
     .catch(() => undefined);
 }
 /** Close the book on the current game. Safe to call more than once. */
 function reportEngineGame(): void {
   const state = useGameStore.getState();
+  if (!state.isGameActive) {
+    clearLocalGame();
+    return;
+  }
+  if (state.isSpectator) return;
   // Read before the offline record is closed: reporting the game clears it, and
   // the engine report below needs the same id to file itself against.
   const offlineGameId = currentOfflineGameId();
@@ -242,18 +265,16 @@ function noticeRepeatVote(vote: RepeatVoteDto, state: GameState) {
 
 export function useGameEventListeners() {
   useEffect(() => {
+    const gameInstanceId = useGameStore.getState().gameInstanceId;
     window.addEventListener("pagehide", reportEngineGame);
-    // A finished game is reported the moment it finishes, not at teardown:
-    // teardown is three seconds later, and by then the tab may be gone, the
-    // socket closed or a pooled hosted room recycled out from under the seat.
-    // Reporting twice is free — the summary is drained by the first caller.
     const unsubscribe = useGameStore.subscribe((state, previous) => {
       if (isOver(state) && !isOver(previous)) reportEngineGame();
     });
     return () => {
       window.removeEventListener("pagehide", reportEngineGame);
       unsubscribe();
-      reportEngineGame();
+      // A restart opens the next game's record before this board unmounts.
+      if (useGameStore.getState().gameInstanceId === gameInstanceId) reportEngineGame();
     };
   }, []);
   useEffect(() => {
@@ -261,6 +282,7 @@ export function useGameEventListeners() {
     const runtime = getSelectedGameRuntime();
     const unsubscribers: (() => void)[] = [];
     const fetchInitialState = async () => {
+      if (getState().isSpectator) return;
       try {
         const prompt = normalizeEnginePrompt(await runtime.api.getPrompt());
         if (prompt && prompt.promptId !== getState().currentPrompt?.promptId) {
@@ -469,7 +491,13 @@ export function useGameEventListeners() {
           const roomId =
             peekActiveGameSession()?.roomId ?? useServerStore.getState().currentRoom?.room_id;
           if (roomId && payload.room_id !== roomId) return;
-          if (state.gameView?.gameOver || isGameOverPrompt(state.currentPrompt)) return;
+          if (
+            state.gameView?.gameOver ||
+            isGameOverPrompt(state.currentPrompt) ||
+            (state.isSpectator &&
+              state.deferredQueue.some((snapshot) => snapshot.gameView?.gameOver))
+          )
+            return;
           toast.error(`Game aborted \u2014 a player did not reconnect.`);
           void useGameStore.getState().endGame();
         }),
@@ -479,6 +507,8 @@ export function useGameEventListeners() {
           reason: string;
           message: string;
         }>("game:forced_end", (payload) => {
+          const state = getState();
+          if (!state.isGameActive || state.isRestartingGame || isOver(state)) return;
           const message = payload?.message ?? `Forced game exit`;
           const { isMultiplayer, isHost } = getState();
           const activeSession = peekActiveGameSession();

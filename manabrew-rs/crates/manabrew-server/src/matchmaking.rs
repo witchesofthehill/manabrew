@@ -1063,7 +1063,7 @@ fn free_pool_room(state: &Arc<ServerState>, pod_size: u8) -> Option<String> {
 fn seat_members(room: &mut Room, members: &[QueueEntry], bracket: u8) {
     for entry in members {
         if !room.players.iter().any(|p| p.player_id == entry.player_id) {
-            room.add_player(entry.player_id.clone(), entry.username.clone(), false)
+            room.add_player(entry.player_id.clone(), entry.username.clone(), false, None)
                 .expect("a matchmade room has a seat for every pod member");
         }
         let deck = entry.deck_for(bracket);

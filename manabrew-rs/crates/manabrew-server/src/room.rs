@@ -2,9 +2,10 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use crate::chat::ChatHistory;
+use crate::error::ServerError;
 use crate::protocol::{
-    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
-    SealedConfig, TransportEndpoint, TransportMember,
+    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RematchInfo, RematchIntent, RoomInfo,
+    RoomPlayerInfo, RoomStatus, SealedConfig, TransportEndpoint, TransportMember,
 };
 use crate::replay::GameReplayCache;
 use manabrew_protocol::deck_dto::Deck;
@@ -13,6 +14,7 @@ use manabrew_protocol::deck_dto::Deck;
 pub struct RoomSlot {
     pub player_id: String,
     pub username: String,
+    pub seat_index: u8,
     pub ready: bool,
     pub connected: bool,
     pub is_bot: bool,
@@ -39,6 +41,7 @@ pub struct Room {
     pub hosted: bool,
     pub official: bool,
     pub password: Option<String>,
+    pub allow_spectators: bool,
     pub max_players: u8,
     pub format: GameFormat,
     pub engine: EngineKind,
@@ -50,6 +53,7 @@ pub struct Room {
     pub reconnect_timeout_s: u32,
     pub table_style: Option<String>,
     pub replay: Option<GameReplayCache>,
+    pub rematch: Option<RematchInfo>,
     pub resume_token: String,
     pub humanless_since: Option<Instant>,
     pub limited_session_id: Option<String>,
@@ -91,6 +95,7 @@ impl Room {
                 vec![RoomSlot {
                     player_id: host_player_id.clone(),
                     username: host_username.clone(),
+                    seat_index: 0,
                     ready: false,
                     connected: true,
                     is_bot: false,
@@ -120,6 +125,7 @@ impl Room {
             host_username,
             hosted: !host_plays,
             official,
+            allow_spectators: password.is_none(),
             password,
             max_players,
             format,
@@ -132,6 +138,7 @@ impl Room {
             reconnect_timeout_s,
             table_style,
             replay: None,
+            rematch: None,
             resume_token: uuid::Uuid::new_v4().to_string(),
             humanless_since: None,
             limited_session_id: None,
@@ -146,6 +153,19 @@ impl Room {
             table_bracket: None,
             auto_start,
         }
+    }
+
+    pub fn can_spectate(&self) -> bool {
+        self.allow_spectators
+            && self.engine == EngineKind::Forge
+            && self.status == RoomStatus::InGame
+            && self.draft_config.is_none()
+            && self.sealed_config.is_none()
+            && self.parent_limited_room.is_none()
+            && self
+                .replay
+                .as_ref()
+                .is_some_and(|replay| replay.last_state.is_some())
     }
 
     pub fn is_full(&self) -> bool {
@@ -166,7 +186,24 @@ impl Room {
     pub fn reset_lobby_settings(&mut self) {
         if self.draft_config.is_none() && self.sealed_config.is_none() {
             self.format = GameFormat::Any;
-            self.max_players = 4;
+            self.set_max_players(4);
+        }
+    }
+
+    pub fn set_max_players(&mut self, max_players: u8) {
+        self.max_players = max_players.max(self.players.len() as u8).clamp(2, 8);
+        let mut occupied = self
+            .players
+            .iter()
+            .filter(|seat| seat.seat_index < self.max_players)
+            .fold(0u8, |occupied, seat| occupied | (1 << seat.seat_index));
+        for seat in &mut self.players {
+            if seat.seat_index >= self.max_players {
+                seat.seat_index = (0..self.max_players)
+                    .find(|index| occupied & (1 << *index) == 0)
+                    .unwrap();
+                occupied |= 1 << seat.seat_index;
+            }
         }
     }
 
@@ -186,19 +223,35 @@ impl Room {
         player_id: String,
         username: String,
         is_bot: bool,
-    ) -> Result<(), String> {
-        if self.is_full() {
-            return Err("Room is full".into());
-        }
+        seat_index: Option<u8>,
+    ) -> Result<(), ServerError> {
         if self.status != RoomStatus::Lobby {
-            return Err("Game already started".into());
+            return Err(ServerError::GameAlreadyStarted);
         }
         if self.players.iter().any(|p| p.player_id == player_id) {
-            return Err("Already in this room".into());
+            return Err(ServerError::AlreadyInRoom(self.room_id.clone()));
         }
+        let seat_index = match seat_index {
+            Some(index) if index >= self.max_players => {
+                return Err(ServerError::InvalidSeatAssignment(format!(
+                    "Seat {index} is outside this room's {} seats",
+                    self.max_players
+                )));
+            }
+            Some(index) if self.players.iter().any(|seat| seat.seat_index == index) => {
+                return Err(ServerError::InvalidSeatAssignment(format!(
+                    "Seat {index} is occupied"
+                )));
+            }
+            Some(index) => index,
+            None => (0..self.max_players)
+                .find(|index| self.players.iter().all(|seat| seat.seat_index != *index))
+                .ok_or_else(|| ServerError::RoomFull(self.room_id.clone()))?,
+        };
         self.players.push(RoomSlot {
             player_id,
             username,
+            seat_index,
             ready: false,
             connected: true,
             is_bot,
@@ -226,6 +279,7 @@ impl Room {
 
     pub fn remove_player(&mut self, player_id: &str) -> Option<RoomSlot> {
         if let Some(idx) = self.players.iter().position(|p| p.player_id == player_id) {
+            self.cancel_rematch();
             let slot = self.players.remove(idx);
             if self.hosted && self.players.is_empty() {
                 if let Some(max_players) = self.pool_max_players.take() {
@@ -245,7 +299,10 @@ impl Room {
                 self.matchmade_bot_fill = false;
                 self.table_bracket = self.matchmade_bracket;
             }
-            if self.host_player_id == player_id && self.limited_session_id.is_none() {
+            if self.host_player_id == player_id
+                && self.limited_session_id.is_none()
+                && self.status != RoomStatus::Finished
+            {
                 let new_host = self
                     .players
                     .iter()
@@ -277,6 +334,17 @@ impl Room {
     pub fn set_connected(&mut self, player_id: &str, connected: bool) {
         if let Some(slot) = self.players.iter_mut().find(|p| p.player_id == player_id) {
             slot.connected = connected;
+            if !connected && !slot.is_bot {
+                if let Some(rematch) = &mut self.rematch {
+                    if let Some(player) = rematch
+                        .players
+                        .iter_mut()
+                        .find(|p| p.username == slot.username)
+                    {
+                        player.intent = RematchIntent::Deciding;
+                    }
+                }
+            }
             return;
         }
         if let Some(observer) = self.observers.iter_mut().find(|p| p.player_id == player_id) {
@@ -292,10 +360,6 @@ impl Room {
 
     pub fn has_connected_human(&self) -> bool {
         self.players.iter().any(|p| p.connected && !p.is_bot)
-            || self
-                .observers
-                .iter()
-                .any(|o| o.connected && !(self.hosted && o.player_id == self.host_player_id))
     }
 
     pub fn set_ready(&mut self, player_id: &str, ready: bool) -> Result<(), String> {
@@ -323,6 +387,15 @@ impl Room {
             slot.selected_commander_name = commander_name;
             slot.avatar_url = avatar_url;
             slot.ready = false;
+            if let Some(rematch) = &mut self.rematch {
+                if let Some(player) = rematch
+                    .players
+                    .iter_mut()
+                    .find(|p| p.username == slot.username)
+                {
+                    player.intent = RematchIntent::Deciding;
+                }
+            }
             Ok(())
         } else {
             Err("Player not in room".into())
@@ -423,6 +496,26 @@ impl Room {
         self.players.iter().map(|p| p.username.clone()).collect()
     }
 
+    pub fn human_player_usernames(&self) -> Vec<String> {
+        self.players
+            .iter()
+            .filter(|p| !p.is_bot)
+            .map(|p| p.username.clone())
+            .collect()
+    }
+
+    pub fn cancel_rematch(&mut self) {
+        if let Some(rematch) = &mut self.rematch {
+            rematch.cancelled = true;
+            for player in &mut rematch.players {
+                player.intent = RematchIntent::Deciding;
+            }
+            for seat in &mut self.players {
+                seat.ready = false;
+            }
+        }
+    }
+
     /// Forward-ported for future use when full player ID tracking is needed.
     #[allow(dead_code)]
     pub fn player_ids(&self) -> Vec<String> {
@@ -452,11 +545,19 @@ impl Room {
             hosted: self.hosted,
             official: self.official,
             password_protected: self.password.is_some(),
+            allow_spectators: self.allow_spectators,
+            can_spectate: self.can_spectate(),
+            spectator_count: self
+                .observers
+                .iter()
+                .filter(|o| o.connected && !self.is_host(&o.player_id))
+                .count(),
             players: self
                 .players
                 .iter()
                 .map(|p| RoomPlayerInfo {
                     username: p.username.clone(),
+                    seat_index: Some(p.seat_index),
                     ready: p.ready,
                     connected: p.connected,
                     is_bot: p.is_bot,
@@ -475,6 +576,7 @@ impl Room {
             matchmade_bot_fill: self.matchmade_bot_fill,
             table_bracket: self.table_bracket,
             auto_start: self.auto_start,
+            rematch: self.rematch.clone(),
         }
     }
 }
@@ -584,9 +686,11 @@ mod tests {
         let mut r = room(false);
         assert!(r.is_host("host"));
         assert!(!r.is_controller("host"));
-        r.add_player("human".into(), "human".into(), false).unwrap();
+        r.add_player("human".into(), "human".into(), false, None)
+            .unwrap();
         assert!(r.is_controller("human"));
-        r.add_player("bot".into(), "bot".into(), true).unwrap();
+        r.add_player("bot".into(), "bot".into(), true, None)
+            .unwrap();
         assert!(!r.is_controller("bot"));
     }
 
@@ -594,9 +698,12 @@ mod tests {
     fn a_lost_host_hands_a_replicated_game_to_the_next_connected_human() {
         let mut r = room(true);
         r.engine = EngineKind::Ironsmith;
-        r.add_player("bot".into(), "bot".into(), true).unwrap();
-        r.add_player("away".into(), "away".into(), false).unwrap();
-        r.add_player("guest".into(), "guest".into(), false).unwrap();
+        r.add_player("bot".into(), "bot".into(), true, None)
+            .unwrap();
+        r.add_player("away".into(), "away".into(), false, None)
+            .unwrap();
+        r.add_player("guest".into(), "guest".into(), false, None)
+            .unwrap();
         assert!(r.engine_survives_host_loss());
 
         r.set_connected("host", false);
@@ -619,8 +726,10 @@ mod tests {
     #[test]
     fn a_leaving_host_passes_the_room_to_a_connected_human_before_a_bot() {
         let mut r = room(true);
-        r.add_player("bot".into(), "bot".into(), true).unwrap();
-        r.add_player("guest".into(), "guest".into(), false).unwrap();
+        r.add_player("bot".into(), "bot".into(), true, None)
+            .unwrap();
+        r.add_player("guest".into(), "guest".into(), false, None)
+            .unwrap();
         r.remove_player("host");
         assert!(r.is_host("guest"));
     }
@@ -628,7 +737,7 @@ mod tests {
     #[test]
     fn only_room_members_are_addressable_by_name() {
         let mut r = room(false);
-        r.add_player("p-human".into(), "human".into(), false)
+        r.add_player("p-human".into(), "human".into(), false, None)
             .unwrap();
         r.add_observer("p-watcher".into(), "watcher".into())
             .unwrap();
@@ -666,8 +775,9 @@ mod tests {
     #[test]
     fn only_members_announce_and_nobody_takes_another_endpoint() {
         let mut r = room(false);
-        r.add_player("human".into(), "human".into(), false).unwrap();
-        r.add_player("squatter".into(), "squatter".into(), false)
+        r.add_player("human".into(), "human".into(), false, None)
+            .unwrap();
+        r.add_player("squatter".into(), "squatter".into(), false, None)
             .unwrap();
 
         assert!(r.set_transport("human", Some(endpoint("ep-human"))));
@@ -686,9 +796,12 @@ mod tests {
     #[test]
     fn every_human_seat_has_to_announce_before_the_room_leaves_the_relay() {
         let mut r = room(false);
-        r.add_player("alice".into(), "alice".into(), false).unwrap();
-        r.add_player("bob".into(), "bob".into(), false).unwrap();
-        r.add_player("bot".into(), "bot".into(), true).unwrap();
+        r.add_player("alice".into(), "alice".into(), false, None)
+            .unwrap();
+        r.add_player("bob".into(), "bob".into(), false, None)
+            .unwrap();
+        r.add_player("bot".into(), "bot".into(), true, None)
+            .unwrap();
         r.set_transport("host", Some(endpoint("ep-host")));
 
         assert!(r.set_transport("alice", Some(endpoint("ep-alice"))));
@@ -707,7 +820,8 @@ mod tests {
     #[test]
     fn an_announcement_cannot_flood_the_address_book() {
         let mut r = room(false);
-        r.add_player("human".into(), "human".into(), false).unwrap();
+        r.add_player("human".into(), "human".into(), false, None)
+            .unwrap();
         let mut flood = endpoint("ep-human");
         flood.direct_addrs = (0..64).map(|i| format!("10.0.0.{i}:1234")).collect();
         flood.direct_addrs.push("x".repeat(MAX_ADDR_LEN + 1));

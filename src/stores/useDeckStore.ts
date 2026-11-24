@@ -23,7 +23,7 @@ import { cardCosmeticsKey, normalizeCardCosmetics, randomCardWearSeed } from "@/
 import { resolveCardWearAmount } from "@/lib/cardFinish";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { resolveDeckName } from "@/lib/deckName";
-import { mergeDeckImportIntoDeck } from "@/lib/deckImport";
+import { mergeDeckImportIntoDeck, replaceDeckSectionsWithImport } from "@/lib/deckImport";
 /** Migrate legacy "constructed" format id to "standard". */
 function migrateFormatId(id: string): DeckFormat {
   if (id === "constructed") return "standard";
@@ -400,6 +400,12 @@ interface DeckState {
     maybeboard: DeckCard[];
     commanders: DeckCard[];
   }) => void;
+  replaceCurrentDeckSections: (sections: {
+    cards: DeckCard[];
+    sideboard: DeckCard[];
+    maybeboard: DeckCard[];
+    commanders: DeckCard[];
+  }) => void;
   saveCurrentDeck: () => void;
   saveDraft: () => void;
   loadSavedDeck: (id: string) => void;
@@ -694,6 +700,13 @@ export const useDeckStore = create<DeckState>()(
             const deck = normalizeDeck(state.currentDeck);
             return {
               currentDeck: normalizeDeck(mergeDeckImportIntoDeck(deck, sections)),
+            };
+          }),
+        replaceCurrentDeckSections: (sections) =>
+          set((state) => {
+            const deck = normalizeDeck(state.currentDeck);
+            return {
+              currentDeck: normalizeDeck(replaceDeckSectionsWithImport(deck, sections)),
             };
           }),
         setCommander: (card) =>

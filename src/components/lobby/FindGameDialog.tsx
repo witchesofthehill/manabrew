@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { BRACKET_INFO, type Bracket } from "@/lib/brackets";
-import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { cn } from "@/lib/utils";
 import type { Deck } from "@/protocol/deck";
 import { POD_SIZES, useMatchmakingStore, type PodSize } from "@/stores/useMatchmakingStore";
@@ -103,9 +102,6 @@ export function FindGameDialog({
   async function find() {
     try {
       onOpenChange(false);
-      selected.forEach(({ deck, isPreset }) => {
-        if (isPreset) savePresetToAccountOnUse(deck.id);
-      });
       await useMatchmakingStore.getState().enter(
         podSizes,
         selected.map(({ deck }) => deck),

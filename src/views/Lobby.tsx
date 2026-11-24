@@ -4,11 +4,13 @@ import type { ConnectionState } from "@/components/lobby/UserList";
 import { TableSetup } from "@/components/lobby/TableSetup";
 import { TableCreatingSplash } from "@/components/lobby/TableCreatingSplash";
 import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
+import { useLobbyDeckSelection } from "@/components/lobby/useLobbyDeckSelection";
 import { LeaveGameModal } from "@/components/game/modals";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useIsDesktop, useIsTouch } from "@/hooks/useBreakpoints";
+import { leaveRoomWithClientAnalytics } from "@/lib/clientAnalyticsLobby";
 import { useServerStore } from "@/stores/useServerStore";
 import { useInviteStore } from "@/stores/useInviteStore";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
@@ -27,12 +29,10 @@ import { limitedGameLaunch } from "@/game/limitedSession";
 import { getDeckFingerprint } from "@/lib/decks";
 import { getFormat } from "@/lib/formats";
 import { ROUTES } from "@/lib/constants";
-import { stripUsernameTag } from "@/lib/username";
 import { cn } from "@/lib/utils";
 import { getPlatform } from "@/platform";
 import { RELAY_FEATURE, START_GAME_FAILURE_CODES } from "@/types/server";
 import type {
-  BotFailedPayload,
   DraftConfig,
   GameFormat,
   GameStartedPayload,
@@ -47,6 +47,7 @@ import { findOrHostLanRelay, isUnreachable } from "@/lib/lanRelay";
 import { useTableAutoStart } from "@/components/lobby/useTableAutoStart";
 import { tableController } from "@/components/lobby/tables.utils";
 import { commanderQueueDecks } from "@/lib/queueDecks";
+import { trackClientUiAction } from "@/lib/clientAnalyticsFunnel";
 
 const START_GAME_ACK_TIMEOUT_MS = 5000;
 function awaitGameStartedAck(roomId: string): Promise<void> {
@@ -75,11 +76,6 @@ function awaitGameStartedAck(roomId: string): Promise<void> {
       }),
     );
   });
-}
-interface SelectedAiDeck {
-  name: string;
-  deck: Deck;
-  commanderName?: string;
 }
 export default function Lobby() {
   const location = useLocation();
@@ -162,18 +158,19 @@ export default function Lobby() {
     (lastPlayedSavedDeck && (lastPlayedSavedDeck.deck.format ?? "standard") === roomDeckFormat
       ? lastPlayedSavedDeck.id
       : undefined);
-  const [deckDialogOpen, setDeckDialogOpen] = useState(false);
-  const [aiDeckDialogOpen, setAiDeckDialogOpen] = useState(false);
   const [refreshingLobby, setRefreshingLobby] = useState(false);
   const [playersDrawerOpen, setPlayersDrawerOpen] = useState(false);
-  const [mySpawnedBots, setMySpawnedBots] = useState<string[]>([]);
-  const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
   const [startingLimited, setStartingLimited] = useState(false);
   const [startingGame, setStartingGame] = useState(false);
   const tableAnnouncement = useRef(0);
   const mySelection = useRef<{ deck: Deck; commanderName?: string } | null>(null);
-  const [roomPasswords, setRoomPasswords] = useState<Record<string, string>>({});
   const [confirmLeaveHostedGame, setConfirmLeaveHostedGame] = useState(false);
+  const deckSelection = useLobbyDeckSelection({
+    room: currentRoom,
+    username,
+    onSelectPlayerDeck: (deck, commanderName, publishedDeckId) =>
+      handleDeckSelection(deck.name, deck, commanderName, publishedDeckId),
+  });
   useEffect(() => {
     if (currentRoom) {
       setPlayersDrawerOpen(false);
@@ -181,23 +178,18 @@ export default function Lobby() {
     }
   }, [currentRoom]);
   useEffect(() => {
-    return getPlatform().events.on<BotFailedPayload>("server:bot_failed", (payload) => {
-      setMySpawnedBots((prev) => prev.filter((name) => name !== payload.username));
-      toast.error(`Bot couldn't join the table: ${payload.reason}`);
-    });
-  }, []);
-  useEffect(() => {
     if (!initialPreferredSavedDeckId && !initialPreferredHubDeckId) return;
     navigate(location.pathname, { replace: true, state: null });
   }, [initialPreferredHubDeckId, initialPreferredSavedDeckId, location.pathname, navigate]);
   // Leaving tears down the embedded Forge node (stopRoom), which kills the
   // game for everyone still playing — by design. Make the host confirm it.
   const handleLeaveRoom = () => {
+    trackClientUiAction("lobby_leave");
     if (hostingForgeRoom && currentRoom?.status === "InGame") {
       setConfirmLeaveHostedGame(true);
       return;
     }
-    void leaveRoom();
+    void leaveRoomWithClientAnalytics();
   };
   const draftMode = useMultiplayerDraftStore((s) => s.mode);
   const draftSessionId = useMultiplayerDraftStore((s) => s.sessionId);
@@ -260,7 +252,7 @@ export default function Lobby() {
   }, [connected, listRooms, listPlayers]);
   useEffect(() => {
     if (!gameStarted || playerOrder.length === 0) return;
-    if (!currentRoom) return;
+    if (!currentRoom || currentRoom.status !== "InGame") return;
     if (gameRoomId !== currentRoom.room_id) return;
     const limitedLaunch = limitedGameLaunch({
       room_id: gameRoomId,
@@ -333,10 +325,8 @@ export default function Lobby() {
     }
   }
   async function handleJoinRoom(roomId: string, password?: string, format?: GameFormat) {
+    trackClientUiAction("lobby_join");
     await joinRoom(roomId, password);
-    if (password) {
-      setRoomPasswords((prev) => ({ ...prev, [roomId]: password }));
-    }
     if (format) await setFormat(format);
   }
   async function announceTable(deck: Deck) {
@@ -371,39 +361,20 @@ export default function Lobby() {
     commanderName?: string,
     publishedDeckId?: string,
   ) {
-    try {
-      await setDeckSelection(deckName, deck, commanderName, publishedDeckId);
-      mySelection.current = { deck, commanderName };
-      const fingerprint = getDeckFingerprint(deck);
-      const savedId = savedDecks.find(
-        (saved) => getDeckFingerprint(saved.deck) === fingerprint,
-      )?.id;
-      if (savedId) prefs.setLastPlayedDeckId(savedId);
-      const controllerName =
-        currentRoom?.players.find((player) => !player.is_bot)?.username ??
-        currentRoom?.players[0]?.username;
-      if (username && username === controllerName) {
-        await setReady(true);
-      }
-      void announceTable(deck);
-    } catch (error) {
-      toast.error(`Failed to set deck: ${String(error)}`);
+    await setDeckSelection(deckName, deck, commanderName, publishedDeckId);
+    mySelection.current = { deck, commanderName };
+    const fingerprint = getDeckFingerprint(deck);
+    const savedId = savedDecks.find((saved) => getDeckFingerprint(saved.deck) === fingerprint)?.id;
+    if (savedId) prefs.setLastPlayedDeckId(savedId);
+    if (currentRoom && username === tableController(currentRoom)) {
+      await setReady(true);
     }
-  }
-  function handleAddAiBot() {
-    const room = currentRoom;
-    if (!room || !username) return;
-    if (room.players.length >= room.max_players) {
-      toast.error(`The room is full.`);
-      return;
-    }
-    const botName = `${stripUsernameTag(username)}-bot-${Date.now().toString(36)}`;
-    setBotDeckTarget(botName);
-    setAiDeckDialogOpen(true);
+    void announceTable(deck);
   }
   async function handleStartGame() {
     const room = currentRoom;
     if (!room || startingGame) return;
+    trackClientUiAction("lobby_start");
     setStartingGame(true);
     const local = localAiTableLaunch(room, username, hostingForgeRoom, mySelection.current);
     if (local) {
@@ -411,6 +382,7 @@ export default function Lobby() {
         const started = await useGameStore
           .getState()
           .startGame(
+            "match",
             local.playerDeck,
             local.formatId,
             local.commanderName,
@@ -517,32 +489,8 @@ export default function Lobby() {
       setStartingLimited(false);
     }
   }
-  async function spawnBot(botName: string, deck: SelectedAiDeck) {
-    const room = currentRoom;
-    if (!room || !username || !getPlatform().server) return;
-    try {
-      await getPlatform().server!.spawnAiBot({
-        roomId: room.room_id,
-        roomPassword: roomPasswords[room.room_id] ?? roomPassword ?? null,
-        username: botName,
-        deckName: deck.name,
-        deck: deck.deck,
-        commanderName: deck.commanderName ?? null,
-      });
-      setMySpawnedBots((prev) => [...prev, botName]);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : `Failed to spawn bot.`);
-    }
-  }
-  async function handleRemoveBot(botName: string) {
-    try {
-      await getPlatform().server!.removeAiBot(botName);
-      setMySpawnedBots((prev) => prev.filter((u) => u !== botName));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : `Failed to remove bot.`);
-    }
-  }
   async function handleSetMaxPlayers(maxPlayers: number) {
+    trackClientUiAction("lobby_max_players");
     try {
       await setMaxPlayers(maxPlayers);
     } catch (error) {
@@ -552,7 +500,21 @@ export default function Lobby() {
   useTableAutoStart({
     room: currentRoom,
     username,
-    spawnBot,
+    spawnBot: async (botName, deck) => {
+      if (!currentRoom) return;
+      try {
+        await deckSelection.spawnBot({
+          roomId: currentRoom.room_id,
+          roomPassword,
+          username: botName,
+          deckName: deck.name,
+          deck: deck.deck,
+          commanderName: deck.commanderName ?? null,
+        });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to spawn bot.");
+      }
+    },
     start: handleStartGame,
   });
   return (
@@ -607,29 +569,63 @@ export default function Lobby() {
             <TableCreatingSplash label="Starting your game" />
           ) : (
             <TablesList
+              onWatchRoom={(roomId, password) =>
+                useServerStore.getState().joinRoom(roomId, password, true)
+              }
               rooms={rooms}
               currentRoom={currentRoom}
               roomPassword={roomPassword}
               username={username}
-              onNewGame={() => setSettingUp(true)}
-              onRefresh={refreshLobbyData}
+              onNewGame={() => {
+                trackClientUiAction("lobby_new_table");
+                setSettingUp(true);
+              }}
+              onRefresh={() => {
+                trackClientUiAction("lobby_refresh");
+                return refreshLobbyData();
+              }}
               refreshing={refreshingLobby}
               refreshDisabled={!connected || connecting}
               disabled={!connected || connecting}
               onJoinRoom={handleJoinRoom}
               onLeaveRoom={handleLeaveRoom}
-              onSetReady={setReady}
-              onSetFormat={setFormat}
+              onSetReady={(ready) => {
+                trackClientUiAction("lobby_ready");
+                return setReady(ready);
+              }}
+              onSetFormat={(format) => {
+                trackClientUiAction("lobby_format");
+                return setFormat(format);
+              }}
               onSetMaxPlayers={handleSetMaxPlayers}
-              onOpenDeckDialog={() => setDeckDialogOpen(true)}
+              deckSelection={{
+                selectedUsername: deckSelection.selectedUsername,
+                onSelectSeat: (...args: Parameters<typeof deckSelection.selectSeat>) => {
+                  trackClientUiAction("lobby_seat");
+                  return deckSelection.selectSeat(...args);
+                },
+                busy: deckSelection.busy,
+              }}
               onStartGame={handleStartGame}
-              onStartDraft={handleStartDraft}
-              onStartSealed={handleStartSealed}
+              onStartDraft={() => {
+                trackClientUiAction("lobby_start_limited");
+                return handleStartDraft();
+              }}
+              onStartSealed={() => {
+                trackClientUiAction("lobby_start_limited");
+                return handleStartSealed();
+              }}
               startingLimited={startingLimited}
               startingGame={startingGame}
-              onAddBot={handleAddAiBot}
-              onRemoveBot={handleRemoveBot}
-              mySpawnedBots={mySpawnedBots}
+              onAddBot={(seatIndex) => {
+                trackClientUiAction("lobby_add_bot");
+                return deckSelection.addBot(seatIndex);
+              }}
+              onRemoveBot={(botUsername) => {
+                trackClientUiAction("lobby_remove_bot");
+                return deckSelection.removeBot(botUsername);
+              }}
+              mySpawnedBots={deckSelection.ownedBots}
             />
           )}
         </div>
@@ -675,39 +671,30 @@ export default function Lobby() {
         </Sheet>
       )}
 
-      <CreateGameDialog
-        open={deckDialogOpen}
-        onOpenChange={setDeckDialogOpen}
-        mode="lobby"
-        engineKind={currentRoom?.engine}
-        forcedFormatId={roomFormatId}
-        preSelectedDeckId={deckDialogPreSelectedId}
-        preSelectedHubDeckId={preferredHubDeckId}
-        onStart={(deck, _formatId, commanderName, _playerCount, publishedDeckId) => {
-          void handleDeckSelection(deck.name, deck, commanderName, publishedDeckId);
-        }}
-      />
-      <CreateGameDialog
-        open={aiDeckDialogOpen}
-        onOpenChange={(open) => {
-          setAiDeckDialogOpen(open);
-          if (!open) setBotDeckTarget(null);
-        }}
-        mode="lobby"
-        engineKind={currentRoom?.engine}
-        forcedFormatId={roomFormatId}
-        target="bot"
-        onStart={(deck, _formatId, commanderName) => {
-          if (botDeckTarget) {
-            void spawnBot(botDeckTarget, {
-              name: deck.name,
-              deck,
-              commanderName,
-            });
-            setBotDeckTarget(null);
+      {currentRoom && deckSelection.open && (
+        <CreateGameDialog
+          open
+          onOpenChange={deckSelection.setOpen}
+          mode="lobby"
+          engineKind={currentRoom.engine}
+          forcedFormatId={roomFormatId}
+          preSelectedDeck={deckSelection.selectedDeck}
+          preSelectedDeckId={
+            deckSelection.selectedUsername === username ? deckDialogPreSelectedId : undefined
           }
-        }}
-      />
+          preSelectedHubDeckId={
+            deckSelection.selectedUsername === username ? preferredHubDeckId : undefined
+          }
+          target={deckSelection.selectedUsername === username ? "player" : "bot"}
+          onStart={(deck, _formatId, commanderName, _playerCount, publishedDeckId) => {
+            trackClientUiAction(
+              deckSelection.selectedUsername === username ? "lobby_deck" : "lobby_bot_deck",
+            );
+            return deckSelection.selectDeck(deck, commanderName, publishedDeckId);
+          }}
+        />
+      )}
+
       {confirmLeaveHostedGame && (
         <LeaveGameModal
           onStay={() => setConfirmLeaveHostedGame(false)}

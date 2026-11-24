@@ -3,11 +3,15 @@ import {
   getUiControlHeight,
   getUiFontFloor,
   getUiFontSize,
+  UI_FONT_FAMILY,
 } from "@/themes/typography";
 import { TOUCH_MOVE_SLOP_PX } from "@/lib/responsive";
 import { topModal } from "@/lib/modalStack";
 import { playSound } from "@/lib/soundRuntime";
 import { summarizeCombat } from "@/components/game/combatSummary";
+import { getInitials } from "@/components/game/game.utils";
+import type { WaitingForPlayer } from "@/components/game/game.types";
+import { cachedAvatarTexture, loadAvatarTexture } from "@/pixi/hud/avatarTextureCache";
 import {
   Application,
   Container,
@@ -15,6 +19,10 @@ import {
   Graphics,
   GraphicsPath,
   Rectangle,
+  Sprite,
+  Text,
+  TextStyle,
+  type Texture,
   type Ticker,
 } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
@@ -83,6 +91,8 @@ const TITLE_ROW_MIN_HEIGHT = 36;
 const TURN_BORDER_WIDTH = 2;
 const PRIORITY_BADGE_RADIUS = 20;
 const PRIORITY_BADGE_OVERLAP = 10;
+const WAITING_AVATAR_DIAMETER = 22;
+const WAITING_AVATAR_RING = 2;
 const PHASE_REVEAL_SECONDS = 0.22;
 const PHASE_TAB_DROP_SECONDS = 0.25;
 const PHASE_TAB_RISE_SECONDS = 0.3;
@@ -156,7 +166,12 @@ export class PromptLayer extends PromptModalLayer {
     document.addEventListener("visibilitychange", this.onModifierReset);
     window.addEventListener(ACTION_DRAWER_BUMP_EVENT, this.onActionBump);
     this.unsubscribePromptPreferences = usePromptPreferencesStore.subscribe((state, previous) => {
-      if (state.fullControl === previous.fullControl) return;
+      if (
+        state.fullControl === previous.fullControl &&
+        state.confirmPassWithMana === previous.confirmPassWithMana
+      ) {
+        return;
+      }
       this.resetAutopassState();
       this.rebuild();
     });
@@ -311,6 +326,7 @@ export class PromptLayer extends PromptModalLayer {
       !sameGameOverPresentation(previousSpec?.gameOver, spec?.gameOver);
     const overrideChanged =
       previousSpec?.action.promptActionOverride !== spec?.action.promptActionOverride;
+    const autopassChanged = isAutopassWindow(previousSpec) !== isAutopassWindow(spec);
     const presentationChanged = promptChanged || !samePromptPresentation(previousSpec, spec);
     if (promptChanged) {
       this.resetLocalState(spec);
@@ -322,7 +338,7 @@ export class PromptLayer extends PromptModalLayer {
     const handoff = spec?.turnHandoff;
     if (handoff && handoff.turn !== previousSpec?.turnHandoff?.turn) this.startTurnHandoff(handoff);
     this.releaseHeldTurn();
-    if (!promptChanged && overrideChanged) this.resetAutopassState();
+    if (!promptChanged && (overrideChanged || autopassChanged)) this.resetAutopassState();
     const modalUnavailable = !!spec?.modalHidden || !!spec?.action.isWaitingForResponse;
     if (modalUnavailable) this.selectionFilterFocused = false;
     if (this.drag && !promptChanged && !modalUnavailable) return;
@@ -468,6 +484,9 @@ export class PromptLayer extends PromptModalLayer {
     this.placePhaseTab = null;
     this.phaseLayout = null;
     this.priorityBadge = null;
+    for (const badge of this.rematchBadges) gsap.killTweensOf(badge.face.scale);
+    this.rematchBadges = [];
+    if (!this.spec?.gameOver) this.announcedRematchRequests.clear();
     this.actionPulseNodes = [];
     this.modalOpen = false;
     if (
@@ -491,7 +510,7 @@ export class PromptLayer extends PromptModalLayer {
     if (this.spec.gameOver) {
       this.modalOpen = true;
       this.renderGameOver();
-      this.presentPrompt(this.spec.gameOver);
+      this.presentPrompt("gameOver");
       return;
     }
     const input = this.spec.currentPrompt?.input;
@@ -537,9 +556,70 @@ export class PromptLayer extends PromptModalLayer {
     );
   }
 
+  private renderSpectatorPhaseStrip(): void {
+    const spec = this.spec!;
+    const margin = this.viewportHeight <= 520 ? 6 : 12;
+    const width = Math.min(this.viewportWidth - margin * 2, getUiControlHeight() >= 44 ? 320 : 300);
+    const { columns, phaseWidth, columnX } = phaseTileLayout(width);
+    const cellHeight = getUiControlHeight();
+    const rows = Math.ceil(PHASE_BAR_ENTRIES.length / columns);
+    const height = PANEL_PAD_X * 2 + rows * cellHeight + (rows - 1) * 4;
+    const x = this.viewportWidth - width - margin;
+    const y = this.viewportHeight - height - margin;
+    const surface = this.theme.gameTheme.phaseStrip.background;
+    const ink = readableTextColor(
+      surface,
+      this.theme.gameTheme.canvas.shadow,
+      this.theme.gameTheme.textOnTinted,
+    );
+    const turnInk = readableTextColor(
+      spec.turnColor,
+      this.theme.gameTheme.canvas.shadow,
+      this.theme.gameTheme.textOnTinted,
+    );
+    const step = spec.gameView.step;
+    const panel = new Container();
+    panel.position.set(x, y);
+    panel.eventMode = "static";
+    panel.hitArea = new Rectangle(0, 0, width, height);
+    panel.accessible = true;
+    panel.accessibleTitle = PHASES.find((phase) => phase.id === step)?.label ?? "Phase";
+    const background = this.makeActionPanelSurface(width, height, 8, false, false);
+    const border = new Graphics()
+      .roundRect(0, 0, width, height, 8)
+      .stroke({ color: hexToNum(spec.turnColor), width: TURN_BORDER_WIDTH });
+    border.eventMode = "none";
+    panel.addChild(background, border);
+    PHASE_BAR_ENTRIES.forEach((entry, index) => {
+      const current = entry.steps.includes(step);
+      const tileX = columnX(index);
+      const tileY = PANEL_PAD_X + Math.floor(index / columns) * (cellHeight + 4);
+      const tile = new Graphics()
+        .roundRect(tileX, tileY, phaseWidth, cellHeight, 4)
+        .fill({ color: hexToNum(current ? spec.turnColor : surface) });
+      tile.eventMode = "none";
+      const label = promptText(
+        (current && PHASES.find((phase) => phase.id === step)?.short) || entry.short,
+        getUiFontSize("meta"),
+        current ? turnInk : ink,
+        { weight: "700" },
+      );
+      label.anchor.set(0.5);
+      label.position.set(tileX + phaseWidth / 2, tileY + cellHeight / 2);
+      panel.addChild(tile, label);
+    });
+    this.container.addChild(panel);
+    this.actionPanelBounds = { x, y, width, height };
+    this.actionBounds = new Rectangle(x, y, width, height);
+  }
+
   private renderActionPanel(): void {
     const spec = this.spec!;
     const action = spec.action;
+    if (action.spectator && action.promptType !== "gameOver") {
+      this.renderSpectatorPhaseStrip();
+      return;
+    }
     const shortScreen = this.viewportHeight <= 520;
     const minimal = this.layerPresentation.actionStyle === "minimal";
     const touch = getUiControlHeight() >= 44;
@@ -1633,21 +1713,114 @@ export class PromptLayer extends PromptModalLayer {
       hourglass.container.position.set(width / 2, height / 2);
       container.addChild(hourglass.container);
     } else {
-      const label = promptText("WAITING FOR OTHERS", 11, color, {
+      const waitingFor = this.spec?.action.waitingFor;
+      const avatar = waitingFor ? this.makeWaitingAvatar(waitingFor) : null;
+      const avatarWidth = avatar ? WAITING_AVATAR_DIAMETER + labelGap : 0;
+      const label = promptText(waitingFor ? "WAITING FOR" : "WAITING FOR OTHERS", 11, color, {
         weight: "600",
         letterSpacing: 1.54,
-        width: Math.max(1, width - hourglassWidth - labelGap),
+        width: Math.max(1, width - hourglassWidth - labelGap - avatarWidth),
       });
       label.anchor.set(0, 0.5);
       label.alpha = 0.9;
-      const groupWidth = hourglassWidth + labelGap + label.width;
+      const groupWidth = hourglassWidth + labelGap + label.width + avatarWidth;
       const groupX = Math.max(0, (width - groupWidth) / 2);
       hourglass.container.position.set(groupX + hourglassWidth / 2, height / 2);
       label.position.set(groupX + hourglassWidth + labelGap, height / 2);
       container.addChild(hourglass.container, label);
+      if (avatar) {
+        avatar.position.set(
+          label.x + label.width + labelGap + WAITING_AVATAR_DIAMETER / 2,
+          height / 2,
+        );
+        container.addChild(avatar);
+      }
     }
     this.startWaitingAnimation(hourglass);
     return { container, width, height };
+  }
+
+  private makeWaitingAvatar(player: WaitingForPlayer): Container {
+    const gt = this.theme.gameTheme;
+    const radius = WAITING_AVATAR_DIAMETER / 2;
+    const avatar = new Container();
+    avatar.eventMode = "static";
+    avatar.hitArea = new Rectangle(
+      -radius - WAITING_AVATAR_RING,
+      -radius - WAITING_AVATAR_RING,
+      WAITING_AVATAR_DIAMETER + WAITING_AVATAR_RING * 2,
+      WAITING_AVATAR_DIAMETER + WAITING_AVATAR_RING * 2,
+    );
+    avatar.accessibleTitle = player.name;
+    const ring = new Graphics()
+      .circle(0, 0, radius + WAITING_AVATAR_RING)
+      .fill({ color: hexToNum(player.color) });
+    const face = new Graphics()
+      .circle(0, 0, radius)
+      .fill({ color: hexToNum(gt.phaseStrip.background) });
+    const initials = new Text({
+      text: getInitials(player.name),
+      style: new TextStyle({
+        fontFamily: UI_FONT_FAMILY,
+        fontSize: Math.max(9, getUiFontFloor("meta")),
+        fontWeight: "800",
+        fill: hexToNum(gt.textOnTinted),
+      }),
+    });
+    initials.anchor.set(0.5);
+    const photo = new Sprite();
+    photo.anchor.set(0.5);
+    photo.visible = false;
+    const photoMask = new Graphics()
+      .circle(0, 0, radius)
+      .fill({ color: hexToNum(gt.textOnTinted) });
+    photo.mask = photoMask;
+    photoMask.visible = false;
+    const showPhoto = (texture: Texture) => {
+      const cover = WAITING_AVATAR_DIAMETER / Math.min(texture.width, texture.height);
+      photo.texture = texture;
+      photo.width = texture.width * cover;
+      photo.height = texture.height * cover;
+      photo.visible = photoMask.visible = true;
+      initials.visible = false;
+    };
+    if (player.avatarUrl) {
+      const cached = cachedAvatarTexture(player.avatarUrl);
+      if (cached) showPhoto(cached);
+      else
+        void loadAvatarTexture(player.avatarUrl)
+          .then((texture) => {
+            if (avatar.destroyed) return;
+            showPhoto(texture);
+            this.callbacks.onRenderRequested?.();
+          })
+          .catch(() => {});
+    }
+    const tooltipLabel = promptText(player.name, 11, this.theme.appTheme["popover-foreground"], {
+      weight: "600",
+    });
+    tooltipLabel.anchor.set(0.5);
+    const tooltipWidth = tooltipLabel.width + 16;
+    const tooltipHeight = Math.max(20, tooltipLabel.height + 8);
+    const tooltip = new Container();
+    tooltip.eventMode = "none";
+    tooltip.visible = false;
+    tooltip.addChild(
+      new Graphics()
+        .roundRect(-tooltipWidth / 2, -tooltipHeight / 2, tooltipWidth, tooltipHeight, 4)
+        .fill({ color: hexToNum(this.theme.appTheme.popover) }),
+      tooltipLabel,
+    );
+    tooltip.position.set(0, -radius - WAITING_AVATAR_RING - 6 - tooltipHeight / 2);
+    for (const child of [ring, face, initials, photo, photoMask]) child.eventMode = "none";
+    avatar.addChild(ring, face, initials, photoMask, photo, tooltip);
+    const setHovered = (hovered: boolean) => {
+      tooltip.visible = hovered;
+      this.callbacks.onRenderRequested?.();
+    };
+    avatar.on("pointerover", () => setHovered(true));
+    avatar.on("pointerout", () => setHovered(false));
+    return avatar;
   }
 
   private makeWaitingHourglass(color: string): WaitingHourglassVisual {
@@ -2684,8 +2857,13 @@ export class PromptLayer extends PromptModalLayer {
     )
       return;
     if (this.spec.gameOver && primaryActionKey && !event.repeat) {
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest("button, input, textarea, select, a, [contenteditable='true']")
+      )
+        return;
       event.preventDefault();
-      this.spec.gameOver.onEndGame();
+      if (!this.spec.gameOver.busy) this.spec.gameOver.onPlayAgain?.();
       return true;
     }
     const input = this.spec.currentPrompt?.input;
@@ -2857,15 +3035,18 @@ export class PromptLayer extends PromptModalLayer {
     this.updateDragMotion(deltaMs);
     this.updateScrollMotion(deltaMs);
     this.syncActionFeedback(elapsed);
-    if (this.priorityBadge) {
-      const { container, baseY } = this.priorityBadge;
-      container.visible = this.autopassRemainingMs == null;
-      const wave = (period: number) =>
-        motionEnabled ? Math.sin((elapsed / period) * Math.PI * 2) : 0;
+    const wave = (period: number) =>
+      motionEnabled ? Math.sin((elapsed / period) * Math.PI * 2) : 0;
+    const bob = ({ container, baseY }: { container: Container; baseY: number }) => {
       container.y = baseY + wave(1100) * 4;
       container.scale.set(1 + wave(700) * 0.07);
       container.rotation = wave(1700) * 0.09;
+    };
+    if (this.priorityBadge) {
+      this.priorityBadge.container.visible = this.autopassRemainingMs == null;
+      bob(this.priorityBadge);
     }
+    for (const badge of this.rematchBadges) bob(badge);
     if (this.selectionFilterView) {
       this.selectionFilterView.caret.visible =
         this.selectionFilterFocused &&

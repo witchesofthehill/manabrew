@@ -44,10 +44,13 @@ export interface RoomInfo {
   hosted: boolean;
   official: boolean;
   password_protected: boolean;
+  allow_spectators?: boolean;
+  can_spectate?: boolean;
+  spectator_count?: number;
   players: RoomPlayerInfo[];
   max_players: number;
   format: GameFormat;
-  status: "Lobby" | "InGame";
+  status: "Lobby" | "InGame" | "Finished";
   engine: EngineKind;
   reconnect_timeout_s: number;
   table_style?: string;
@@ -57,13 +60,21 @@ export interface RoomInfo {
   matchmade_bot_fill?: boolean;
   table_bracket?: number;
   auto_start?: boolean;
+  rematch?: RematchInfo;
 }
 export interface RoomPlayerInfo {
   username: string;
+  seat_index?: number;
   ready: boolean;
   connected: boolean;
   is_bot?: boolean;
   selected_deck_name?: string;
+}
+export type RematchIntent = "Deciding" | "ChoosingDeck" | "Ready";
+export interface RematchInfo {
+  game_id: string;
+  players: Array<{ username: string; intent: RematchIntent }>;
+  cancelled: boolean;
 }
 /** A game on the player's own machine, which the relay never sees. */
 export type LocalGameKind = "Singleplayer";
@@ -216,10 +227,13 @@ export function isRoomRelayEnvelope(value: unknown): value is RoomRelayEnvelope 
 }
 /** Wire features a relay lists in `AuthResult.features`. */
 export const RELAY_FEATURE = {
+  Spectators: "spectators",
   LocalGame: "local_game",
   Chat: "chat",
   RoomInvites: "room_invites",
+  RoomSeats: "room_seats",
   GameOutcome: "game_outcome",
+  GameRematch: "game_rematch",
   LimitedSessions: "limited_sessions",
   LimitedDraftClocks: "limited_draft_clocks",
   LimitedSessionRecovery: "limited_session_recovery",

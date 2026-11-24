@@ -24,6 +24,7 @@ import forge.game.trigger.TriggerHandler;
 import forge.game.trigger.WrappedAbility;
 import forge.game.zone.ZoneType;
 import forge.gui.GuiBase;
+import forge.harness.common.ActionSpace;
 import forge.harness.common.HeadlessGuiBase;
 import forge.harness.common.SnapshotExtractor;
 import forge.item.IPaperCard;
@@ -57,6 +58,7 @@ public final class ManaBrewInteractiveControllerTest {
         run("swordOfSinewAndSteelCanTargetArtifactCreature", ManaBrewInteractiveControllerTest::swordOfSinewAndSteelCanTargetArtifactCreature, failures);
         run("sacrificeCostCanBeCancelled", ManaBrewInteractiveControllerTest::sacrificeCostCanBeCancelled, failures);
         run("blightCostOnLoneCreatureCanBeDeclined", ManaBrewInteractiveControllerTest::blightCostOnLoneCreatureCanBeDeclined, failures);
+        run("glarbPlaysLandFromTopOfLibrary", ManaBrewInteractiveControllerTest::glarbPlaysLandFromTopOfLibrary, failures);
         run("announcedXCountsImprovise", ManaBrewInteractiveControllerTest::announcedXCountsImprovise, failures);
         run("flavorNamedCommanderIsFoundInTheDeck", ManaBrewInteractiveControllerTest::flavorNamedCommanderIsFoundInTheDeck, failures);
 
@@ -179,6 +181,25 @@ public final class ManaBrewInteractiveControllerTest {
         assertEquals(0, prompt.get("min").getAsInt(), "blight cost prompt min");
         assertEquals(0, scrounger.getCounters(CounterEnumType.M1M1), "-1/-1 counters after declining blight");
         assertEquals(1, f.p.getCardsIn(ZoneType.Battlefield).size(), "permanents after declining blight");
+    }
+
+    private static void glarbPlaysLandFromTopOfLibrary() {
+        final Fixture f = new Fixture();
+        f.add("Glarb, Calamity's Augur", f.p, ZoneType.Battlefield);
+        final Card island = f.add("Island", f.p, ZoneType.Library);
+        f.game.getAction().checkStaticAbilities();
+        SpellAbility landPlay = null;
+        for (final SpellAbility sa : ActionSpace.getPossibleActions(f.p, false)) {
+            if (sa.isLandAbility() && sa.getHostCard() == island) {
+                landPlay = sa;
+            }
+        }
+        assertTrue(landPlay != null, "land play from the top of the library was not offered");
+
+        assertTrue(f.controller.playChosenSpellAbility(landPlay), "land play from the top of the library failed");
+
+        assertEquals(0, f.p.getCardsIn(ZoneType.Library).size(), "cards left in the library");
+        assertEquals(2, f.p.getCardsIn(ZoneType.Battlefield).size(), "permanents after playing the land");
     }
 
     private static void announcedXCountsImprovise() {

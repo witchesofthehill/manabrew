@@ -12,8 +12,6 @@ export const featureFlags = {
   // in via Settings (`ironsmithRuntimeEnabled`) — the experimental engine ships
   // dark in prod by default.
   ironsmithRuntime: true,
-  // Deck Hub (browse/publish shared decks + top decks). Public browse, play and
-  // copy need no session; publishing and favorites also need `accounts`.
   deckHub: true,
   // Hub accounts (OAuth + email sign-in, deck ownership). Desktop never uses the
   // `WEB_APP_URL` redirect: an OAuth start with `client: "desktop"` ends on the

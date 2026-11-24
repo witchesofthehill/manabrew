@@ -191,8 +191,8 @@ class TauriServerApi implements IServerApi {
   broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void> {
     return this.inner.broadcastState(state, targetPlayer);
   }
-  sendRoomMessage(message: RoomRelayEnvelope): Promise<void> {
-    return this.inner.sendRoomMessage(message);
+  sendRoomMessage(message: RoomRelayEnvelope, options?: { direct?: boolean }): Promise<void> {
+    return this.inner.sendRoomMessage(message, options);
   }
   spawnAiBot(params: SpawnAiBotParams): Promise<void> {
     return this.inner.spawnAiBot(params);

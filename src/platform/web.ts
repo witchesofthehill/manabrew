@@ -1722,7 +1722,8 @@ class WebServerApi implements IServerApi {
     this.send({ type: "BroadcastState", state, target_player: targetPlayer });
   }
 
-  async sendRoomMessage(message: RoomRelayEnvelope): Promise<void> {
+  async sendRoomMessage(message: RoomRelayEnvelope, options?: { direct?: boolean }): Promise<void> {
+    if (options?.direct && this.webrtc?.trySendDirect(message, message.targetPlayer)) return;
     this.send({ type: "BroadcastState", state: message, target_player: message.targetPlayer });
   }
 

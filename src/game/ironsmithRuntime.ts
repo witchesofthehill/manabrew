@@ -127,7 +127,9 @@ type IronsmithPrivatePayload =
   | { type: "directive"; directive: DirectiveInput };
 
 type IronsmithRoomRelayPayload =
-  | { type: "hello"; seat: string; publicKey: JsonWebKey; transcript?: number }
+  // `direct`: this seat reads private payloads that arrive over the peer-to-peer
+  // plane, so a sender may use it. A seat that predates it would ignore them.
+  | { type: "hello"; seat: string; publicKey: JsonWebKey; transcript?: number; direct?: boolean }
   | { type: "private"; to: string; encrypted: EncryptedRelayPayload };
 
 const IRONSMITH_TRANSCRIPT_VERSION = 1;
@@ -152,6 +154,8 @@ export class IronsmithTrustedGameApi implements IGameApi {
   private keyPairPromise: Promise<CryptoKeyPair | null> | null = null;
   private peerPublicKeys = new Map<string, CryptoKey>();
   private peerKeyFingerprints = new Map<string, string>();
+  // Seats whose hello said they read private payloads from the peer-to-peer plane.
+  private directPeers = new Set<string>();
   private sharedKeys = new Map<string, CryptoKey>();
   private hostPlayerSlot: string | null = null;
   private concededPlayerSlots = new Set<string>();
@@ -207,6 +211,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
       params.hostPlayerSlot ?? (params.localIsHost ? this.localPlayerSlot : null);
     this.peerPublicKeys.clear();
     this.peerKeyFingerprints.clear();
+    this.directPeers.clear();
     this.sharedKeys.clear();
     this.installRoomRelayListener();
     this.installRoomListeners();
@@ -253,6 +258,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
     this.botPlayerSlots.clear();
     this.peerPublicKeys.clear();
     this.peerKeyFingerprints.clear();
+    this.directPeers.clear();
     this.sharedKeys.clear();
     this.hostPlayerSlot = null;
   }
@@ -884,6 +890,8 @@ export class IronsmithTrustedGameApi implements IGameApi {
         }
         return;
       }
+      if (relayPayload.direct) this.directPeers.add(relayPayload.seat);
+      else this.directPeers.delete(relayPayload.seat);
       const changed = await this.rememberPeerKey(relayPayload.seat, relayPayload.publicKey);
       this.assertGeneration(generation);
       if (changed) {
@@ -972,6 +980,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
       seat: slot,
       publicKey,
       transcript: IRONSMITH_TRANSCRIPT_VERSION,
+      direct: true,
     });
   }
 
@@ -981,13 +990,16 @@ export class IronsmithTrustedGameApi implements IGameApi {
       await this.sendRelayHello();
       return false;
     }
-    await this.sendRelayPayload({ type: "private", to, encrypted }, to);
+    await this.sendRelayPayload({ type: "private", to, encrypted }, to, this.directPeers.has(to));
     return true;
   }
 
+  // `direct` offers the message to the peer-to-peer plane before the relay. The
+  // payload is already encrypted for its one recipient, so either path is as private.
   private async sendRelayPayload(
     payload: IronsmithRoomRelayPayload,
     targetPlayer?: string,
+    direct = false,
   ): Promise<void> {
     const fromPlayer = this.localPlayerSlot ?? undefined;
     await getPlatform().server?.sendRoomMessage(
@@ -999,6 +1011,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
           : undefined,
         payload,
       }),
+      direct ? { direct: true } : undefined,
     );
   }
 

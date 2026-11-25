@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.95.0](https://github.com/witchesofthehill/manabrew/compare/v3.94.0...v3.95.0) (2026-11-25)
+
+### Features
+
+* **matchmaking:** choose Manabot fill before searching ([#1284](https://github.com/witchesofthehill/manabrew/issues/1284)) ([73781b5](https://github.com/witchesofthehill/manabrew/commit/73781b5d064d8e66022cf20c84803978dda58dd5))
+
 ## [3.94.0](https://github.com/witchesofthehill/manabrew/compare/v3.93.0...v3.94.0) (2026-11-25)
 
 ### Features

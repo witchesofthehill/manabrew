@@ -6,6 +6,7 @@ import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { DeckSelectionCard } from "@/components/lobby/DeckSelectionCard";
 import { useDeckBrackets } from "@/components/lobby/useDeckBrackets";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
@@ -55,6 +56,7 @@ export function FindGameDialog({
   const shortScreen = useIsShortScreen();
   const isTouch = useIsTouch();
   const [sizes, setSizes] = useState<PodSize[]>([4, 3]);
+  const [botFill, setBotFill] = useState(false);
   const [excluded, setExcluded] = useState<string[]>([]);
   const [starters, setStarters] = useState<string[]>([]);
   const [search, setSearch] = useState("");
@@ -78,6 +80,7 @@ export function FindGameDialog({
   const allOwnedSelected = owned.every(({ id }) => !excluded.includes(id));
   const tooMany = selected.length > MAX_QUEUED_DECKS;
   const podSizes = POD_SIZES.filter((podSize) => sizes.includes(podSize));
+  const canBotFill = podSizes.some((podSize) => podSize > 2);
   const brackets = useDeckBrackets(
     [...owned, ...presets],
     open && connected && supported && phase === "idle",
@@ -105,6 +108,7 @@ export function FindGameDialog({
       await useMatchmakingStore.getState().enter(
         podSizes,
         selected.map(({ deck }) => deck),
+        botFill && canBotFill,
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not start the search.");
@@ -185,6 +189,24 @@ export function FindGameDialog({
                   )}
                 </button>
               ))}
+            </div>
+            <div className="mt-4 flex items-start gap-3 px-1">
+              <Checkbox
+                id="find-game-bot-fill"
+                checked={botFill && canBotFill}
+                disabled={disabled || !canBotFill}
+                onCheckedChange={(checked) => setBotFill(checked === true)}
+                className="mt-0.5"
+              />
+              <Label htmlFor="find-game-bot-fill" className="space-y-1 font-normal">
+                <span className="block text-ui-label font-medium">
+                  Fill empty seats with Manabot
+                </span>
+                <span className="block text-ui-meta text-muted-foreground">
+                  Start with at least one other player who allows it, instead of waiting for a full
+                  table.
+                </span>
+              </Label>
             </div>
             {!shortScreen && (
               <img

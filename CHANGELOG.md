@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.94.0](https://github.com/witchesofthehill/manabrew/compare/v3.93.0...v3.94.0) (2026-11-25)
+
+### Features
+
+* **ui:** retire manabrew engine gameplay ([#1276](https://github.com/witchesofthehill/manabrew/issues/1276)) ([1b12fa0](https://github.com/witchesofthehill/manabrew/commit/1b12fa006f65d20e19aee7da25d8ab344a907925))
+
 ## [3.93.0](https://github.com/witchesofthehill/manabrew/compare/v3.92.1...v3.93.0) (2026-11-24)
 
 ### Features

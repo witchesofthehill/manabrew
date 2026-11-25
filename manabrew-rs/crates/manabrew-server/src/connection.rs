@@ -2812,8 +2812,6 @@ fn handle_client_message(
                 return;
             };
             let info = state.rooms.get_mut(&room_id).and_then(|mut room| {
-                // Until host migration exists, only official node rooms outlive
-                // the player who opened them, so only they may call the queue.
                 let eligible = room.is_controller(player_id)
                     && room.hosted
                     && room.official

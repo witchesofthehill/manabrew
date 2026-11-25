@@ -76,7 +76,7 @@ interface MatchmakingState {
   match: MatchFoundPayload | null;
   tableCall: TableCallPayload | null;
   answerTableCall(join: boolean, deckIndex?: number): Promise<void>;
-  enter(podSizes: PodSize[], decks: Deck[]): Promise<void>;
+  enter(podSizes: PodSize[], decks: Deck[], botFill?: boolean): Promise<void>;
   setSteps(steps: number[]): Promise<void>;
   dismissOffer(): void;
   acceptBotFill(): Promise<void>;
@@ -228,7 +228,7 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
       throw error;
     }
   },
-  async enter(podSizes, decks) {
+  async enter(podSizes, decks, botFill = false) {
     if (get().phase !== "idle") return;
     const server = getPlatform().server;
     if (!server) throw new Error("Multiplayer is not available.");
@@ -262,6 +262,10 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
         decks: queuedDecks,
         canHost: forgeWasmGate() === "in_browser",
       });
+      if (botFill) {
+        await server.acceptBotFill();
+        set({ botFill: true });
+      }
     } catch (error) {
       if (request !== preparation) return;
       set({ ...IDLE });

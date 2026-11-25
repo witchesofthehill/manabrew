@@ -69,7 +69,7 @@ export function MatchmakingSearchDetails({
       )}
       {botFill && (
         <p className="text-ui-meta text-muted-foreground">
-          Manabot fills empty seats if the other players agree.
+          Manabot fills empty seats when another player who allows it is ready.
         </p>
       )}
       {botFillOffer !== null && (

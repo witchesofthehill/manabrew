@@ -521,6 +521,37 @@ impl MatchQueue {
         None
     }
 
+    /// The anchor, a browser host when no node room is free, then the oldest
+    /// other candidates up to `pod_size`. `None` when a host is needed and no
+    /// candidate can host.
+    fn pick(
+        &self,
+        anchor: usize,
+        candidates: &[usize],
+        pod_size: u8,
+        need_host: bool,
+    ) -> Option<Vec<usize>> {
+        let mut chosen = vec![anchor];
+        if need_host {
+            let host = candidates
+                .iter()
+                .copied()
+                .find(|&i| self.entries[i].can_host)?;
+            if host != anchor {
+                chosen.push(host);
+            }
+        }
+        chosen.extend(
+            candidates
+                .iter()
+                .copied()
+                .filter(|i| !chosen.contains(i))
+                .take((pod_size as usize).saturating_sub(chosen.len()))
+                .collect::<Vec<_>>(),
+        );
+        Some(chosen)
+    }
+
     fn take_at(
         &mut self,
         anchor: usize,
@@ -536,36 +567,33 @@ impl MatchQueue {
                         && self.entries[i].accepts(bracket))
             })
             .collect();
-        let browser_host = accepting
-            .iter()
-            .copied()
-            .find(|&i| self.entries[i].can_host);
-        let hosted_slot = if pod_size == 2 && browser_host.is_some() {
+        let browser_host = accepting.iter().any(|&i| self.entries[i].can_host);
+        let hosted_slot = if pod_size == 2 && browser_host {
             None
         } else {
             hosted.iter().position(|&seats| seats >= pod_size)
         };
-        let mut chosen = vec![anchor];
-        if hosted_slot.is_none() {
-            let host = browser_host?;
-            if host != anchor {
-                chosen.push(host);
+        let need_host = hosted_slot.is_none();
+        let (mut chosen, bot_fill) = match self.pick(anchor, &accepting, pod_size, need_host) {
+            Some(chosen) if chosen.len() == pod_size as usize => (chosen, false),
+            _ => {
+                // A partial pod seats only players who accepted Manabot fill, so
+                // one player who never answered cannot hold back two who did.
+                if !self.entries[anchor].bot_fill {
+                    return None;
+                }
+                let willing: Vec<usize> = accepting
+                    .iter()
+                    .copied()
+                    .filter(|&i| self.entries[i].bot_fill)
+                    .collect();
+                let chosen = self.pick(anchor, &willing, pod_size, need_host)?;
+                if chosen.len() < MIN_POD as usize {
+                    return None;
+                }
+                (chosen, true)
             }
-        }
-        chosen.extend(
-            accepting
-                .iter()
-                .copied()
-                .filter(|i| !chosen.contains(i))
-                .take((pod_size as usize).saturating_sub(chosen.len()))
-                .collect::<Vec<_>>(),
-        );
-        let full = chosen.len() == pod_size as usize;
-        let bot_fill =
-            !full && chosen.len() >= 2 && chosen.iter().all(|&i| self.entries[i].bot_fill);
-        if !full && !bot_fill {
-            return None;
-        }
+        };
         if let Some(slot) = hosted_slot {
             hosted.remove(slot);
         }
@@ -1288,5 +1316,102 @@ fn seat_in_browser_room(state: &Arc<ServerState>, pod: Pod) {
                 resume_token: is_host.then(|| resume_token.clone()),
             },
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use manabrew_protocol::deck_dto::Deck;
+
+    fn entry(name: &str, age_s: u64, bot_fill: bool) -> QueueEntry {
+        QueueEntry {
+            player_id: name.into(),
+            username: name.into(),
+            format: GameFormat::Commander,
+            pod_sizes: vec![4, 3],
+            decks: vec![QueuedDeck {
+                deck_name: format!("{name} deck"),
+                deck: Deck::default(),
+                published_deck_id: None,
+                commander_name: None,
+                bracket: 3,
+            }],
+            selected_deck: None,
+            steps: Vec::new(),
+            can_host: true,
+            queued_at: Instant::now() - Duration::from_secs(age_s),
+            offered: false,
+            bot_fill,
+            bot_fill_offered: false,
+        }
+    }
+
+    fn queue(entries: Vec<QueueEntry>) -> MatchQueue {
+        let mut queue = MatchQueue::default();
+        for entry in entries {
+            queue.enter(entry);
+        }
+        queue
+    }
+
+    fn names(pod: &Pod) -> Vec<&str> {
+        pod.members.iter().map(|m| m.username.as_str()).collect()
+    }
+
+    #[test]
+    fn silent_player_does_not_block_bot_fill() {
+        let mut queue = queue(vec![
+            entry("first", 90, true),
+            entry("silent", 60, false),
+            entry("third", 30, true),
+        ]);
+        let pods = queue.take_pods(&mut Vec::new());
+        assert_eq!(pods.len(), 1);
+        assert!(pods[0].bot_fill);
+        assert_eq!(names(&pods[0]), ["first", "third"]);
+        assert_eq!(queue.entries.len(), 1);
+        assert_eq!(queue.entries[0].username, "silent");
+    }
+
+    #[test]
+    fn bot_fill_needs_two_willing_players() {
+        let mut queue = queue(vec![entry("alone", 90, true), entry("silent", 60, false)]);
+        assert!(queue.take_pods(&mut Vec::new()).is_empty());
+        assert_eq!(queue.entries.len(), 2);
+    }
+
+    #[test]
+    fn full_pod_still_seats_players_who_did_not_answer() {
+        let mut queue = queue(vec![
+            entry("a", 90, true),
+            entry("b", 60, false),
+            entry("c", 30, false),
+        ]);
+        let pods = queue.take_pods(&mut Vec::new());
+        assert_eq!(pods.len(), 1);
+        assert!(!pods[0].bot_fill);
+        assert_eq!(pods[0].pod_size, 3);
+        assert_eq!(names(&pods[0]), ["a", "b", "c"]);
+    }
+
+    #[test]
+    fn bot_fill_pod_needs_a_host_among_willing_players() {
+        let mut silent_host = entry("host", 60, false);
+        silent_host.can_host = true;
+        let mut a = entry("a", 90, true);
+        a.can_host = false;
+        let mut b = entry("b", 30, true);
+        b.can_host = false;
+        let mut entries = vec![a, silent_host, b];
+        for entry in &mut entries {
+            entry.pod_sizes = vec![4];
+        }
+        let mut queue = queue(entries);
+        assert!(queue.take_pods(&mut Vec::new()).is_empty());
+        let pods = queue.take_pods(&mut vec![4]);
+        assert_eq!(pods.len(), 1);
+        assert!(pods[0].bot_fill);
+        assert_eq!(names(&pods[0]), ["a", "b"]);
     }
 }

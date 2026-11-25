@@ -937,7 +937,9 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
 
 fn open_table(room: &Room) -> Option<OpenTable> {
     let bracket = room.table_bracket?;
-    let open = room.status == RoomStatus::Lobby
+    let open = room.hosted
+        && room.official
+        && room.status == RoomStatus::Lobby
         && room.players.len() < room.max_players as usize
         && matches!(room.format, GameFormat::Any | GameFormat::Commander)
         && room.password.is_none()
@@ -1069,6 +1071,7 @@ fn requeue(state: &Arc<ServerState>, members: Vec<QueueEntry>) {
 
 fn pool_room_is_free(room: &Room) -> bool {
     room.hosted
+        && room.official
         && room.status == RoomStatus::Lobby
         && room.players.is_empty()
         && room.engine == EngineKind::Forge
@@ -1142,9 +1145,10 @@ fn claim_sessions(state: &Arc<ServerState>, room_id: &str, members: &[QueueEntry
 
 fn seat_pod(state: &Arc<ServerState>, pod: Pod) {
     let browser_host = pod.members.iter().any(|entry| entry.can_host);
-    if pod.pod_size == 2 && browser_host {
-        seat_in_browser_room(state, pod);
-    } else if let Some(room_id) = free_pool_room(state, pod.pod_size) {
+    // A browser host that leaves ends the game for everyone, so every pod size
+    // waits for a node room first. A browser room is the fallback when the
+    // fleet is full.
+    if let Some(room_id) = free_pool_room(state, pod.pod_size) {
         seat_in_pool_room(state, room_id, pod);
     } else if browser_host {
         seat_in_browser_room(state, pod);
@@ -1413,5 +1417,49 @@ mod tests {
         assert_eq!(pods.len(), 1);
         assert!(pods[0].bot_fill);
         assert_eq!(names(&pods[0]), ["a", "b"]);
+    }
+
+    fn node_room(official: bool) -> Room {
+        Room::new(
+            "r".into(),
+            "Stable free room".into(),
+            manabrew_relay_protocol::PROTOCOL_VERSION,
+            "node".into(),
+            "node".into(),
+            4,
+            GameFormat::Commander,
+            EngineKind::Forge,
+            false,
+            None,
+            None,
+            official,
+            None,
+            60,
+            None,
+        )
+    }
+
+    #[test]
+    fn only_official_node_rooms_take_pods() {
+        assert!(pool_room_is_free(&node_room(true)));
+        // A desktop app's embedded host is hosted but not official, and it
+        // leaves with the player who opened it.
+        assert!(!pool_room_is_free(&node_room(false)));
+    }
+
+    #[test]
+    fn only_official_node_rooms_call_the_queue() {
+        for official in [true, false] {
+            let mut room = node_room(official);
+            room.add_player("a".into(), "a".into(), false, None)
+                .unwrap();
+            room.table_bracket = Some(2);
+            assert_eq!(open_table(&room).is_some(), official);
+        }
+
+        let mut browser = node_room(true);
+        browser.hosted = false;
+        browser.table_bracket = Some(2);
+        assert!(open_table(&browser).is_none());
     }
 }

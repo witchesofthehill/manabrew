@@ -32,6 +32,19 @@
 		header Cross-Origin-Resource-Policy "same-origin"
 	}
 
+	@archidekt path_regexp archidekt ^/archidekt-api/decks/([0-9]+)/$
+	handle @archidekt {
+		rewrite * /api/decks/{re.archidekt.1}/
+		reverse_proxy https://archidekt.com {
+			header_up Host archidekt.com
+			header_up -X-Forwarded-Host
+			header_down -Access-Control-Allow-Origin
+			header_down -Access-Control-Allow-Credentials
+			header_down -Set-Cookie
+		}
+		header Cross-Origin-Resource-Policy "same-origin"
+	}
+
 	@cubecobra path_regexp cubecobra ^/cubecobra-download/cube/api/cubeJSON/([A-Za-z0-9-]+)$
 	handle @cubecobra {
 		rewrite * /cube/api/cubeJSON/{re.cubecobra.1}

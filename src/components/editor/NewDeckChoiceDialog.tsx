@@ -59,7 +59,7 @@ export function NewDeckChoiceDialog({
           <ChoiceCard
             icon={ClipboardPaste}
             title={`Import from text`}
-            desc="Paste a decklist copied from Moxfield or elsewhere."
+            desc="Paste a decklist or an Archidekt deck link."
             onClick={onImport}
           />
           <ChoiceCard

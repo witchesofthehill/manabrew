@@ -1,7 +1,7 @@
 // Pure Archidekt client. No React, no Node, no side effects beyond the
 // injected fetch. Shared by the CLI importer and the in-app deck importer.
 
-export type FetchFn = typeof fetch;
+export type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
 
 export interface ArchidektSearchResult {
   id: string;
@@ -69,6 +69,8 @@ export const GAME_FORMAT_TO_ARCHIDEKT: Record<string, number> = {
 
 export const ARCHIDEKT_PAGE_SIZE = 25;
 
+export const ARCHIDEKT_API = "https://archidekt.com/api";
+
 const USER_AGENT = "manabrew-deck-importer";
 
 export interface RequestOptions {
@@ -118,12 +120,20 @@ function mapSearchResult(d: RawSearchResult): ArchidektSearchResult {
   };
 }
 
+const ARCHIDEKT_DECK_URL_REGEX = /archidekt\.com\/decks\/(\d+)/i;
+
 export function parseArchidektUrl(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
   if (/^\d+$/.test(trimmed)) return trimmed;
-  const match = /archidekt\.com\/decks\/(\d+)/i.exec(trimmed);
+  const match = ARCHIDEKT_DECK_URL_REGEX.exec(trimmed);
   return match ? match[1] : null;
+}
+
+export function parseArchidektDeckLink(input: string): string | null {
+  const trimmed = input.trim();
+  if (/\s/.test(trimmed)) return null;
+  return ARCHIDEKT_DECK_URL_REGEX.exec(trimmed)?.[1] ?? null;
 }
 
 export async function searchArchidekt(
@@ -151,9 +161,11 @@ interface RawDeckResponse {
   deckFormat?: number;
   owner?: { username?: string };
   tags?: unknown;
+  categories?: Array<{ name: string; includedInDeck?: boolean }>;
   cards?: Array<{
     quantity: number;
     categories?: string[];
+    modifier?: string;
     card?: {
       name?: string;
       collectorNumber?: string;
@@ -172,17 +184,26 @@ interface RawDeckResponse {
 const EXCLUDED_CATEGORIES = new Set(["sideboard", "maybeboard"]);
 const COMMANDER_CATEGORIES = new Set(["commander", "commanders"]);
 
+async function fetchRawDeck(
+  id: string,
+  opts: RequestOptions,
+  baseUrl = ARCHIDEKT_API,
+): Promise<RawDeckResponse> {
+  const fetchFn = resolveFetch(opts);
+  const res = await fetchFn(`${baseUrl}/decks/${id}/`, {
+    headers: { "User-Agent": USER_AGENT },
+    signal: opts.signal,
+  });
+  if (res.status === 404) throw new Error(`Archidekt deck not found or private`);
+  if (!res.ok) throw new Error(`Archidekt fetch failed: ${res.status}`);
+  return (await res.json()) as RawDeckResponse;
+}
+
 export async function fetchArchidektDeck(
   id: string,
   opts: RequestOptions = {},
 ): Promise<ArchidektDeck> {
-  const fetchFn = resolveFetch(opts);
-  const res = await fetchFn(`https://archidekt.com/api/decks/${id}/`, {
-    headers: { "User-Agent": USER_AGENT },
-    signal: opts.signal,
-  });
-  if (!res.ok) throw new Error(`Archidekt fetch failed: ${res.status}`);
-  const data = (await res.json()) as RawDeckResponse;
+  const data = await fetchRawDeck(id, opts);
   const cards: ArchidektDeckCard[] = [];
   const commanders: ArchidektDeckCard[] = [];
   const colors = new Set<string>();
@@ -213,13 +234,7 @@ export async function fetchArchidektResult(
   id: string,
   opts: RequestOptions = {},
 ): Promise<ArchidektSearchResult> {
-  const fetchFn = resolveFetch(opts);
-  const res = await fetchFn(`https://archidekt.com/api/decks/${id}/`, {
-    headers: { "User-Agent": USER_AGENT },
-    signal: opts.signal,
-  });
-  if (!res.ok) throw new Error(`Archidekt fetch failed: ${res.status}`);
-  const d = (await res.json()) as RawDeckResponse;
+  const d = await fetchRawDeck(id, opts);
   return mapSearchResult({
     id: d.id,
     name: d.name,
@@ -228,4 +243,59 @@ export async function fetchArchidektResult(
     description: d.description,
     tags: d.tags,
   });
+}
+
+export interface ArchidektDeckList {
+  name: string;
+  format?: string;
+  text: string;
+}
+
+const DECK_LIST_SECTIONS = ["Commander", "Deck", "Sideboard", "Maybeboard"] as const;
+type DeckListSection = (typeof DECK_LIST_SECTIONS)[number];
+
+const SET_CODE_REGEX = /^[a-z0-9]{2,6}$/i;
+const COLLECTOR_NUMBER_REGEX = /^[\w-]+$/;
+
+function deckListSection(categories: string[], excluded: Set<string>): DeckListSection {
+  if (categories.some((c) => COMMANDER_CATEGORIES.has(c))) return "Commander";
+  if (categories.includes("sideboard")) return "Sideboard";
+  if (categories.includes("maybeboard") || excluded.has(categories[0])) return "Maybeboard";
+  return "Deck";
+}
+
+function deckListPrinting(set: string | undefined, cardNumber: string | undefined, foil: boolean) {
+  if (!set || !SET_CODE_REGEX.test(set)) return "";
+  const number = cardNumber && COLLECTOR_NUMBER_REGEX.test(cardNumber) ? ` ${cardNumber}` : "";
+  return ` (${set.toUpperCase()})${number}${foil ? " *F*" : ""}`;
+}
+
+export async function fetchArchidektDeckList(
+  id: string,
+  opts: RequestOptions & { baseUrl?: string } = {},
+): Promise<ArchidektDeckList> {
+  const data = await fetchRawDeck(id, opts, opts.baseUrl);
+  const excluded = new Set(
+    (data.categories ?? [])
+      .filter((c) => c.includedInDeck === false)
+      .map((c) => c.name.toLowerCase()),
+  );
+  const sections = new Map<DeckListSection, string[]>(DECK_LIST_SECTIONS.map((s) => [s, []]));
+  for (const entry of data.cards ?? []) {
+    const name = entry.card?.oracleCard?.name ?? entry.card?.name;
+    if (!name) continue;
+    const categories = (entry.categories ?? []).map((c) => c.toLowerCase());
+    const set = entry.card?.edition?.editioncode ?? entry.card?.edition?.editionCode;
+    const printing = deckListPrinting(set, entry.card?.collectorNumber, entry.modifier === "Foil");
+    sections
+      .get(deckListSection(categories, excluded))!
+      .push(`${entry.quantity} ${name}${printing}`);
+  }
+  const text = DECK_LIST_SECTIONS.filter((s) => sections.get(s)!.length > 0)
+    .map((s) => [s, ...sections.get(s)!].join("\n"))
+    .join("\n\n");
+  const format = Object.keys(GAME_FORMAT_TO_ARCHIDEKT).find(
+    (key) => GAME_FORMAT_TO_ARCHIDEKT[key] === data.deckFormat,
+  );
+  return { name: data.name, format, text };
 }

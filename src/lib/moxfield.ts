@@ -6,13 +6,14 @@ import type {
   ArchidektDeck,
   ArchidektDeckCard,
   ArchidektSearchResult,
+  FetchFn,
   RequestOptions,
 } from "./archidekt";
 
 const USER_AGENT = "manabrew-deck-importer";
 
-function resolveFetch(opts?: RequestOptions): typeof fetch {
-  const f = opts?.fetch ?? (globalThis as { fetch?: typeof fetch }).fetch;
+function resolveFetch(opts?: RequestOptions): FetchFn {
+  const f = opts?.fetch ?? (globalThis as { fetch?: FetchFn }).fetch;
   if (!f) throw new Error("No fetch implementation available");
   return f;
 }

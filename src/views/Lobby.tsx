@@ -25,7 +25,7 @@ import { buildEngineGameRouteState } from "@/game/engineGameLaunch";
 import { localAiTableLaunch } from "@/game/localAiTable";
 import { useGameStore } from "@/stores/useGameStore";
 import { startMpSealed } from "@/game/sealedStart";
-import { limitedGameLaunch } from "@/game/limitedSession";
+import { limitedGameLaunch, peekLimitedMatchReturn } from "@/game/limitedSession";
 import { getDeckFingerprint } from "@/lib/decks";
 import { getFormat } from "@/lib/formats";
 import { ROUTES } from "@/lib/constants";
@@ -44,6 +44,10 @@ import { toast } from "sonner";
 import { Settings, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { findOrHostLanRelay, isUnreachable } from "@/lib/lanRelay";
+import { useTableAutoStart } from "@/components/lobby/useTableAutoStart";
+import { tableController } from "@/components/lobby/tables.utils";
+import { commanderQueueDecks } from "@/lib/queueDecks";
+import { trackClientUiAction } from "@/lib/clientAnalyticsFunnel";
 
 const START_GAME_ACK_TIMEOUT_MS = 5000;
 function awaitGameStartedAck(roomId: string): Promise<void> {
@@ -97,7 +101,7 @@ export default function Lobby() {
     error,
     username,
     playerId,
-    rooms,
+    rooms: relayRooms,
     currentRoom,
     roomPassword,
     hostingForgeRoom,
@@ -122,6 +126,7 @@ export default function Lobby() {
     startGame,
     relayFeatures,
   } = useServerStore();
+  const rooms = relayRooms.filter((room) => room.engine !== "Manabrew");
   const chatEnabled = relayFeatures.includes(RELAY_FEATURE.Chat);
   const pendingInviteCount = useInviteStore((s) => s.invites.length);
   const invitesEnabled = relayFeatures.includes(RELAY_FEATURE.RoomInvites);
@@ -158,6 +163,7 @@ export default function Lobby() {
   const [playersDrawerOpen, setPlayersDrawerOpen] = useState(false);
   const [startingLimited, setStartingLimited] = useState(false);
   const [startingGame, setStartingGame] = useState(false);
+  const tableAnnouncement = useRef(0);
   const mySelection = useRef<{ deck: Deck; commanderName?: string } | null>(null);
   const [confirmLeaveHostedGame, setConfirmLeaveHostedGame] = useState(false);
   const deckSelection = useLobbyDeckSelection({
@@ -179,6 +185,7 @@ export default function Lobby() {
   // Leaving tears down the embedded Forge node (stopRoom), which kills the
   // game for everyone still playing — by design. Make the host confirm it.
   const handleLeaveRoom = () => {
+    trackClientUiAction("lobby_leave");
     if (hostingForgeRoom && currentRoom?.status === "InGame") {
       setConfirmLeaveHostedGame(true);
       return;
@@ -248,6 +255,8 @@ export default function Lobby() {
     if (!gameStarted || playerOrder.length === 0) return;
     if (!currentRoom || currentRoom.status !== "InGame") return;
     if (gameRoomId !== currentRoom.room_id) return;
+    if (currentRoom.engine === "Manabrew" && peekLimitedMatchReturn()?.roomId === gameRoomId)
+      return;
     const limitedLaunch = limitedGameLaunch({
       room_id: gameRoomId,
       game_id: useServerStore.getState().gameId,
@@ -319,8 +328,35 @@ export default function Lobby() {
     }
   }
   async function handleJoinRoom(roomId: string, password?: string, format?: GameFormat) {
+    trackClientUiAction("lobby_join");
     await joinRoom(roomId, password);
     if (format) await setFormat(format);
+  }
+  async function announceTable(deck: Deck) {
+    const request = ++tableAnnouncement.current;
+    const { currentRoom: room, username: currentUsername } = useServerStore.getState();
+    const server = getPlatform().server;
+    if (!room || !server || tableController(room) !== currentUsername) return;
+    if (room.matchmade_bracket || room.status !== "Lobby") return;
+    if (room.format !== "Commander" && room.format !== "Any") return;
+    if (room.password_protected || room.draft_config || room.sealed_config) return;
+    if (!useServerStore.getState().hasRelayFeature(RELAY_FEATURE.Matchmaking)) return;
+    try {
+      await server.announceTable(null);
+      const [queued] = await commanderQueueDecks([deck]);
+      const current = useServerStore.getState().currentRoom;
+      if (
+        request !== tableAnnouncement.current ||
+        current?.room_id !== room.room_id ||
+        current.status !== "Lobby" ||
+        tableController(current) !== useServerStore.getState().username
+      )
+        return;
+      if (queued) await server.announceTable(queued.bracket);
+    } catch {
+      if (request === tableAnnouncement.current)
+        toast.error("Could not find queued players for your table. You can still invite friends.");
+    }
   }
   async function handleDeckSelection(
     deckName: string,
@@ -333,10 +369,15 @@ export default function Lobby() {
     const fingerprint = getDeckFingerprint(deck);
     const savedId = savedDecks.find((saved) => getDeckFingerprint(saved.deck) === fingerprint)?.id;
     if (savedId) prefs.setLastPlayedDeckId(savedId);
+    if (currentRoom && username === tableController(currentRoom)) {
+      await setReady(true);
+    }
+    void announceTable(deck);
   }
   async function handleStartGame() {
     const room = currentRoom;
     if (!room || startingGame) return;
+    trackClientUiAction("lobby_start");
     setStartingGame(true);
     const local = localAiTableLaunch(room, username, hostingForgeRoom, mySelection.current);
     if (local) {
@@ -452,12 +493,33 @@ export default function Lobby() {
     }
   }
   async function handleSetMaxPlayers(maxPlayers: number) {
+    trackClientUiAction("lobby_max_players");
     try {
       await setMaxPlayers(maxPlayers);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : `Failed to change player count.`);
     }
   }
+  useTableAutoStart({
+    room: currentRoom,
+    username,
+    spawnBot: async (botName, deck) => {
+      if (!currentRoom) return;
+      try {
+        await deckSelection.spawnBot({
+          roomId: currentRoom.room_id,
+          roomPassword,
+          username: botName,
+          deckName: deck.name,
+          deck: deck.deck,
+          commanderName: deck.commanderName ?? null,
+        });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to spawn bot.");
+      }
+    },
+    start: handleStartGame,
+  });
   return (
     <div className="flex h-full w-full min-h-0 pb-[max(0px,calc(100dvh-var(--visual-viewport-height)-var(--visual-viewport-top)))]">
       <div className="flex min-w-0 flex-1 flex-col">
@@ -506,34 +568,66 @@ export default function Lobby() {
             />
           ) : creatingLabel ? (
             <TableCreatingSplash label={creatingLabel} />
+          ) : currentRoom?.matchmade_bracket && !currentRoom.table_bracket ? (
+            <TableCreatingSplash label="Starting your game" />
           ) : (
             <TablesList
+              onWatchRoom={(roomId, password) =>
+                useServerStore.getState().joinRoom(roomId, password, true)
+              }
               rooms={rooms}
               currentRoom={currentRoom}
               roomPassword={roomPassword}
               username={username}
-              onNewGame={() => setSettingUp(true)}
-              onRefresh={refreshLobbyData}
+              onNewGame={() => {
+                trackClientUiAction("lobby_new_table");
+                setSettingUp(true);
+              }}
+              onRefresh={() => {
+                trackClientUiAction("lobby_refresh");
+                return refreshLobbyData();
+              }}
               refreshing={refreshingLobby}
               refreshDisabled={!connected || connecting}
               disabled={!connected || connecting}
               onJoinRoom={handleJoinRoom}
               onLeaveRoom={handleLeaveRoom}
-              onSetReady={setReady}
-              onSetFormat={setFormat}
+              onSetReady={(ready) => {
+                trackClientUiAction("lobby_ready");
+                return setReady(ready);
+              }}
+              onSetFormat={(format) => {
+                trackClientUiAction("lobby_format");
+                return setFormat(format);
+              }}
               onSetMaxPlayers={handleSetMaxPlayers}
               deckSelection={{
                 selectedUsername: deckSelection.selectedUsername,
-                onSelectSeat: deckSelection.selectSeat,
+                onSelectSeat: (...args: Parameters<typeof deckSelection.selectSeat>) => {
+                  trackClientUiAction("lobby_seat");
+                  return deckSelection.selectSeat(...args);
+                },
                 busy: deckSelection.busy,
               }}
               onStartGame={handleStartGame}
-              onStartDraft={handleStartDraft}
-              onStartSealed={handleStartSealed}
+              onStartDraft={() => {
+                trackClientUiAction("lobby_start_limited");
+                return handleStartDraft();
+              }}
+              onStartSealed={() => {
+                trackClientUiAction("lobby_start_limited");
+                return handleStartSealed();
+              }}
               startingLimited={startingLimited}
               startingGame={startingGame}
-              onAddBot={deckSelection.addBot}
-              onRemoveBot={deckSelection.removeBot}
+              onAddBot={(seatIndex) => {
+                trackClientUiAction("lobby_add_bot");
+                return deckSelection.addBot(seatIndex);
+              }}
+              onRemoveBot={(botUsername) => {
+                trackClientUiAction("lobby_remove_bot");
+                return deckSelection.removeBot(botUsername);
+              }}
               mySpawnedBots={deckSelection.ownedBots}
             />
           )}
@@ -595,9 +689,12 @@ export default function Lobby() {
             deckSelection.selectedUsername === username ? preferredHubDeckId : undefined
           }
           target={deckSelection.selectedUsername === username ? "player" : "bot"}
-          onStart={(deck, _formatId, commanderName, _playerCount, publishedDeckId) =>
-            deckSelection.selectDeck(deck, commanderName, publishedDeckId)
-          }
+          onStart={(deck, _formatId, commanderName, _playerCount, publishedDeckId) => {
+            trackClientUiAction(
+              deckSelection.selectedUsername === username ? "lobby_deck" : "lobby_bot_deck",
+            );
+            return deckSelection.selectDeck(deck, commanderName, publishedDeckId);
+          }}
         />
       )}
 

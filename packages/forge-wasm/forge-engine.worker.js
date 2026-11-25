@@ -406,6 +406,7 @@ async function startMultiplayerGame(requestId, args) {
   const variant = forgeVariant(decks[0]);
   const commanderGame = variant !== "Constructed";
   const request = {
+    publicSnapshots: args?.publicSnapshots === true,
     gameId: args.gameId || `forge-${Date.now()}`,
     variant,
     startingLife: (args && args.startingLife) || (commanderGame ? 40 : 20),

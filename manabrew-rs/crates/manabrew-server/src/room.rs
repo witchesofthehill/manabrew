@@ -41,6 +41,7 @@ pub struct Room {
     pub hosted: bool,
     pub official: bool,
     pub password: Option<String>,
+    pub allow_spectators: bool,
     pub max_players: u8,
     pub format: GameFormat,
     pub engine: EngineKind,
@@ -62,6 +63,11 @@ pub struct Room {
     /// Announced endpoints by player id. Only the relay binds one to a username.
     pub transports: HashMap<String, TransportEndpoint>,
     pub chat: ChatHistory,
+    pub matchmade_bracket: Option<u8>,
+    pub matchmade_bot_fill: bool,
+    pub pool_max_players: Option<u8>,
+    pub table_bracket: Option<u8>,
+    pub auto_start: bool,
 }
 
 impl Room {
@@ -110,6 +116,7 @@ impl Room {
                 }],
             )
         };
+        let auto_start = password.is_none() && draft_config.is_none() && sealed_config.is_none();
         Room {
             room_id,
             room_name,
@@ -118,6 +125,7 @@ impl Room {
             host_username,
             hosted: !host_plays,
             official,
+            allow_spectators: password.is_none(),
             password,
             max_players,
             format,
@@ -139,7 +147,25 @@ impl Room {
             limited_matches: Vec::new(),
             transports: HashMap::new(),
             chat: ChatHistory::default(),
+            matchmade_bracket: None,
+            matchmade_bot_fill: false,
+            pool_max_players: None,
+            table_bracket: None,
+            auto_start,
         }
+    }
+
+    pub fn can_spectate(&self) -> bool {
+        self.allow_spectators
+            && self.engine == EngineKind::Forge
+            && self.status == RoomStatus::InGame
+            && self.draft_config.is_none()
+            && self.sealed_config.is_none()
+            && self.parent_limited_room.is_none()
+            && self
+                .replay
+                .as_ref()
+                .is_some_and(|replay| replay.last_state.is_some())
     }
 
     pub fn is_full(&self) -> bool {
@@ -255,6 +281,24 @@ impl Room {
         if let Some(idx) = self.players.iter().position(|p| p.player_id == player_id) {
             self.cancel_rematch();
             let slot = self.players.remove(idx);
+            if self.hosted && self.players.is_empty() {
+                if let Some(max_players) = self.pool_max_players.take() {
+                    self.max_players = max_players;
+                }
+                self.matchmade_bracket = None;
+                self.matchmade_bot_fill = false;
+                self.table_bracket = None;
+                self.auto_start = self.password.is_none()
+                    && self.draft_config.is_none()
+                    && self.sealed_config.is_none();
+            } else if !slot.is_bot
+                && self.status == RoomStatus::Lobby
+                && self.matchmade_bracket.is_some()
+                && self.players.iter().any(|p| !p.is_bot)
+            {
+                self.matchmade_bot_fill = false;
+                self.table_bracket = self.matchmade_bracket;
+            }
             if self.host_player_id == player_id
                 && self.limited_session_id.is_none()
                 && self.status != RoomStatus::Finished
@@ -316,10 +360,6 @@ impl Room {
 
     pub fn has_connected_human(&self) -> bool {
         self.players.iter().any(|p| p.connected && !p.is_bot)
-            || self
-                .observers
-                .iter()
-                .any(|o| o.connected && !(self.hosted && o.player_id == self.host_player_id))
     }
 
     pub fn set_ready(&mut self, player_id: &str, ready: bool) -> Result<(), String> {
@@ -505,6 +545,13 @@ impl Room {
             hosted: self.hosted,
             official: self.official,
             password_protected: self.password.is_some(),
+            allow_spectators: self.allow_spectators,
+            can_spectate: self.can_spectate(),
+            spectator_count: self
+                .observers
+                .iter()
+                .filter(|o| o.connected && !self.is_host(&o.player_id))
+                .count(),
             players: self
                 .players
                 .iter()
@@ -525,6 +572,10 @@ impl Room {
             status: self.status.clone(),
             draft_config: self.draft_config.clone(),
             sealed_config: self.sealed_config.clone(),
+            matchmade_bracket: self.matchmade_bracket,
+            matchmade_bot_fill: self.matchmade_bot_fill,
+            table_bracket: self.table_bracket,
+            auto_start: self.auto_start,
             rematch: self.rematch.clone(),
         }
     }

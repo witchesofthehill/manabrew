@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS client_connections (
   reconnected INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_client_connections_ts ON client_connections(ts);
+CREATE INDEX IF NOT EXISTS idx_client_connections_user ON client_connections(username);
 CREATE TABLE IF NOT EXISTS plane_attempts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ts TEXT NOT NULL,
@@ -99,6 +100,7 @@ CREATE INDEX IF NOT EXISTS idx_game_players_publication
   ON game_players(published_deck_id, deck_fingerprint)
   WHERE is_bot = 0 AND published_deck_id IS NOT NULL AND deck_fingerprint IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_deck_cards_name ON deck_cards(name);
+CREATE INDEX IF NOT EXISTS idx_deck_cards_deck ON deck_cards(deck_id);
 CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);
 CREATE TABLE IF NOT EXISTS engine_stats (
   report_id TEXT PRIMARY KEY,

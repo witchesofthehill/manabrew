@@ -56,7 +56,13 @@ const CONNECTION_STATUS: Record<
 const LOCAL_GAME_LABEL: Record<LocalGameKind, string> = {
   Singleplayer: `Playing solo`,
 };
-function playerStatus(room: RoomInfo | undefined, localGame?: LocalGameKind): string {
+function playerStatus(
+  room: RoomInfo | undefined,
+  localGame?: LocalGameKind,
+  searching: number[] = [],
+): string {
+  if (!room && searching.length > 0)
+    return `Finding a match · ${searching.map((bracket) => `B${bracket}`).join(", ")}`;
   if (!room) return localGame ? LOCAL_GAME_LABEL[localGame] : "Available";
   return room.status === "InGame" ? "In game" : "At a table";
 }
@@ -107,8 +113,9 @@ export function UserList({
     normalizedSearch === ""
       ? others
       : others.filter((p) => stripUsernameTag(p.username).toLowerCase().includes(normalizedSearch));
-  const bucketOf = (p: PlayerInfo): "playing" | "atTable" | "available" => {
+  const bucketOf = (p: PlayerInfo): "searching" | "playing" | "atTable" | "available" => {
     const room = rooms.find((r) => r.room_id === p.room_id);
+    if (!room && (p.searching_brackets?.length ?? 0) > 0) return "searching";
     // A game on the player's own machine has no room behind it, so the relay
     // only knows about it because the client said so.
     if (!room) return p.local_game ? "playing" : "available";
@@ -118,6 +125,7 @@ export function UserList({
     stripUsernameTag(a.username)
       .toLowerCase()
       .localeCompare(stripUsernameTag(b.username).toLowerCase());
+  const searching = filteredOthers.filter((p) => bucketOf(p) === "searching").sort(byName);
   const playing = filteredOthers.filter((p) => bucketOf(p) === "playing").sort(byName);
   const atTable = filteredOthers.filter((p) => bucketOf(p) === "atTable").sort(byName);
   const available = filteredOthers.filter((p) => bucketOf(p) === "available").sort(byName);
@@ -166,7 +174,7 @@ export function UserList({
       </span>
     ) : (
       <span className="text-ui-meta text-muted-foreground" title={room?.room_name}>
-        {playerStatus(room, player.local_game)}
+        {playerStatus(room, player.local_game, player.searching_brackets)}
       </span>
     );
     const action = joinable ? (
@@ -261,6 +269,7 @@ export function UserList({
               },
               true,
             )}
+          {renderSection("Finding a match", searching.length, searching)}
           {renderSection("Playing", playing.length, playing)}
           {renderSection("At a table", atTable.length, atTable)}
           {renderSection("Available", available.length, available)}

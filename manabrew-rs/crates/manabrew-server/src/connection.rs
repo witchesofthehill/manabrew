@@ -16,10 +16,11 @@ use crate::client_build::ClientBuild;
 use crate::error::ServerError;
 use crate::identity::{self, SessionIdentity};
 use crate::lobby;
+use crate::matchmaking;
 use crate::metrics;
 use crate::protocol::{
-    ChatMessage, ChatScope, ClientMessage, RoomStatus, ServerMessage, CHAT_MESSAGE_MAX_CHARS,
-    CHAT_MIN_INTERVAL_MS,
+    ChatMessage, ChatScope, ClientMessage, GameFormat, RoomStatus, ServerMessage,
+    CHAT_MESSAGE_MAX_CHARS, CHAT_MIN_INTERVAL_MS,
 };
 use crate::room::Room;
 use crate::seal::{chat_seal_aad, presence_seal_aad};
@@ -61,6 +62,13 @@ fn authorize_game_message(
 ) -> Option<GameMessageSource> {
     match state.get("kind").and_then(serde_json::Value::as_str)? {
         "response" | "directive" => {
+            if !room
+                .players
+                .iter()
+                .any(|seat| seat.player_id == player_id && seat.username == username)
+            {
+                return None;
+            }
             let claimed_slot = state
                 .get("fromPlayer")
                 .and_then(serde_json::Value::as_str)?;
@@ -77,6 +85,11 @@ fn authorize_game_message(
         "state" | "stateDelta" | "prompt" | "engineDirective" | "error" | "log" | "snapshot"
         | "fatal" => room.is_host(player_id).then_some(GameMessageSource::Engine),
         "roomRelay" => {
+            if !room.is_host(player_id)
+                && !room.players.iter().any(|seat| seat.player_id == player_id)
+            {
+                return None;
+            }
             let protocol = state.get("protocol").and_then(serde_json::Value::as_str)?;
             if protocol == "draft-v1" || protocol == "limited-session-v1" {
                 if room.parent_limited_room.is_some()
@@ -438,19 +451,20 @@ fn return_to_limited_session(
     Some(())
 }
 
-fn limited_visible_decks(
+fn visible_decks(
     room: &Room,
     username: &str,
     decks: &[crate::protocol::PlayerDeckInfo],
 ) -> Vec<crate::protocol::PlayerDeckInfo> {
-    if room.parent_limited_room.is_none() || room.host_username == username {
+    let seated = room.players.iter().any(|seat| seat.username == username);
+    if room.host_username == username || (seated && room.parent_limited_room.is_none()) {
         return decks.to_vec();
     }
     decks
         .iter()
         .map(|entry| {
             let mut visible = entry.clone();
-            if entry.username != username {
+            if !seated || entry.username != username {
                 visible.deck = manabrew_protocol::deck_dto::Deck {
                     name: entry.deck_name.clone(),
                     format: entry.deck.format,
@@ -504,6 +518,7 @@ pub(crate) fn emit_to(state: &Arc<ServerState>, player_id: &str, msg: &ServerMes
 }
 
 fn player_list(state: &Arc<ServerState>) -> Vec<crate::protocol::PlayerInfo> {
+    let mut searching = state.queue.lock().expect("queue lock").searching();
     state
         .players
         .iter()
@@ -522,6 +537,7 @@ fn player_list(state: &Arc<ServerState>) -> Vec<crate::protocol::PlayerInfo> {
                 .connected
                 .then(|| entry.value().local_game)
                 .flatten(),
+            searching_brackets: searching.remove(entry.key()).unwrap_or_default(),
             seal: entry.value().seal.clone(),
         })
         .collect()
@@ -784,6 +800,29 @@ fn invite_to_room(
     Ok(())
 }
 
+fn broadcast_recipients(room: &Room, message: &ServerMessage) -> Vec<String> {
+    let watchable = match message {
+        ServerMessage::StateUpdate { state, .. } => {
+            room.allow_spectators
+                && matches!(
+                    state.get("kind").and_then(serde_json::Value::as_str),
+                    Some("state" | "stateDelta")
+                )
+                && state
+                    .get("forPlayer")
+                    .and_then(serde_json::Value::as_str)
+                    .is_none()
+        }
+        _ => true,
+    };
+    room.connected_player_ids()
+        .into_iter()
+        .filter(|pid| {
+            watchable || room.is_host(pid) || room.players.iter().any(|seat| seat.player_id == *pid)
+        })
+        .collect()
+}
+
 pub fn broadcast_to_room_except(
     state: &Arc<ServerState>,
     sender_player_id: &str,
@@ -797,7 +836,7 @@ pub fn broadcast_to_room_except(
 
     let player_ids: Vec<String> = {
         if let Some(room) = state.rooms.get(room_id) {
-            room.connected_player_ids()
+            broadcast_recipients(&room, msg)
         } else {
             return;
         }
@@ -904,7 +943,7 @@ fn broadcast_state_split(
         return;
     };
     let player_ids = match state.rooms.get(room_id) {
-        Some(room) => room.connected_player_ids(),
+        Some(room) => broadcast_recipients(&room, patch),
         None => return,
     };
     for pid in player_ids
@@ -950,7 +989,7 @@ pub fn broadcast_to_room(state: &Arc<ServerState>, room_id: &str, msg: &ServerMe
 
     let player_ids: Vec<String> = {
         if let Some(room) = state.rooms.get(room_id) {
-            room.connected_player_ids()
+            broadcast_recipients(&room, msg)
         } else {
             return;
         }
@@ -987,50 +1026,37 @@ fn publish_started_game(state: &Arc<ServerState>, started: lobby::StartedGame) {
             room: started.room_info,
         },
     );
-    let targeted = state
+    let messages = state
         .rooms
         .get(&started.room_id)
-        .filter(|room| room.parent_limited_room.is_some())
         .map(|room| {
-            room.players
-                .iter()
-                .filter(|seat| state.players.contains_key(&seat.player_id))
-                .map(|seat| {
-                    (
-                        seat.player_id.clone(),
+            room.connected_player_ids()
+                .into_iter()
+                .filter(|pid| {
+                    room.allow_spectators
+                        || room.is_host(pid)
+                        || room.players.iter().any(|seat| seat.player_id == *pid)
+                })
+                .filter_map(|pid| {
+                    let username = state.players.get(&pid)?.username.clone();
+                    Some((
+                        pid,
                         ServerMessage::GameStarted {
                             room_id: started.room_id.clone(),
                             game_id: started.game_id.clone(),
                             player_order: started.player_order.clone(),
-                            player_decks: limited_visible_decks(
-                                &room,
-                                &seat.username,
-                                &started.player_decks,
-                            ),
+                            player_decks: visible_decks(&room, &username, &started.player_decks),
                             starting_life: started.starting_life,
                         },
-                    )
+                    ))
                 })
                 .collect::<Vec<_>>()
-        });
-    if let Some(messages) = targeted {
-        for (player_id, message) in messages {
-            if let Ok(json) = serde_json::to_string(&message) {
-                emit_to(state, &player_id, &message, &json);
-            }
+        })
+        .unwrap_or_default();
+    for (player_id, message) in messages {
+        if let Ok(json) = serde_json::to_string(&message) {
+            emit_to(state, &player_id, &message, &json);
         }
-    } else {
-        broadcast_to_room(
-            state,
-            &started.room_id,
-            &ServerMessage::GameStarted {
-                room_id: started.room_id.clone(),
-                game_id: started.game_id,
-                player_order: started.player_order,
-                player_decks: started.player_decks,
-                starting_life: started.starting_life,
-            },
-        );
     }
 }
 
@@ -1952,6 +1978,27 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::SetAllowSpectators { allow } => {
+            let room_id = state.players.get(player_id).and_then(|p| p.room_id.clone());
+            let info = room_id.and_then(|rid| {
+                let mut room = state.rooms.get_mut(&rid)?;
+                if !room.is_controller(player_id) || room.status != RoomStatus::Lobby {
+                    return None;
+                }
+                room.allow_spectators = allow;
+                Some(room.to_room_info())
+            });
+            if let Some(info) = info {
+                broadcast_to_room(
+                    state,
+                    &info.room_id.clone(),
+                    &ServerMessage::RoomUpdate { room: info },
+                );
+            } else {
+                send_error(sender, &ServerError::NotHost);
+            }
+        }
+
         ClientMessage::SetMaxPlayers { max_players } => {
             info!("[lobby] '{}' set max_players={}", username, max_players);
             match lobby::set_max_players_sync(state, player_id, max_players) {
@@ -1962,6 +2009,18 @@ fn handle_client_message(
                     warn!("[lobby] '{}' set max_players failed: {}", username, e);
                     send_error(sender, &e);
                 }
+            }
+        }
+
+        ClientMessage::SetAutoStart { enabled } => {
+            match lobby::set_auto_start_sync(state, player_id, enabled) {
+                Ok(room_id) => {
+                    let info = state.rooms.get(&room_id).map(|room| room.to_room_info());
+                    if let Some(room) = info {
+                        broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room });
+                    }
+                }
+                Err(error) => send_error(sender, &error),
             }
         }
 
@@ -2130,16 +2189,21 @@ fn handle_client_message(
                     return None;
                 }
                 let replay = room.replay.as_ref()?;
+                let seated = room.players.iter().any(|seat| seat.player_id == player_id);
+                if !seated && !room.is_host(player_id) && !room.allow_spectators {
+                    return None;
+                }
+                let slot = seated.then(|| replay.slot_for(username)).flatten();
                 let mut messages = vec![ServerMessage::GameStarted {
                     room_id: rid.clone(),
                     game_id: replay.game_id.clone(),
                     player_order: replay.player_order.clone(),
-                    player_decks: limited_visible_decks(&room, username, &replay.player_decks),
+                    player_decks: visible_decks(&room, username, &replay.player_decks),
                     starting_life: replay.starting_life,
                 }];
-                let seat_state = replay
-                    .slot_for(username)
-                    .and_then(|slot| replay.last_state_by_slot.get(&slot).cloned())
+                let seat_state = slot
+                    .as_ref()
+                    .and_then(|slot| replay.last_state_by_slot.get(slot).cloned())
                     .or_else(|| replay.last_state.clone());
                 if let Some(state_env) = seat_state {
                     messages.push(ServerMessage::StateUpdate {
@@ -2147,16 +2211,16 @@ fn handle_client_message(
                         state: state_env,
                     });
                 }
-                if let Some(prompt) = replay
-                    .slot_for(username)
-                    .and_then(|slot| replay.pending_prompts.get(&slot).cloned())
+                if let Some(prompt) = slot
+                    .as_ref()
+                    .and_then(|slot| replay.pending_prompts.get(slot).cloned())
                 {
                     messages.push(ServerMessage::StateUpdate {
                         from_player: room.host_username(),
                         state: prompt,
                     });
                 }
-                if let Some(slot) = replay.slot_for(username) {
+                if let Some(slot) = slot {
                     for ((directive_slot, _), directive) in &replay.pending_directives {
                         if *directive_slot == slot {
                             messages.push(ServerMessage::StateUpdate {
@@ -2319,6 +2383,15 @@ fn handle_client_message(
                     Some(host_username.clone())
                 } else {
                     target_player
+                };
+                let canonical_target = if source == GameMessageSource::Engine {
+                    game_state
+                        .get("forPlayer")
+                        .and_then(serde_json::Value::as_str)
+                        .and_then(|slot| room.replay.as_ref()?.username_for_slot(slot))
+                        .or(canonical_target)
+                } else {
+                    canonical_target
                 };
                 let should_deliver = source != GameMessageSource::Player || host_connected;
                 let capture_game_id = room
@@ -2595,6 +2668,207 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::EnterQueue {
+            format,
+            pod_sizes,
+            decks,
+            can_host,
+        } => {
+            if let Err(err) = matchmaking::validate_entry(&format, &pod_sizes, &decks) {
+                send_error(sender, &err);
+                return;
+            }
+            let (room_id, is_service) = state
+                .players
+                .get(player_id)
+                .map(|p| (p.room_id.clone(), p.is_service))
+                .unwrap_or((None, true));
+            if is_service {
+                send_error(
+                    sender,
+                    &ServerError::InvalidQueue("bots cannot queue".into()),
+                );
+                return;
+            }
+            if let Some(room_id) = room_id {
+                send_error(sender, &ServerError::AlreadyInRoom(room_id));
+                return;
+            }
+            info!(
+                "[queue] '{}' queued {} deck(s) for {:?} pods of {:?} (can_host={})",
+                username,
+                decks.len(),
+                format,
+                pod_sizes,
+                can_host
+            );
+            let status = {
+                let mut queue = state.queue.lock().expect("queue lock");
+                queue.enter(matchmaking::QueueEntry {
+                    player_id: player_id.to_string(),
+                    username: username.to_string(),
+                    format,
+                    pod_sizes,
+                    decks,
+                    selected_deck: None,
+                    steps: Vec::new(),
+                    can_host,
+                    queued_at: std::time::Instant::now(),
+                    offered: false,
+                    bot_fill: false,
+                    bot_fill_offered: false,
+                });
+                matchmaking::queue_status(&queue, player_id)
+            };
+            send_msg(sender, &status);
+            matchmaking::record_player(state, player_id, "enter", |entry, event| {
+                event.pod_sizes = entry.pod_sizes.clone();
+                event.brackets = entry.decks.iter().map(|deck| deck.bracket).collect();
+                event.can_host = Some(entry.can_host);
+            });
+        }
+
+        ClientMessage::AcceptQueueStep { bracket } => {
+            let result = {
+                let mut queue = state.queue.lock().expect("queue lock");
+                queue
+                    .accept_step(player_id, bracket)
+                    .map(|()| matchmaking::queue_status(&queue, player_id))
+            };
+            match result {
+                Ok(status) => {
+                    info!("[queue] '{}' accepted bracket {}", username, bracket);
+                    send_msg(sender, &status);
+                    matchmaking::record_player(state, player_id, "step_accept", |_, event| {
+                        event.bracket = Some(bracket);
+                    });
+                }
+                Err(msg) => send_error(sender, &ServerError::InvalidQueue(msg)),
+            }
+        }
+
+        ClientMessage::SetQueueSteps { steps } => {
+            let result = {
+                let mut queue = state.queue.lock().expect("queue lock");
+                queue
+                    .set_steps(player_id, steps.clone())
+                    .map(|()| matchmaking::queue_status(&queue, player_id))
+            };
+            match result {
+                Ok(status) => {
+                    info!("[queue] '{}' set extra brackets {:?}", username, steps);
+                    send_msg(sender, &status);
+                    matchmaking::record_player(state, player_id, "steps_set", |_, event| {
+                        event.brackets = steps;
+                    });
+                }
+                Err(msg) => send_error(sender, &ServerError::InvalidQueue(msg)),
+            }
+        }
+
+        ClientMessage::AcceptBotFill => {
+            let result = {
+                let mut queue = state.queue.lock().expect("queue lock");
+                queue
+                    .accept_bot_fill(player_id)
+                    .map(|()| matchmaking::queue_status(&queue, player_id))
+            };
+            match result {
+                Ok(status) => {
+                    info!("[queue] '{}' accepted bot fill", username);
+                    send_msg(sender, &status);
+                    matchmaking::record_player(state, player_id, "bot_fill_accept", |_, _| {});
+                }
+                Err(msg) => send_error(sender, &ServerError::InvalidQueue(msg)),
+            }
+        }
+
+        ClientMessage::AcceptMatch { deck_index } => {
+            matchmaking::record_player(state, player_id, "match_accept", |_, _| {});
+            let result = state
+                .queue
+                .lock()
+                .expect("queue lock")
+                .accept_match(player_id, deck_index);
+            match result {
+                Ok(()) => matchmaking::send_proposal_accepts(state, player_id),
+                Err(message) => send_error(sender, &ServerError::InvalidQueue(message)),
+            }
+        }
+
+        ClientMessage::DeclineMatch => {
+            matchmaking::record_player(state, player_id, "match_decline", |_, _| {});
+            let requeued = state
+                .queue
+                .lock()
+                .expect("queue lock")
+                .decline_match(player_id);
+            info!("[queue] '{}' declined a match", username);
+            matchmaking::send_statuses(state, requeued.iter().chain([&player_id.to_string()]));
+        }
+
+        ClientMessage::AnnounceTable { bracket } => {
+            let Some(room_id) = state.players.get(player_id).and_then(|p| p.room_id.clone()) else {
+                return;
+            };
+            let info = state.rooms.get_mut(&room_id).and_then(|mut room| {
+                let eligible = room.is_controller(player_id)
+                    && room.password.is_none()
+                    && room.draft_config.is_none()
+                    && room.sealed_config.is_none()
+                    && matches!(room.format, GameFormat::Any | GameFormat::Commander)
+                    && room.matchmade_bracket.is_none()
+                    && room.status == RoomStatus::Lobby
+                    && bracket.is_none_or(|b| (1..=5).contains(&b));
+                if !eligible || room.table_bracket == bracket {
+                    return None;
+                }
+                room.table_bracket = bracket;
+                Some(room.to_room_info())
+            });
+            if let Some(info) = info {
+                info!(
+                    "[queue] '{}' announced table {} at bracket {:?}",
+                    username,
+                    &room_id[..8],
+                    bracket
+                );
+                let requeued = state
+                    .queue
+                    .lock()
+                    .expect("queue lock")
+                    .reset_table(&room_id);
+                matchmaking::send_statuses(state, requeued.iter());
+                broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
+            }
+        }
+
+        ClientMessage::AnswerTableCall {
+            room_id,
+            join,
+            deck_index,
+        } => {
+            let action = if join { "table_join" } else { "table_decline" };
+            let call_room = room_id.clone();
+            matchmaking::record_player(state, player_id, action, move |_, event| {
+                event.room_id = Some(call_room);
+            });
+            let result = state
+                .queue
+                .lock()
+                .expect("queue lock")
+                .answer_call(player_id, &room_id, join, deck_index);
+            if let Err(message) = result {
+                send_error(sender, &ServerError::InvalidQueue(message));
+            }
+        }
+
+        ClientMessage::LeaveQueue => {
+            matchmaking::record_player(state, player_id, "leave", |_, _| {});
+            let requeued = state.queue.lock().expect("queue lock").leave(player_id);
+            matchmaking::send_statuses(state, requeued.iter().chain([&player_id.to_string()]));
+        }
+
         ClientMessage::TurnChange {
             new_active_player,
             turn_number,
@@ -2667,6 +2941,13 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::ChatMessage(_) => "ChatMessage",
         ServerMessage::ChatHistory { .. } => "ChatHistory",
         ServerMessage::RoomInvite { .. } => "RoomInvite",
+        ServerMessage::QueueStatus { .. } => "QueueStatus",
+        ServerMessage::QueueStepOffer { .. } => "QueueStepOffer",
+        ServerMessage::QueueBotFillOffer { .. } => "QueueBotFillOffer",
+        ServerMessage::MatchProposal { .. } => "MatchProposal",
+        ServerMessage::MatchProposalAccepts { .. } => "MatchProposalAccepts",
+        ServerMessage::TableCall { .. } => "TableCall",
+        ServerMessage::MatchFound { .. } => "MatchFound",
     }
 }
 
@@ -2685,6 +2966,8 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::SetDeckSelection { .. } => "SetDeckSelection",
         ClientMessage::SetFormat { .. } => "SetFormat",
         ClientMessage::SetMaxPlayers { .. } => "SetMaxPlayers",
+        ClientMessage::SetAutoStart { .. } => "SetAutoStart",
+        ClientMessage::SetAllowSpectators { .. } => "SetAllowSpectators",
         ClientMessage::StartGame { .. } => "StartGame",
         ClientMessage::EndGame { .. } => "EndGame",
         ClientMessage::FinishGame { .. } => "FinishGame",
@@ -2701,6 +2984,15 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::ReportPlaneQuality { .. } => "ReportPlaneQuality",
         ClientMessage::SendChat { .. } => "SendChat",
         ClientMessage::InviteToRoom { .. } => "InviteToRoom",
+        ClientMessage::EnterQueue { .. } => "EnterQueue",
+        ClientMessage::AcceptQueueStep { .. } => "AcceptQueueStep",
+        ClientMessage::SetQueueSteps { .. } => "SetQueueSteps",
+        ClientMessage::AcceptBotFill => "AcceptBotFill",
+        ClientMessage::AcceptMatch { .. } => "AcceptMatch",
+        ClientMessage::DeclineMatch => "DeclineMatch",
+        ClientMessage::AnnounceTable { .. } => "AnnounceTable",
+        ClientMessage::AnswerTableCall { .. } => "AnswerTableCall",
+        ClientMessage::LeaveQueue => "LeaveQueue",
     }
 }
 

@@ -137,8 +137,14 @@ export default function Play() {
     if (gameWasActive.current && mpState?.multiplayer) {
       gameWasActive.current = false;
       multiplayerStarted.current = false;
-      navigate(ROUTES.LOBBY, {
-        replace: true,
+      const server = useServerStore.getState();
+      const cleanup = server.currentRoom?.matchmade_bracket
+        ? server.leaveRoom()
+        : Promise.resolve();
+      void cleanup.finally(() => {
+        navigate(ROUTES.LOBBY, {
+          replace: true,
+        });
       });
       return;
     }
@@ -227,8 +233,8 @@ export default function Play() {
         replace: true,
       });
     };
-    const engineIndex = parseInt(myPlayerSlot.replace("player-", ""), 10);
-    if (Number.isNaN(engineIndex) || engineIndex < 0) {
+    const engineIndex = mpState.spectator ? -1 : parseInt(myPlayerSlot.replace("player-", ""), 10);
+    if (!mpState.spectator && (Number.isNaN(engineIndex) || engineIndex < 0)) {
       void recoverFromFailedStart();
       return;
     }

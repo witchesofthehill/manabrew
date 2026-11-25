@@ -1,8 +1,6 @@
 # forge-harness — package boundaries
 
-> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
-
-Java side of the cross-engine work. One CLI entry, three internal packages with one-directional dependencies.
+The interactive Forge host is active. The `forge.harness.parity` package and `DeterministicController` belong to the deprecated Rust/Java comparison tools. Work on those only when explicitly asked; keep routine fixes on the interactive host path.
 
 ```
 forge.harness            Main            CLI launcher / dispatcher (one-shot, --server, --interactive-server)

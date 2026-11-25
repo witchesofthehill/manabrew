@@ -59,6 +59,7 @@ export interface PromptActionSpec {
   isWaitingForResponse: boolean;
   isWaitingForOthers: boolean;
   waitingFor?: WaitingForPlayer | null;
+  spectator?: boolean;
   availableAttackerIds: string[];
   pendingAttackers: string[];
   onPassPriority: () => void;

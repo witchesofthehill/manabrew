@@ -52,6 +52,15 @@ node tests/e2e-ironsmith/ironsmith-manabot.mjs
 # Also checks chunked recovery and requested rollback; dev server only, no relay.
 node tests/e2e-ironsmith/ironsmith-mulligan-sync.mjs
 
+# Three humans: repeated sync requests draw at most one more copy of the match config,
+# and a seat that loses an entry catches up from the host's heartbeat. Dev server only, no relay.
+node tests/e2e-ironsmith/ironsmith-sync-recovery.mjs
+
+# Three humans over real WebRTC data channels (Chrome, loopback): private traffic, including the
+# match config over 256 KiB, goes over the channels; a broken channel falls back to the relay; a seat
+# that does not advertise direct support is never sent a channel message. Dev server only, no relay.
+node tests/e2e-ironsmith/ironsmith-p2p.mjs
+
 # Relay-only host selection: skip bots and never elect a bot when the last human leaves.
 # Uses Node 22+ WebSocket; no browser or dev server needed.
 node tests/e2e-ironsmith/ironsmith-bot-host.mjs
@@ -74,6 +83,10 @@ node tests/e2e-ironsmith/ironsmith-reload-rejoin.mjs
 ```
 
 Each prints `PASS: …` and exits 0 on success, or `FAIL: …` and exits non-zero.
+
+`yarn test:e2e:engines` checks that browser Forge can start a multiplayer table
+with a bot, without opting in to Ironsmith. See the
+[browser Forge prerequisites](../e2e-ui/README.md#prerequisites).
 
 ## How an Ironsmith game is shared
 

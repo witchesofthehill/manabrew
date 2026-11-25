@@ -1,8 +1,10 @@
 # Build & tooling scripts
 
-> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+> Parity scripts are deprecated and not functioning. Do not run or maintain them unless explicitly asked. Changes to the interactive Forge host do not require parity.
 
 Helpers used by `yarn` commands and CI. Read first: `/AGENTS.md`.
+
+Run only one `yarn gen:types` process at a time. `yarn typecheck` and `yarn test` both invoke it through pre-scripts; running them together can produce duplicate or truncated TypeScript bindings. Generate once, then run `tsc` and `vitest` directly if checking in parallel.
 
 ## What's here
 

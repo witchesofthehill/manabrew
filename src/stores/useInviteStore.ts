@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { toast } from "sonner";
 import { useServerStore } from "@/stores/useServerStore";
 import { leaveRoomWithClientAnalytics } from "@/lib/clientAnalyticsLobby";
-import { noteClientInviteAccepted } from "@/lib/clientAnalyticsFunnel";
+import { noteClientInviteAccepted, trackClientUiAction } from "@/lib/clientAnalyticsFunnel";
 import { USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type { RoomInvitePayload, ServerErrorCode } from "@/types/server";
 
@@ -26,6 +26,7 @@ export const useInviteStore = create<InviteState>()((set, get) => ({
   sent: new Set(),
 
   add(invite) {
+    if (invite.room.engine === "Manabrew") return;
     const roomId = invite.room.room_id;
     clearTimeout(expiry.get(roomId));
     expiry.set(
@@ -63,6 +64,7 @@ export const useInviteStore = create<InviteState>()((set, get) => ({
 
   async send(username) {
     if (get().sent.has(username)) return;
+    trackClientUiAction("lobby_invite");
     set({ sent: new Set(get().sent).add(username) });
     try {
       await useServerStore.getState().inviteToRoom(username);

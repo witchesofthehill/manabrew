@@ -33,6 +33,38 @@ export const ANALYTICS_ACQUISITIONS = [
   "newsletter",
   "other",
 ] as const;
+export const ANALYTICS_UI_ACTIONS = [
+  "setup_format",
+  "setup_seat",
+  "setup_seat_add",
+  "setup_seat_clear",
+  "setup_seat_remove",
+  "setup_random_opponent",
+  "setup_deck_owned",
+  "setup_deck_preset",
+  "setup_deck_community",
+  "setup_fight",
+  "setup_table_background",
+  "setup_table_cancel",
+  "setup_table_start",
+  "lobby_new_table",
+  "lobby_create_table",
+  "lobby_refresh",
+  "lobby_join",
+  "lobby_leave",
+  "lobby_ready",
+  "lobby_format",
+  "lobby_max_players",
+  "lobby_seat",
+  "lobby_deck",
+  "lobby_bot_deck",
+  "lobby_add_bot",
+  "lobby_remove_bot",
+  "lobby_invite",
+  "lobby_start",
+  "lobby_start_limited",
+] as const;
+const VISIT_DURATIONS = ["under-10s", "10-60s", "1-10m", "10-60m", "1h-plus"] as const;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export const CLIENT_ANALYTICS_SCHEMA = {
   screen_view: {
@@ -70,11 +102,22 @@ export const CLIENT_ANALYTICS_SCHEMA = {
   feature_used: {
     feature: ["deck_export", "deck_playtest"],
   },
+  ui_action: {
+    action: ANALYTICS_UI_ACTIONS,
+    clicks: "count",
+  },
   first_game_funnel: {
     stage: ["observed", "match_requested", "game_started"],
     clicks: "count",
     source: ANALYTICS_MATCH_SOURCES,
     acquisition: ANALYTICS_ACQUISITIONS,
+  },
+  visit_signal: {
+    trigger: ["hidden", "age"],
+    age: VISIT_DURATIONS,
+    visible: VISIT_DURATIONS,
+    input: ["none", "passive", "active"],
+    automation: ["none", "webdriver", "headless"],
   },
 } as const;
 const OPTIONAL_ATTRIBUTES: Partial<Record<string, readonly string[]>> = {
@@ -163,6 +206,16 @@ export function analyticsDuration(
   return "5m-plus";
 }
 
+export function analyticsVisitDuration(
+  milliseconds: number,
+): ClientAnalyticsAttributes<"visit_signal">["age"] {
+  if (milliseconds < 10_000) return "under-10s";
+  if (milliseconds < 60_000) return "10-60s";
+  if (milliseconds < 600_000) return "1-10m";
+  if (milliseconds < 3_600_000) return "10-60m";
+  return "1h-plus";
+}
+
 export function analyticsScreen(
   pathname: string,
 ): ClientAnalyticsAttributes<"screen_view">["screen"] {
@@ -234,7 +287,14 @@ export function analyticsAcquisition(
   }
 }
 
-const STATIC_PATH_SEGMENTS = new Set(["multiplayer", "top"]);
+const STATIC_PATH_SEGMENTS = new Set([
+  "multiplayer",
+  "top",
+  "offline",
+  "constructed",
+  "limited",
+  "deck",
+]);
 
 export function analyticsPageUrl(value: unknown, base?: string): string | undefined {
   if (

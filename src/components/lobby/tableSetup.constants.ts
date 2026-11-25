@@ -1,17 +1,4 @@
-import type { ComponentType } from "react";
-import { Boxes, Layers, Swords, Wand2 } from "lucide-react";
 import type { GameFormat } from "@/types/server";
-export type RoomKind = "match" | "limited";
-export type LimitedKind = "draft" | "sealed" | "winston" | "cube";
-export interface LimitedKindMeta {
-  value: LimitedKind;
-  label: string;
-  icon: ComponentType<{
-    className?: string;
-  }>;
-  description: string;
-  enabled: boolean;
-}
 export const FORMATS: {
   value: GameFormat;
   label: string;
@@ -79,47 +66,16 @@ export const FORMATS: {
   },
   {
     value: "Draft",
-    label: `Draft — use saved decks`,
-    description: `Play with existing draft decks. To draft new cards, choose Limited.`,
+    label: "Draft",
+    description: "Play with saved draft decks. Draft new decks in offline play.",
   },
   {
     value: "Sealed",
-    label: `Sealed — use saved decks`,
-    description: `Play with existing sealed decks. To open packs, choose Limited.`,
-  },
-];
-export const LIMITED_KINDS: LimitedKindMeta[] = [
-  {
-    value: "draft",
-    label: `Booster Draft`,
-    icon: Swords,
-    description: `Pod draft \u2014 pass packs around the table.`,
-    enabled: true,
-  },
-  {
-    value: "sealed",
-    label: `Sealed`,
-    icon: Boxes,
-    description: `Each player opens packs and builds independently.`,
-    enabled: true,
-  },
-  {
-    value: "winston",
-    label: `Winston Draft`,
-    icon: Layers,
-    description: `2-player pile draft from a shared pool. Single-player only for now.`,
-    enabled: false,
-  },
-  {
-    value: "cube",
-    label: `Cube`,
-    icon: Wand2,
-    description: `Pod draft from a CubeCobra cube.`,
-    enabled: true,
+    label: "Sealed",
+    description: "Play with saved sealed decks. Open new pools in offline play.",
   },
 ];
 export const PLAYER_OPTIONS_MATCH = [2, 3, 4] as const;
-export const PLAYER_OPTIONS_LIMITED = [2, 4, 6, 8] as const;
 export const defaultMatchPlayers = (format: GameFormat) =>
   format === "Commander" || format === "PauperCommander" ? 4 : 2;
 // Capped at 90s: the engine auto-passes a silent seat after 120s

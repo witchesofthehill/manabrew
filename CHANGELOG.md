@@ -1,5 +1,65 @@
 # Changelog
 
+## [3.96.0](https://github.com/witchesofthehill/manabrew/compare/v3.95.0...v3.96.0) (2026-11-25)
+
+### Features
+
+* **matchmaking:** group Find a game decks by bracket ([#1287](https://github.com/witchesofthehill/manabrew/issues/1287)) ([ad8c052](https://github.com/witchesofthehill/manabrew/commit/ad8c052712c7709275b44d0960c89e78ee3cf461))
+
+## [3.95.0](https://github.com/witchesofthehill/manabrew/compare/v3.94.0...v3.95.0) (2026-11-25)
+
+### Features
+
+* **matchmaking:** choose Manabot fill before searching ([#1284](https://github.com/witchesofthehill/manabrew/issues/1284)) ([73781b5](https://github.com/witchesofthehill/manabrew/commit/73781b5d064d8e66022cf20c84803978dda58dd5))
+
+## [3.94.0](https://github.com/witchesofthehill/manabrew/compare/v3.93.0...v3.94.0) (2026-11-25)
+
+### Features
+
+* **ui:** retire manabrew engine gameplay ([#1276](https://github.com/witchesofthehill/manabrew/issues/1276)) ([1b12fa0](https://github.com/witchesofthehill/manabrew/commit/1b12fa006f65d20e19aee7da25d8ab344a907925))
+
+## [3.93.0](https://github.com/witchesofthehill/manabrew/compare/v3.92.1...v3.93.0) (2026-11-24)
+
+### Features
+
+* **ironsmith:** carry private traffic over the peer-to-peer plane ([#1283](https://github.com/witchesofthehill/manabrew/issues/1283)) ([9cc86a5](https://github.com/witchesofthehill/manabrew/commit/9cc86a5a3730750f97aeedbaa2db9eb17a9ae936))
+
+## [3.92.1](https://github.com/witchesofthehill/manabrew/compare/v3.92.0...v3.92.1) (2026-11-24)
+
+### Fixes
+
+* **ironsmith:** stop sync retries flooding the host and recover lost entries ([#1282](https://github.com/witchesofthehill/manabrew/issues/1282)) ([818d428](https://github.com/witchesofthehill/manabrew/commit/818d428aaa40fa815c5e55aa94caec2e0b8a7413))
+
+## [3.92.0](https://github.com/witchesofthehill/manabrew/compare/v3.91.1...v3.92.0) (2026-11-24)
+
+### Features
+
+* **matchmaking:** commander queue with bracket step offers ([#1214](https://github.com/witchesofthehill/manabrew/issues/1214)) ([af58211](https://github.com/witchesofthehill/manabrew/commit/af582111eac239e701aa571927e225b56dc10b0f))
+
+## [3.91.1](https://github.com/witchesofthehill/manabrew/compare/v3.91.0...v3.91.1) (2026-11-24)
+
+### Fixes
+
+* **ironsmith:** update ironsmith-wasm to 1.0.0 ([#1278](https://github.com/witchesofthehill/manabrew/issues/1278)) ([cbac60e](https://github.com/witchesofthehill/manabrew/commit/cbac60e4a2cd6acce67b830b711346da39fcf6fc))
+
+## [3.91.0](https://github.com/witchesofthehill/manabrew/compare/v3.90.0...v3.91.0) (2026-11-23)
+
+### Features
+
+* **lobby:** add live tables and public spectator mode ([#1233](https://github.com/witchesofthehill/manabrew/issues/1233)) ([5f49695](https://github.com/witchesofthehill/manabrew/commit/5f4969526581177fd3bbbc306f84ceeb167e1731))
+
+## [3.90.0](https://github.com/witchesofthehill/manabrew/compare/v3.89.0...v3.90.0) (2026-11-23)
+
+### Features
+
+* **analytics:** record how each visit was used before the first match ([#1275](https://github.com/witchesofthehill/manabrew/issues/1275)) ([fe82d76](https://github.com/witchesofthehill/manabrew/commit/fe82d76002b31ed4b977bcd83c1a3d8a82567111))
+
+## [3.89.0](https://github.com/witchesofthehill/manabrew/compare/v3.88.0...v3.89.0) (2026-11-23)
+
+### Features
+
+* **analytics:** name setup and lobby steps before the first match ([#1273](https://github.com/witchesofthehill/manabrew/issues/1273)) ([e47650a](https://github.com/witchesofthehill/manabrew/commit/e47650a7e225ad24a428bb3fe887e469e95e1c65))
+
 ## [3.88.0](https://github.com/witchesofthehill/manabrew/compare/v3.87.7...v3.88.0) (2026-11-22)
 
 ### Features

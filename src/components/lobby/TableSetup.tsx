@@ -1,10 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, LockKeyhole, Swords } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SetPicker } from "@/components/limited/SetPicker";
-import { DRAFTABLE_SET_TYPES } from "@/components/limited/setFilters";
-import { fetchSetPool } from "@/api/limitedEdition";
 import { EngineMark } from "@/components/lobby/EngineMark";
 import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { TableSetupGameCard } from "@/components/lobby/TableSetupGameCard";
@@ -12,36 +9,20 @@ import { TableSetupHostingCard } from "@/components/lobby/TableSetupHostingCard"
 import { TableSetupTableCard } from "@/components/lobby/TableSetupTableCard";
 import { boardBackgroundUrl, type BoardBackgroundId } from "@/pixi/board/boardBackgrounds";
 import { TableCreatingSplash } from "@/components/lobby/TableCreatingSplash";
-import {
-  CREATE_SPLASH_MIN_MS,
-  LIMITED_KINDS,
-  PLAYER_OPTIONS_LIMITED,
-  PLAYER_OPTIONS_MATCH,
-  defaultMatchPlayers,
-  type LimitedKind,
-  type RoomKind,
-} from "@/components/lobby/tableSetup.constants";
-import { useScryfallStore } from "@/stores/useScryfallStore";
+import { CREATE_SPLASH_MIN_MS, defaultMatchPlayers } from "@/components/lobby/tableSetup.constants";
 import { useServerStore } from "@/stores/useServerStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useForgeRoomAvailabilityStore } from "@/stores/useForgeRoomAvailabilityStore";
 import { getPlatformType } from "@/platform";
 import { claimHostedTable } from "@/game/hostedAiPlay";
 import { isFeatureEnabled } from "@/featureFlags";
+import { trackClientUiAction } from "@/lib/clientAnalyticsFunnel";
 import { forgeWasmNeedsValidation, useForgeWasmHostingEnabled } from "@/lib/forgeWasm";
 import { validateForgeWasm } from "@/game/forgeWasmValidation";
 import { cn } from "@/lib/utils";
 import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
-import { DRAFT_CLOCK_FEATURE } from "@/game/limitedDraftClock";
 import { DEFAULT_RECONNECT_TIMEOUT_S } from "@/types/server";
-import type {
-  DraftConfig,
-  EngineKind,
-  GameFormat,
-  RoomPlayerInfo,
-  SealedConfig,
-} from "@/types/server";
-import type { CubeImportResult } from "@/types/limited";
+import type { GameFormat, RoomPlayerInfo } from "@/types/server";
 interface TableSetupProps {
   username: string | null;
   onClose: () => void;
@@ -55,15 +36,9 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
   const ironsmithEnabled =
     isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE && ironsmithOptedIn;
   const forgeWasm = useForgeWasmHostingEnabled();
-  const hostedNode = !isTauri && !forgeWasm;
-  const canHostForge = (isTauri && forgeRoomAvailable) || forgeWasm || hostedNode;
-  const [engine, setEngine] = useState<EngineKind>(canHostForge ? "Forge" : "Manabrew");
-  const [kind, setKind] = useState<RoomKind>(
-    () => usePreferencesStore.getState().lastRoomSetup?.kind ?? "match",
-  );
-  const [limitedKind, setLimitedKind] = useState<LimitedKind>(
-    () => usePreferencesStore.getState().lastRoomSetup?.limitedKind ?? "draft",
-  );
+  const hostedNode = isTauri ? !forgeRoomAvailable : !forgeWasm;
+  const [selectedEngine, setEngine] = useState<"Forge" | "Ironsmith">("Forge");
+  const engine = ironsmithEnabled ? selectedEngine : "Forge";
   const [format, setFormat] = useState<GameFormat>(
     () => usePreferencesStore.getState().lastRoomSetup?.format ?? "Commander",
   );
@@ -71,25 +46,9 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
     const last = usePreferencesStore.getState().lastRoomSetup;
     return last?.kind === "match" ? last.players : null;
   });
-  const [limitedPlayers, setLimitedPlayers] = useState(() => {
-    const last = usePreferencesStore.getState().lastRoomSetup;
-    return last?.kind === "limited" ? (last.players ?? 8) : 8;
-  });
   const [roomName, setRoomName] = useState("");
   const [roomPassword, setRoomPassword] = useState("");
   const [reconnectTimeoutS, setReconnectTimeoutS] = useState<number>(DEFAULT_RECONNECT_TIMEOUT_S);
-  const [draftSet, setDraftSet] = useState("");
-  const [draftRounds, setDraftRounds] = useState(3);
-  const [draftPicksPerPass, setDraftPicksPerPass] = useState(1);
-  const [draftPickSeconds, setDraftPickSeconds] = useState<number | undefined>();
-  const draftClockSupported = useServerStore((state) => state.hasRelayFeature(DRAFT_CLOCK_FEATURE));
-  const [draftSeed, setDraftSeed] = useState("");
-  const [draftFillWithBots, setDraftFillWithBots] = useState(true);
-  const [sealedSet, setSealedSet] = useState("");
-  const [sealedNumBoosters, setSealedNumBoosters] = useState(6);
-  const [sealedSeed, setSealedSeed] = useState("");
-  const [sealedUseCube, setSealedUseCube] = useState(false);
-  const [importedCube, setImportedCube] = useState<CubeImportResult | null>(null);
   const [creating, setCreating] = useState(false);
   const [creatingLabel, setCreatingLabel] = useState<string | null>(null);
   const showSplash = (label: string | null) => {
@@ -103,9 +62,6 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
     setBackground(id);
     usePreferencesStore.getState().setTableBackground(id);
   };
-  const draftPool = useSetPoolStatus(draftSet);
-  const sealedPool = useSetPoolStatus(sealedSet);
-  const allSets = useScryfallStore((s) => s.sets);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -113,67 +69,10 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-  const draftableSets = useMemo(
-    () =>
-      [...(allSets ?? [])]
-        .filter((s) => DRAFTABLE_SET_TYPES.has(s.set_type) && !s.digital && s.card_count > 0)
-        .sort((a, b) => (b.released_at ?? "").localeCompare(a.released_at ?? "")),
-    [allSets],
-  );
-  const isBoosterDraft = kind === "limited" && limitedKind === "draft";
-  const isCube = kind === "limited" && limitedKind === "cube";
-  const isSealed = kind === "limited" && limitedKind === "sealed";
-  const showPicker = isBoosterDraft || (isSealed && !sealedUseCube);
-  const pickerSet = isSealed ? sealedSet : draftSet;
-  const pickerUnsupported = isSealed ? sealedPool.unsupported : draftPool.unsupported;
-  const pickerPrefetching = isSealed ? sealedPool.prefetching : draftPool.prefetching;
-  const pickerOnSelect = isSealed ? setSealedSet : setDraftSet;
-  const limitedKindEnabled =
-    kind !== "limited" || (LIMITED_KINDS.find((k) => k.value === limitedKind)?.enabled ?? false);
-  const draftConfigReady =
-    (!isBoosterDraft || (!!draftSet && draftPool.unsupported !== draftSet)) &&
-    (!isCube || !!importedCube) &&
-    (!isSealed ||
-      (sealedUseCube ? !!importedCube : !!sealedSet && sealedPool.unsupported !== sealedSet));
-  const canSubmit =
-    connected &&
-    limitedKindEnabled &&
-    draftConfigReady &&
-    (!(isBoosterDraft || isCube) || draftPickSeconds === undefined || draftClockSupported);
-  const playerOptions = kind === "limited" ? PLAYER_OPTIONS_LIMITED : PLAYER_OPTIONS_MATCH;
-  const matchPlayers = matchPlayersOverride ?? defaultMatchPlayers(format);
-  const maxPlayers = kind === "limited" ? limitedPlayers : matchPlayers;
-  const handleMaxPlayersChange = kind === "limited" ? setLimitedPlayers : setMatchPlayersOverride;
+  const maxPlayers = matchPlayersOverride ?? defaultMatchPlayers(format);
   const defaultName = `${username ?? `Player`}'s Table`;
-  const submittedEngine: EngineKind =
-    kind === "match" && (engine !== "Forge" || canHostForge) ? engine : "Manabrew";
-  const modeLabel =
-    kind === "limited"
-      ? (LIMITED_KINDS.find((k) => k.value === limitedKind)?.label ?? `Limited`)
-      : format;
-  const poolLabel = isBoosterDraft
-    ? draftSet
-      ? draftSet.toUpperCase()
-      : null
-    : isCube || (isSealed && sealedUseCube)
-      ? (importedCube?.name ?? null)
-      : isSealed
-        ? sealedSet
-          ? sealedSet.toUpperCase()
-          : null
-        : null;
-  const disabledReason = !connected
-    ? "Connect to multiplayer to open a table."
-    : !limitedKindEnabled
-      ? "That limited mode isn't wired for multiplayer yet."
-      : isBoosterDraft && (!draftSet || draftPool.unsupported === draftSet)
-        ? "Pick a set for the draft below."
-        : (isCube || (isSealed && sealedUseCube)) && !importedCube
-          ? "Import a cube before creating the table."
-          : isSealed && !sealedUseCube && (!sealedSet || sealedPool.unsupported === sealedSet)
-            ? "Pick a set for sealed below."
-            : null;
-  const onNode = submittedEngine === "Forge" && hostedNode;
+  const disabledReason = connected ? null : "Connect to multiplayer to open a table.";
+  const onNode = engine === "Forge" && hostedNode;
   const splashLabel = onNode ? `Finding you a table\u2026` : `Setting the table\u2026`;
   const openTableHint = onNode
     ? `A Manabrew node hosts this table, under its own name. Anyone in the lobby can take a seat.`
@@ -183,38 +82,13 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
   const hostUsername = username ?? "You";
   const hostPlayer: RoomPlayerInfo = { username: hostUsername, ready: true, connected: true };
   async function handleCreate() {
-    if (!canSubmit) return;
+    if (!connected) return;
+    trackClientUiAction("lobby_create_table");
     setCreating(true);
-    const checking = submittedEngine === "Forge" && forgeWasm && forgeWasmNeedsValidation();
+    const checking = engine === "Forge" && forgeWasm && !isTauri && forgeWasmNeedsValidation();
     showSplash(checking ? "Checking browser engine support\u2026" : splashLabel);
     let splashUntil = Date.now() + CREATE_SPLASH_MIN_MS;
     try {
-      const submittedFormat: GameFormat = kind === "limited" ? "Any" : format;
-      let draftConfig: DraftConfig | undefined;
-      let sealedConfig: SealedConfig | undefined;
-      if (isBoosterDraft || isCube) {
-        const parsedSeed = draftSeed.trim() ? Number(draftSeed) : NaN;
-        draftConfig = {
-          set_code: isBoosterDraft ? draftSet : undefined,
-          cube_id: isCube ? importedCube!.cubeId : undefined,
-          cube_name: isCube ? importedCube!.name : undefined,
-          rounds: draftRounds,
-          picks_per_pass: draftPicksPerPass,
-          pick_seconds: draftPickSeconds,
-          seed: Number.isFinite(parsedSeed) ? parsedSeed : undefined,
-          fill_with_bots: draftFillWithBots,
-        };
-      } else if (isSealed) {
-        const parsedSeed = sealedSeed.trim() ? Number(sealedSeed) : NaN;
-        sealedConfig = {
-          set_code: sealedUseCube ? undefined : sealedSet,
-          cube_id: sealedUseCube ? importedCube!.cubeId : undefined,
-          cube_name: sealedUseCube ? importedCube!.name : undefined,
-          singleton: sealedUseCube ? importedCube!.singleton : false,
-          num_boosters: sealedNumBoosters,
-          base_seed: Number.isFinite(parsedSeed) ? parsedSeed : undefined,
-        };
-      }
       let useNode = onNode;
       if (checking) {
         useNode = !(await validateForgeWasm());
@@ -222,26 +96,23 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
         splashUntil = Date.now() + CREATE_SPLASH_MIN_MS;
       }
       if (useNode) {
-        await claimHostedTable(submittedFormat, maxPlayers);
+        await claimHostedTable(format, maxPlayers);
       } else {
         const password = roomPassword.trim() || undefined;
         await createRoom(
           roomName.trim() || defaultName,
           maxPlayers,
-          submittedFormat,
-          submittedEngine,
-          draftConfig,
-          sealedConfig,
+          format,
+          engine,
           reconnectTimeoutS,
           password,
           background,
         );
       }
       usePreferencesStore.getState().setLastRoomSetup({
-        kind,
-        limitedKind,
+        kind: "match",
         format,
-        players: kind === "limited" ? limitedPlayers : matchPlayersOverride,
+        players: matchPlayersOverride,
       });
       await new Promise((resolve) => setTimeout(resolve, splashUntil - Date.now()));
       onClose();
@@ -305,13 +176,11 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
                 centerContent={
                   <span className="flex flex-col items-center gap-1 px-2 text-center">
                     <span className="font-serif text-lg font-semibold text-foreground/90 sm:text-2xl">
-                      {modeLabel}
+                      {format}
                     </span>
                     <span className="flex flex-wrap items-center justify-center gap-1 text-ui-meta text-muted-foreground">
-                      <EngineMark engine={submittedEngine} className="h-3 w-3" />
-                      {[submittedEngine, poolLabel, `${maxPlayers} seats`]
-                        .filter(Boolean)
-                        .join(" ·")}
+                      <EngineMark engine={engine} className="h-3 w-3" />
+                      {engine} · {maxPlayers} seats
                     </span>
                   </span>
                 }
@@ -328,7 +197,7 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
                 <Button
                   variant="primary"
                   onClick={handleCreate}
-                  disabled={creating || !canSubmit}
+                  disabled={!connected}
                   title={disabledReason ?? undefined}
                   className="gap-1.5"
                 >
@@ -345,110 +214,23 @@ export function TableSetup({ username, onClose, onCreatingChange }: TableSetupPr
 
           <aside className="grid content-start gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] xl:grid-cols-1">
             <TableSetupGameCard
-              kind={kind}
-              onKindChange={setKind}
-              limitedKind={limitedKind}
-              onLimitedKindChange={setLimitedKind}
               format={format}
               onFormatChange={setFormat}
-              playerOptions={playerOptions}
               maxPlayers={maxPlayers}
-              onMaxPlayersChange={handleMaxPlayersChange}
-              isBoosterDraft={isBoosterDraft}
-              isCube={isCube}
-              isSealed={isSealed}
-              draftRounds={draftRounds}
-              onDraftRoundsChange={setDraftRounds}
-              draftPicksPerPass={draftPicksPerPass}
-              onDraftPicksPerPassChange={setDraftPicksPerPass}
-              draftPickSeconds={draftPickSeconds}
-              onDraftPickSecondsChange={setDraftPickSeconds}
-              draftClockSupported={draftClockSupported}
-              draftSeed={draftSeed}
-              onDraftSeedChange={setDraftSeed}
-              draftFillWithBots={draftFillWithBots}
-              onDraftFillWithBotsChange={setDraftFillWithBots}
-              sealedUseCube={sealedUseCube}
-              onSealedUseCubeChange={setSealedUseCube}
-              sealedNumBoosters={sealedNumBoosters}
-              onSealedNumBoostersChange={setSealedNumBoosters}
-              sealedSeed={sealedSeed}
-              onSealedSeedChange={setSealedSeed}
-              importedCube={importedCube}
-              onCubeImported={setImportedCube}
+              onMaxPlayersChange={setMatchPlayersOverride}
             />
             <TableSetupHostingCard
-              kind={kind}
               engine={engine}
               onEngineChange={setEngine}
-              canHostForge={canHostForge}
               isTauri={isTauri}
               hostedNode={hostedNode}
-              forgeRoomAvailable={forgeRoomAvailable}
               ironsmithEnabled={ironsmithEnabled}
               reconnectTimeoutS={reconnectTimeoutS}
               onReconnectTimeoutSChange={setReconnectTimeoutS}
             />
           </aside>
         </div>
-
-        {showPicker && (
-          <div className="space-y-2">
-            {draftableSets.length === 0 ? (
-              <p className="flex items-center gap-2 text-ui-meta text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" /> Loading sets from Scryfall…
-              </p>
-            ) : (
-              <SetPicker
-                variant="inline"
-                sets={draftableSets}
-                selectedCode={pickerSet}
-                prefetching={pickerPrefetching}
-                onSelect={pickerOnSelect}
-              />
-            )}
-            {!!pickerSet && pickerUnsupported === pickerSet && (
-              <p className="text-ui-meta text-destructive">
-                Your game data doesn't include {pickerSet.toUpperCase()}. Update the app to use this
-                set.
-              </p>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
-}
-function useSetPoolStatus(setCode: string) {
-  const prefetchSet = useScryfallStore((s) => s.prefetchSet);
-  const [prefetching, setPrefetching] = useState<string | null>(null);
-  const [unsupported, setUnsupported] = useState<string | null>(null);
-  useEffect(() => {
-    if (!setCode) return;
-    let cancelled = false;
-    void (async () => {
-      setPrefetching(setCode);
-      await prefetchSet(setCode).catch(() => {});
-      if (!cancelled) setPrefetching((cur) => (cur === setCode ? null : cur));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [setCode, prefetchSet]);
-  useEffect(() => {
-    if (!setCode) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        await fetchSetPool(setCode);
-        if (!cancelled) setUnsupported(null);
-      } catch {
-        if (!cancelled) setUnsupported(setCode);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [setCode]);
-  return { prefetching, unsupported };
 }

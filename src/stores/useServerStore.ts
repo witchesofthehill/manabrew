@@ -32,6 +32,7 @@ import { stripUsernameTag } from "@/lib/username";
 import {
   CHAT_ERROR_CODES,
   DUPLICATE_USERNAME_ERROR_FRAGMENT,
+  MANABREW_ENGINE_UNAVAILABLE,
   SERVER_ERROR_CODE,
   USER_FACING_ERROR_MESSAGES,
 } from "@/types/server";
@@ -40,8 +41,6 @@ import type {
   PlayerInfo,
   GameFormat,
   EngineKind,
-  DraftConfig,
-  SealedConfig,
   PlayerDeckInfo,
   AuthResultPayload,
   RoomListPayload,
@@ -112,14 +111,12 @@ interface ServerState {
     roomName: string,
     maxPlayers: number,
     format: GameFormat,
-    engine?: EngineKind,
-    draftConfig?: DraftConfig,
-    sealedConfig?: SealedConfig,
+    engine: Exclude<EngineKind, "Manabrew">,
     reconnectTimeoutS?: number,
     password?: string,
     tableStyle?: BoardBackgroundId,
   ): Promise<void>;
-  joinRoom(roomId: string, password?: string): Promise<void>;
+  joinRoom(roomId: string, password?: string, observe?: boolean): Promise<void>;
   resumeRoomAfterRestart(): Promise<void>;
   leaveRoom(requireServerLeave?: boolean): Promise<void>;
   setReady(ready: boolean): Promise<void>;
@@ -370,8 +367,6 @@ export const useServerStore = create<ServerState>()(
         maxPlayers,
         format,
         engine,
-        draftConfig,
-        sealedConfig,
         reconnectTimeoutS,
         password,
         tableStyle,
@@ -386,8 +381,6 @@ export const useServerStore = create<ServerState>()(
           maxPlayers,
           format,
           engine,
-          draftConfig,
-          sealedConfig,
           reconnectTimeoutS,
           password,
           tableStyle,
@@ -397,14 +390,14 @@ export const useServerStore = create<ServerState>()(
           await get().joinRoom(roomId, password);
         }
       },
-      async joinRoom(roomId, password) {
+      async joinRoom(roomId, password, observe = false) {
         const platform = getPlatform();
         if (!platform.server) return;
         await pendingRoomDeparture;
         await confirmRoomLeave();
         settlePendingJoin(new Error("join_superseded"));
         set({ roomPassword: password ? password : null });
-        await platform.server.joinRoom({ roomId, password });
+        await platform.server.joinRoom({ roomId, password, observe });
         await new Promise<void>((resolve, reject) => {
           const timer = setTimeout(() => {
             pendingJoin = null;
@@ -416,6 +409,40 @@ export const useServerStore = create<ServerState>()(
             settle: (error) => (error ? reject(error) : resolve()),
           };
         });
+        if (observe) {
+          try {
+            await new Promise<void>((resolve, reject) => {
+              const finish = (error?: Error) => {
+                clearTimeout(timer);
+                offStarted();
+                offError();
+                if (error) reject(error);
+                else resolve();
+              };
+              const offStarted = platform.events.on<GameStartedPayload>(
+                "server:game_started",
+                (payload) => {
+                  if (payload.room_id === roomId) finish();
+                },
+              );
+              const offError = platform.events.on<ServerErrorPayload>("server:error", (payload) => {
+                if (
+                  payload.code === SERVER_ERROR_CODE.GameNotInProgress ||
+                  payload.code === SERVER_ERROR_CODE.NotInRoom
+                )
+                  finish(new Error(payload.code));
+              });
+              const timer = setTimeout(
+                () => finish(new Error("watch_timeout")),
+                JOIN_CONFIRM_TIMEOUT_MS,
+              );
+              void platform.server!.requestResync().catch(finish);
+            });
+          } catch (error) {
+            if (get().currentRoom?.room_id === roomId) await get().leaveRoom();
+            throw error;
+          }
+        }
       },
       async resumeRoomAfterRestart() {
         const platform = getPlatform();
@@ -432,7 +459,8 @@ export const useServerStore = create<ServerState>()(
           max_players: currentRoom.max_players,
           format: currentRoom.format,
           hosted: currentRoom.hosted,
-          engine: "Manabrew",
+          allow_spectators: currentRoom.allow_spectators,
+          engine: currentRoom.engine,
           password: roomPassword ?? undefined,
           reconnect_timeout_s: currentRoom.reconnect_timeout_s,
           table_style: currentRoom.table_style,
@@ -550,6 +578,9 @@ export const useServerStore = create<ServerState>()(
         await platform.server.setMaxPlayers({ maxPlayers });
       },
       async startGame(format) {
+        if (get().currentRoom?.engine === "Manabrew") {
+          throw new Error(MANABREW_ENGINE_UNAVAILABLE);
+        }
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.startGame(format ? { format } : undefined);
@@ -759,7 +790,10 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<ServerErrorPayload>("server:error", (payload) => {
             console.error("[server] error:", payload.code, payload.message);
-            if (payload.code === SERVER_ERROR_CODE.GameNotInProgress) return;
+            if (payload.code === SERVER_ERROR_CODE.GameNotInProgress) {
+              settlePendingJoin(new Error(payload.code));
+              return;
+            }
             if (CHAT_ERROR_CODES.has(payload.code as ServerErrorCode)) return;
             if (payload.code === SERVER_ERROR_CODE.AlreadyInRoom) {
               void get().listPlayers();

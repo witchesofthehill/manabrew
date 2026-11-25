@@ -31,7 +31,6 @@ const CARD_VIEW_DEFAULTS = {
 
 export interface LastRoomSetup {
   kind: "match" | "limited";
-  limitedKind: "draft" | "sealed" | "winston" | "cube";
   format: GameFormat;
   players: number | null;
 }

@@ -13,6 +13,7 @@ import type { GameState } from "@/stores/gameStore.types";
 export type ClientMatchSource = NonNullable<
   ClientAnalyticsAttributes<"first_game_funnel">["source"]
 >;
+export type ClientUiAction = ClientAnalyticsAttributes<"ui_action">["action"];
 
 const CHECKPOINT_DELAY_MS = 15_000;
 const COMPLETED_KEY = "manabrew.analytics.firstMatch";
@@ -102,6 +103,12 @@ export function clientMultiplayerSource(
   if (room?.draft_config || room?.sealed_config) return "limited";
   if (room && room.room_id === invitedRoomId) return "invite";
   return room?.host === username ? "lobby_host" : "lobby_join";
+}
+
+export function trackClientUiAction(action: ClientUiAction) {
+  const visit = observeClientAnalyticsIdentity();
+  if (!visit || visit.completed) return;
+  trackClientEvent("ui_action", { action, clicks: String(visit.clicks) });
 }
 
 export function trackClientMatchRequested(fallback: ClientMatchSource) {

@@ -300,6 +300,7 @@ pub fn resume_room_sync(
             .clamp(MIN_RECONNECT_TIMEOUT_S, MAX_RECONNECT_TIMEOUT_S),
         spec.table_style,
     );
+    room.allow_spectators = spec.allow_spectators.unwrap_or(false);
     room.resume_token = spec.resume_token;
     room.status = RoomStatus::InGame;
     room.players = restored_players;
@@ -453,7 +454,14 @@ pub fn join_room_sync(
             }
         }
 
-        if let Some(slot) = room.players.iter_mut().find(|slot| {
+        if observe && room.status != RoomStatus::Lobby {
+            if !room.can_spectate() {
+                return Err(ServerError::GameNotInProgress);
+            }
+            room.add_observer(player_id.to_string(), username)
+                .map_err(|_| ServerError::AlreadyInRoom(room_id.to_string()))?;
+            (room.to_room_info(), false)
+        } else if let Some(slot) = room.players.iter_mut().find(|slot| {
             !observe && slot.username == username && slot.is_bot == as_bot && !slot.connected
         }) {
             slot.player_id = player_id.to_string();
@@ -760,6 +768,30 @@ pub fn set_max_players_sync(
     Ok(room_id)
 }
 
+pub fn set_auto_start_sync(
+    state: &Arc<ServerState>,
+    player_id: &str,
+    enabled: bool,
+) -> Result<String, ServerError> {
+    let room_id = state
+        .players
+        .get(player_id)
+        .and_then(|p| p.room_id.clone())
+        .ok_or(ServerError::NotInRoom)?;
+    let mut room = state
+        .rooms
+        .get_mut(&room_id)
+        .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
+    if !room.is_controller(player_id) {
+        return Err(ServerError::NotHost);
+    }
+    if room.status != RoomStatus::Lobby {
+        return Err(ServerError::GameAlreadyStarted);
+    }
+    room.auto_start = enabled;
+    Ok(room_id)
+}
+
 pub fn start_game_sync(
     state: &Arc<ServerState>,
     player_id: &str,
@@ -779,7 +811,8 @@ pub fn start_game_sync(
             .get_mut(&room_id)
             .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
 
-        if !room.is_controller(player_id) {
+        let matchmade_host = room.matchmade_bracket.is_some() && room.is_host(player_id);
+        if !room.is_controller(player_id) && !matchmade_host {
             return Err(ServerError::NotHost);
         }
 
@@ -1071,7 +1104,15 @@ pub fn reset_room_to_lobby(
                 analytics::emit_game_ended(&state.analytics, &room, &replay, reason);
             }
         }
-        let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
+        let mut cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
+        let host_id = room.host_player_id.clone();
+        room.observers.retain(|observer| {
+            if observer.player_id == host_id {
+                return true;
+            }
+            cleared.push(observer.player_id.clone());
+            false
+        });
         room.status = RoomStatus::Lobby;
         room.rematch = None;
         let paired_limited = room.parent_limited_room.is_some();

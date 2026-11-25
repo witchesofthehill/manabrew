@@ -42,6 +42,7 @@ export const STORAGE_KEYS = {
   DECK_CHECKPOINTS: "manabrew-deck-checkpoints",
   DECK_EDITOR_PRESENTATION: "manabrew-deck-editor-presentation",
   FORGE_WASM_VALIDATION: "manabrew-forge-wasm-validation",
+  DECK_BRACKETS: "manabrew-deck-brackets",
 } as const;
 
 export { DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME } from "./deckNames.constants";

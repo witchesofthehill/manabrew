@@ -3,7 +3,7 @@ import { usePresetDecksStore } from "@/stores/usePresetDecksStore";
 import type { EngineKind } from "@/protocol";
 
 export function availableEngines(): EngineKind[] {
-  return isIronsmithRuntimeEnabled() ? ["Manabrew", "Forge", "Ironsmith"] : ["Manabrew", "Forge"];
+  return isIronsmithRuntimeEnabled() ? ["Forge", "Ironsmith"] : ["Forge"];
 }
 
 export function supportsAvailableEngine(engines: EngineKind[] | undefined | null): boolean {

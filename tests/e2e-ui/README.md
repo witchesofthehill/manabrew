@@ -4,8 +4,8 @@
 
 Playwright smoke tests for game-UI features that need a real board — the
 in-game Board settings modal, the unified card-size multiplier and the
-zone-pile lock. Engine-agnostic (they run on the default Manabrew engine) and
-dependency-light, reusing the driving helpers from `tests/e2e-ironsmith/lib.mjs`.
+zone-pile lock. They run on browser Forge and reuse the driving helpers from
+`tests/e2e-ironsmith/lib.mjs`.
 
 Prompts are drawn on the canvas, so a script answers them through the dev-only
 `window.__gameStore` seam rather than by clicking; `forgeSolo.mjs` holds the
@@ -20,6 +20,8 @@ Same stack as `tests/e2e-ironsmith/README.md`, minus the Ironsmith parts:
    dev server — the scripts answer prompts through `window.__gameStore`)
 3. **Playwright + Chrome** (`playwright` is a devDependency; system Chrome is
    used via `channel: "chrome"`)
+4. **Both browser WASM builds**: `yarn build:forge-wasm` for Forge and
+   `yarn ensure:wasm` for ManaBot.
 
 ## Run
 
@@ -32,6 +34,15 @@ Each script prints `PASS: …` and exits 0, or `FAIL: …` and exits non-zero.
 
 Env knobs: `BASE`, `RELAY_HOST`, `RELAY_PORT`, `RELAY_PW`, `DECK` (as in the
 Ironsmith suite), plus `SHOT=<dir>` to write screenshots of the key states.
+
+## Commander matchmaking relay
+
+Run `cargo build -p manabrew-server`, then `node tests/e2e-ui/commander-matchmaking-relay.mjs`.
+This standalone protocol suite starts an isolated relay and drives WebSocket clients; it needs
+Node 24 but no browser or game engine. It covers deck selection, local-game deferral, declines,
+disconnects, node-room reuse, table invitations, auto-start authorization, proposal expiry,
+and opt-in bot filling. It prints the relay log path and exits nonzero on failure.
+`MATCHMAKING_TEST_PORT` overrides the default port 19514; the health endpoint uses the next port.
 
 ## The browser Forge engine
 

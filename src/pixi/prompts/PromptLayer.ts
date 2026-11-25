@@ -564,9 +564,70 @@ export class PromptLayer extends PromptModalLayer {
     );
   }
 
+  private renderSpectatorPhaseStrip(): void {
+    const spec = this.spec!;
+    const margin = this.viewportHeight <= 520 ? 6 : 12;
+    const width = Math.min(this.viewportWidth - margin * 2, getUiControlHeight() >= 44 ? 320 : 300);
+    const { columns, phaseWidth, columnX } = phaseTileLayout(width);
+    const cellHeight = getUiControlHeight();
+    const rows = Math.ceil(PHASE_BAR_ENTRIES.length / columns);
+    const height = PANEL_PAD_X * 2 + rows * cellHeight + (rows - 1) * 4;
+    const x = this.viewportWidth - width - margin;
+    const y = this.viewportHeight - height - margin;
+    const surface = this.theme.gameTheme.phaseStrip.background;
+    const ink = readableTextColor(
+      surface,
+      this.theme.gameTheme.canvas.shadow,
+      this.theme.gameTheme.textOnTinted,
+    );
+    const turnInk = readableTextColor(
+      spec.turnColor,
+      this.theme.gameTheme.canvas.shadow,
+      this.theme.gameTheme.textOnTinted,
+    );
+    const step = spec.gameView.step;
+    const panel = new Container();
+    panel.position.set(x, y);
+    panel.eventMode = "static";
+    panel.hitArea = new Rectangle(0, 0, width, height);
+    panel.accessible = true;
+    panel.accessibleTitle = PHASES.find((phase) => phase.id === step)?.label ?? "Phase";
+    const background = this.makeActionPanelSurface(width, height, 8, false, false);
+    const border = new Graphics()
+      .roundRect(0, 0, width, height, 8)
+      .stroke({ color: hexToNum(spec.turnColor), width: TURN_BORDER_WIDTH });
+    border.eventMode = "none";
+    panel.addChild(background, border);
+    PHASE_BAR_ENTRIES.forEach((entry, index) => {
+      const current = entry.steps.includes(step);
+      const tileX = columnX(index);
+      const tileY = PANEL_PAD_X + Math.floor(index / columns) * (cellHeight + 4);
+      const tile = new Graphics()
+        .roundRect(tileX, tileY, phaseWidth, cellHeight, 4)
+        .fill({ color: hexToNum(current ? spec.turnColor : surface) });
+      tile.eventMode = "none";
+      const label = promptText(
+        (current && PHASES.find((phase) => phase.id === step)?.short) || entry.short,
+        getUiFontSize("meta"),
+        current ? turnInk : ink,
+        { weight: "700" },
+      );
+      label.anchor.set(0.5);
+      label.position.set(tileX + phaseWidth / 2, tileY + cellHeight / 2);
+      panel.addChild(tile, label);
+    });
+    this.container.addChild(panel);
+    this.actionPanelBounds = { x, y, width, height };
+    this.actionBounds = new Rectangle(x, y, width, height);
+  }
+
   private renderActionPanel(): void {
     const spec = this.spec!;
     const action = spec.action;
+    if (action.spectator && action.promptType !== "gameOver") {
+      this.renderSpectatorPhaseStrip();
+      return;
+    }
     const shortScreen = this.viewportHeight <= 520;
     const minimal = this.layerPresentation.actionStyle === "minimal";
     const touch = getUiControlHeight() >= 44;

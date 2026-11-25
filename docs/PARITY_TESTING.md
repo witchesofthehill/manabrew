@@ -1,7 +1,6 @@
 # Parity Testing Guide
 
-How to run parity tests comparing the Rust engine against the Java Forge
-reference implementation.
+> Historical reference. Manabrew Engine parity is deprecated and not functioning. Follow the [root deprecation policy](../AGENTS.md) and do not run these commands unless explicitly asked.
 
 ## Prerequisites
 

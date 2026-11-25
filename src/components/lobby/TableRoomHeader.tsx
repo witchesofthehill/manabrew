@@ -1,4 +1,9 @@
 import { useState } from "react";
+import { getPlatform } from "@/platform";
+import { TableMatchmakingSettings } from "@/components/lobby/TableMatchmakingSettings";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RELAY_FEATURE } from "@/types/server";
+import { useServerStore } from "@/stores/useServerStore";
 import { Check, ChevronDown, Copy, LockKeyhole } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -51,6 +56,9 @@ export function TableRoomHeader({
   onSetMaxPlayers,
 }: TableRoomHeaderProps) {
   const [copiedPassword, setCopiedPassword] = useState(false);
+  const spectatorsEnabled = useServerStore((s) =>
+    s.relayFeatures.includes(RELAY_FEATURE.Spectators),
+  );
   const inLobby = room.status === "Lobby";
   const allowsMultiplayer = MULTIPLAYER_FORMATS.includes(room.format);
   async function copyPassword() {
@@ -154,6 +162,25 @@ export function TableRoomHeader({
             )}
           </dd>
         </div>
+        {spectatorsEnabled && room.engine === "Forge" && !isLimitedRoom && (
+          <div className="flex items-center gap-2">
+            <dt className="text-muted-foreground">
+              <label htmlFor="allow-spectators">Allow spectators</label>
+            </dt>
+            <dd>
+              <Checkbox
+                id="allow-spectators"
+                checked={room.allow_spectators ?? false}
+                disabled={!isController || !inLobby}
+                onCheckedChange={(allow) =>
+                  void getPlatform()
+                    .server?.setAllowSpectators(allow === true)
+                    .catch(() => toast.error("Could not update spectators."))
+                }
+              />
+            </dd>
+          </div>
+        )}
         {room.draft_config && (
           <>
             <div className="flex items-center gap-2">
@@ -185,6 +212,9 @@ export function TableRoomHeader({
           </div>
         )}
       </dl>
+      <div className="basis-full">
+        <TableMatchmakingSettings room={room} isController={isController} />
+      </div>
     </header>
   );
 }

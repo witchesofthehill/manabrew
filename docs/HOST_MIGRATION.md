@@ -2,11 +2,23 @@
 
 ## Status and shipping dependency
 
-This is the implementation handoff for fedpoi. Ship host migration after deterministic Forge bots. The remaining code in this draft only excludes disconnected engine hosts from matchmaking and game startup, and tests that a human departure does not end a matchmade node game.
+Ship host migration after deterministic Forge bots. This draft implements the warm engine and journal replication core, plus the independent dead-host matchmaking guards and human-departure regression. The next steps below cover relay orchestration and production enablement.
 
-Host migration itself is not implemented here. The recovery design uses a live standby engine on another node, continuously applying the authoritative decision journal. Promotion must not start a fresh JVM or replay the entire game after the host dies. Do not use Forge `GameState` text, turn-start rollback, or the lossy sidecar from #902.
+Automatic room migration is not enabled yet. The recovery design uses a live standby engine on another node, continuously applying the authoritative decision journal. Promotion must not start a fresh JVM or replay the entire game after the host dies. Do not use Forge `GameState` text, turn-start rollback, or the lossy sidecar from #902.
 
 #902 was superseded by #1026, which also explored durable journals. The existing verified journal machinery on main is the foundation. `docs/DECISION_REPLAY.md` describes its current boundaries: rewind constructs a fresh isolated engine on demand; it does not maintain an idle replica. Reuse its canonical inputs, verification and process isolation, and add continuous follower execution.
+
+## Implemented engine core
+
+`java_backend::warm_replica` provides `JournalHost`, `WarmReplica`, journal batches, receipts and boundary witnesses. A source must use acknowledged journal delivery with the commit barrier and without interactive rewind. The follower starts from the exact sequence-zero manifest before gameplay, checks the packaged harness/assets/preferences identity, and keeps that isolated engine alive while applying subsequent entries.
+
+Each input is appended to a private log and synced before execution. The follower verifies the canonical prompt and state/RNG witness, then verifies that its own engine consumed the same journal entry. Exact retries are idempotent; gaps, epoch mismatches and conflicting duplicates are rejected. Storage or execution failures invalidate the replica and prevent acknowledgement and promotion. The limits are 8 MiB per batch, 50,000 decisions and 256 MiB per retained replica log. Reaching a limit stops protection rather than silently dropping history.
+
+`verify` compares the source's current pending boundary with the running follower. `promote` requires that exact applied and verified sequence plus a newer epoch, and moves the existing process handle into the active-host API. It does not start a process or reconstruct the game. The promoted engine keeps journal delivery enabled for the next replica. Epoch checks here validate local message consistency; they do not replace relay authorization, old-host fencing or a durable promotion decision.
+
+The JVM integration tests run separate source and follower processes, replicate a four-seat Commander game and a concession, kill the source, assert the promoted PID is unchanged, then compare continued play against another warm follower. They also cover stale epochs, gaps, conflicting duplicate input, an unverified tail and failed durable storage.
+
+This core is not connected to the room host loop or deployed automatically. The currently tested identity implementation requires the packaged JVM harness. Native artifact identity and a packaged-native drill remain required before using this on the fleet. Promotion currently requires a source-published verified pending boundary; automatic recovery of an unverified committed tail and terminal-game boundaries are next steps. The log is durable but no restart loader, compaction or replacement-replica bootstrap is implemented yet. Keep protected games disabled until relay orchestration handles these contracts.
 
 ## Existing journal surface
 
@@ -21,7 +33,7 @@ Interactive rewind currently owns journal delivery and rejects `decisionJournalC
 1. At game start, allocate an active engine and a standby on different node processes and failure domains. Reserve the standby against real engine capacity. Keep both alive for the game. A loaded JVM alone is insufficient: the standby must hold this game's execution state at a verified boundary.
 2. Pin identical harness, assets, runtime, effective preferences, start request and seed. Current cross-runtime and cross-artifact replay is unsupported. Native desktop, JVM pod and Web Image are not interchangeable until compatibility is demonstrated. Begin with compatible node-to-node Commander games.
 3. Send the start request and sequenced journal stream through a private authenticated replication path. Retain a durable ordered log outside the active process. Acknowledge the source only after the required durable replication receipt. Record received, committed, applied and verified positions separately.
-4. Run a persistent follower in its own isolated worker or process. Incrementally feed canonical journal entries, verify every boundary, and wait for the next entry. Never publish its state, issue player prompts, send bot actions, or report outcomes while it is a follower. Do not independently choose external Manabot actions; replay their consumed inputs. Internal Forge bot replay depends on fedpoi's deterministic implementation and matching RNG behavior.
+4. Run a persistent follower in its own isolated worker or process. Incrementally feed canonical journal entries, verify every boundary, and wait for the next entry. Never publish its state, issue player prompts, send bot actions, or report outcomes while it is a follower. Do not independently choose external Manabot actions; replay their consumed inputs. Internal Forge bot replay depends on the deterministic bot implementation and matching RNG behavior.
 5. Replicate all gameplay-affecting inputs, including concessions, timeout decisions and relevant directives. Preserve ordering and deduplicate retried player commands. Do not use relay arrival order as a substitute for the engine's consumed journal order.
 6. A divergent, incompatible or lagging standby is ineligible for promotion. Surface the protection state and replace the standby while the active host still serves the game. Initial synchronization and replacement can replay history in the background; the normal failure path promotes an already running follower.
 
@@ -55,7 +67,7 @@ Outcomes must distinguish promotion success, no ready standby, incompatible arti
 
 Keep the same `game_id` through promotion. Successful handoff must not emit `game_ended`; the eventual game keeps its actual `games.end_reason`. Recovery exhaustion ends through the explicit lifecycle path, normally `host_lost`, without masking an independently reported engine failure. Join handoff attempts to games by game ID and count confirmed promotions only.
 
-## Acceptance tests for the implementation
+## Next steps and acceptance tests
 
 - Extend the relay host-loss test to promote an already running follower. Prove fencing rejects the old host's states, outcomes and delayed messages, including after it reconnects.
 - Replace the GameState round-trip test with an active/follower journal test in separate compatible processes. Compare every seat, spectator state, prompts, RNG witnesses and continued play. Cover four-seat Commander, eliminated seats, commander damage and tax, monarch, initiative, day/night, stack, pending decisions, emblems and persistent effects.

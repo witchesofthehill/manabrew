@@ -18,7 +18,10 @@ replays the selected prefix from the original start request and seed, checking
 every prompt, deciding seat, state witness and RNG position. The candidate becomes
 authoritative only after terminal verification and publication of its final views.
 Then the source is terminated. Failure disposes of the candidate and resumes the
-source. There is no idle spare or shadow engine.
+source. This rewind path has no idle spare. The opt-in library in
+`java_backend::warm_replica` separately supports incremental journal followers
+and promotion of a running process; it is not wired to room hosting yet. See
+`docs/HOST_MIGRATION.md` for the implemented boundaries and next steps.
 
 - Browser/WebView: `forge-engine.worker.js` supervises the engine and buffers
   candidate SABs until `forge:replay_ready`. Directive lanes and queued directives

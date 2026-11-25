@@ -19,6 +19,11 @@ public final class EngineCommands {
             case "getStateRevision" -> adapter.getStateRevision(session);
             case "drainCheckpointMetrics" -> adapter.drainCheckpointMetrics(session);
             case "drainDirectives" -> adapter.drainDirectives(session);
+            case "replayIdentity" -> adapter.replayIdentity();
+            case "replayBoundary" -> adapter.replayBoundary(session);
+            case "readDecisionJournal" -> adapter.readDecisionJournal(session);
+            case "acknowledgeDecisionJournal" -> adapter.acknowledgeDecisionJournal(session,
+                    new java.math.BigDecimal(request.get("sequence").getAsString()).longValueExact());
             case "getRewindRequest" -> adapter.getRewindRequest(session);
             case "resumeAfterFailedRewind" -> adapter.resumeAfterFailedRewind(session);
             case "replayReady" -> adapter.replayReady(session);

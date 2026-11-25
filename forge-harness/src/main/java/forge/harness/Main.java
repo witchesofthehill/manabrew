@@ -376,6 +376,12 @@ public final class Main {
                         case "getGameOver":
                             sendOk(adapter.getGameOver(requireString(request, "sessionId")));
                             break;
+                        case "replayIdentity":
+                            sendOk(adapter.replayIdentity());
+                            break;
+                        case "replayBoundary":
+                            sendOk(adapter.replayBoundary(requireString(request, "sessionId")));
+                            break;
                         case "readDecisionJournal":
                             sendOk(adapter.readDecisionJournal(requireString(request, "sessionId")));
                             break;

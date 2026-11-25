@@ -200,3 +200,5 @@ Web Image's `Throwable.getStackTrace()` can return only the entry point (`WasmMa
 Journal mode requires an isolated process, native card IDs and RNG seeding on both construction and execution threads. Name threaded engines `Game-*` so Forge's `GameAction.invoke` stays on the seeded thread. Never expose full journals or witnesses to players.
 
 The direct `build-wasm.sh` build also needs `forge/forge-gui/res/languages` on the classpath; `FORGE_ASSETS` alone is insufficient.
+
+Warm journal followers reuse `readDecisionJournal`, `acknowledgeDecisionJournal`, `replayIdentity` and `replayBoundary` through both `Main` and `EngineCommands`. `replayBoundary` is a game-thread verification witness, not a GameState export or import. The identity implementation currently requires the packaged JVM jar, so native warm replication must remain disabled until it has an equivalent artifact identity.

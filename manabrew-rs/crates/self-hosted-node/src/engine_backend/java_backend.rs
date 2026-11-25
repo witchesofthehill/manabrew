@@ -642,6 +642,8 @@ pub fn init_engine() -> Result<(), String> {
 #[cfg(forge_backend)]
 mod journal_engine;
 #[cfg(forge_backend)]
+pub use journal_engine::warm_replica;
+#[cfg(forge_backend)]
 use journal_engine::JournalEngine as ForgeEngine;
 
 #[cfg(forge_backend)]

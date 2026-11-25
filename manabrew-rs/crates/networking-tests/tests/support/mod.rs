@@ -23,8 +23,7 @@ use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
 use manabrew_agent_interface::protocol::{
     ClientMessage, ClientPlatform, EngineGate, EngineKind, GameFormat, IdentityProof, PlayerInfo,
-    ResumeRoomRequest, RoomInfo, RoomStatus, ServerMessage, StateEnvelope, TransportEndpoint,
-    PROTOCOL_VERSION,
+    RoomInfo, RoomStatus, ServerMessage, StateEnvelope, TransportEndpoint, PROTOCOL_VERSION,
 };
 use serde_json::{json, Value};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -145,36 +144,17 @@ impl Sim {
 
     async fn spawn_relay_only_with(port: u16, direct: bool) -> Sim {
         let relay_url = format!("ws://127.0.0.1:{port}");
-        let events_dir =
-            std::env::temp_dir().join(format!("manabrew-migration-{port}-{}", std::process::id()));
-        std::fs::create_dir_all(&events_dir).unwrap();
-        let relay = spawn_relay(port, direct, Some(&events_dir));
+        let relay = spawn_relay(port, direct, None);
         wait_for_port(port).await;
         Sim {
             port,
             relay_url,
             room_id: String::new(),
             direct,
-            events_dir: Some(events_dir),
+            events_dir: None,
             _relay: Some(relay),
             node: None,
         }
-    }
-
-    pub fn events(&self) -> Vec<Value> {
-        let mut events = Vec::new();
-        if let Some(dir) = &self.events_dir {
-            for entry in std::fs::read_dir(dir).unwrap().flatten() {
-                if entry.path().extension().is_some_and(|ext| ext == "jsonl") {
-                    let text = std::fs::read_to_string(entry.path()).unwrap();
-                    events.extend(
-                        text.lines()
-                            .filter_map(|line| serde_json::from_str::<Value>(line).ok()),
-                    );
-                }
-            }
-        }
-        events
     }
 
     /// Kill the relay and start a fresh one on the same port (memory wiped).
@@ -232,10 +212,6 @@ impl Sim {
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
         panic!("the drained node never exited within {deadline:?}");
-    }
-
-    pub fn start_backup_node(&self) -> Proc {
-        spawn_node(&self.relay_url, None)
     }
 
     pub fn kill_node(&mut self) {
@@ -392,35 +368,6 @@ impl Client {
         identity: Option<IdentityProof>,
         version: Option<&str>,
     ) -> Result<Client, String> {
-        Client::connect_session(
-            relay_url,
-            legacy_username,
-            session_username,
-            identity,
-            version,
-            false,
-            vec!["host_handoff".to_string()],
-        )
-        .await
-    }
-
-    pub async fn connect_service(
-        relay_url: &str,
-        username: &str,
-        features: Vec<String>,
-    ) -> Result<Client, String> {
-        Client::connect_session(relay_url, username, username, None, None, true, features).await
-    }
-
-    async fn connect_session(
-        relay_url: &str,
-        legacy_username: &str,
-        session_username: &str,
-        identity: Option<IdentityProof>,
-        version: Option<&str>,
-        service: bool,
-        client_features: Vec<String>,
-    ) -> Result<Client, String> {
         let (socket, _) = connect_async(relay_url)
             .await
             .map_err(|error| format!("connect {relay_url}: {error}"))?;
@@ -430,13 +377,12 @@ impl Client {
             &ClientMessage::Authenticate {
                 username: legacy_username.to_string(),
                 password: "forge".to_string(),
-                service,
+                service: false,
                 identity,
                 client_platform: ClientPlatform::Unknown,
                 client_version: version.map(str::to_string),
                 engine_gate: EngineGate::Unknown,
                 acquisition_source: None,
-                features: client_features,
             },
         )
         .await?;
@@ -539,25 +485,35 @@ impl Client {
         self.keep_opening_hand = true;
         let mut deck = basic_deck("Queued Commander", "Mountain", "Hill Giant");
         deck["commanders"] = json!([card("commander".into(), "Krenko, Mob Boss")]);
-        self.send_message(&ClientMessage::EnterQueue {
-            format: GameFormat::Commander,
-            pod_sizes: vec![3],
-            can_host: false,
-            decks: vec![manabrew_agent_interface::protocol::QueuedDeck {
-                deck_name: "Queued Commander".into(),
-                deck: serde_json::from_value(deck).unwrap(),
-                published_deck_id: None,
-                commander_name: Some("Krenko, Mob Boss".into()),
-                bracket: 3,
-            }],
-        })
+        send(
+            &mut self.write,
+            &ClientMessage::EnterQueue {
+                format: GameFormat::Commander,
+                pod_sizes: vec![3],
+                can_host: false,
+                decks: vec![manabrew_agent_interface::protocol::QueuedDeck {
+                    deck_name: "Queued Commander".into(),
+                    deck: serde_json::from_value(deck).unwrap(),
+                    published_deck_id: None,
+                    commander_name: Some("Krenko, Mob Boss".into()),
+                    bracket: 3,
+                }],
+            },
+        )
         .await?;
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
         loop {
-            match recv(&mut self.write, &mut self.read).await {
+            let message = tokio::select! {
+                message = recv(&mut self.write, &mut self.read) => message,
+                _ = tokio::time::sleep_until(deadline) => return Err("queue proposal timed out".into()),
+            };
+            match message {
                 Some(ServerMessage::MatchProposal { .. }) => {
-                    return self
-                        .send_message(&ClientMessage::AcceptMatch { deck_index: None })
-                        .await;
+                    return send(
+                        &mut self.write,
+                        &ClientMessage::AcceptMatch { deck_index: None },
+                    )
+                    .await;
                 }
                 Some(ServerMessage::Error { message, .. }) => return Err(message),
                 Some(_) => {}
@@ -767,11 +723,6 @@ impl Client {
     }
 
     fn envelope_response(&mut self, state: Value) -> Result<Option<StateEnvelope>, String> {
-        if std::env::var_os("REGRESSION_TRACE").is_some()
-            && (state["kind"] == "prompt" || state["kind"] == "error")
-        {
-            eprintln!("{}: {}", self.username, state);
-        }
         if let Some(turn) = state
             .pointer("/state/gameView/turn")
             .and_then(Value::as_u64)
@@ -921,135 +872,6 @@ impl Client {
                 password: None,
                 reconnect_timeout_s: Some(RECONNECT_TIMEOUT_S),
                 table_style: None,
-            },
-        )
-        .await
-    }
-
-    pub async fn create_hosted_room(&mut self, name: &str) -> Result<RoomInfo, String> {
-        send(
-            &mut self.write,
-            &ClientMessage::CreateRoom {
-                room_name: name.to_string(),
-                max_players: 4,
-                format: GameFormat::Commander,
-                protocol_version: PROTOCOL_VERSION,
-                hosted: true,
-                table_style: None,
-                engine: EngineKind::Forge,
-                draft_config: None,
-                sealed_config: None,
-                official_key: Some("networking-test-official".to_string()),
-                password: None,
-                reconnect_timeout_s: Some(RECONNECT_TIMEOUT_S),
-            },
-        )
-        .await?;
-        self.wait_own_room().await
-    }
-
-    pub async fn send_message(&mut self, message: &ClientMessage) -> Result<(), String> {
-        send(&mut self.write, message).await
-    }
-
-    pub async fn expect_host_handoff(
-        &mut self,
-        deadline: Duration,
-    ) -> Result<(ResumeRoomRequest, u32, String), String> {
-        let started = tokio::time::Instant::now();
-        while started.elapsed() < deadline {
-            match recv(&mut self.write, &mut self.read).await {
-                Some(ServerMessage::HostHandoff {
-                    request,
-                    turn,
-                    checkpoint,
-                }) => {
-                    check(format!(
-                        "'{}' was asked to continue room {} from turn {turn}",
-                        self.username,
-                        &request.room_id[..8]
-                    ));
-                    return Ok((request, turn, checkpoint));
-                }
-                Some(_) => continue,
-                None => return Err("connection closed awaiting a handoff".into()),
-            }
-        }
-        Err(format!("'{}' was not offered a handoff", self.username))
-    }
-
-    pub async fn wait_room_resumed(&mut self, deadline: Duration) -> Result<RoomInfo, String> {
-        let started = tokio::time::Instant::now();
-        while started.elapsed() < deadline {
-            match recv(&mut self.write, &mut self.read).await {
-                Some(ServerMessage::RoomResumed { room }) => return Ok(room),
-                Some(ServerMessage::Error { code, message }) => {
-                    return Err(format!("resume refused: {code}: {message}"))
-                }
-                Some(_) => continue,
-                None => return Err("connection closed awaiting RoomResumed".into()),
-            }
-        }
-        Err("no RoomResumed".into())
-    }
-
-    pub async fn expect_host_changed(
-        &mut self,
-        deadline: Duration,
-    ) -> Result<(String, u32), String> {
-        let started = tokio::time::Instant::now();
-        while started.elapsed() < deadline {
-            match recv(&mut self.write, &mut self.read).await {
-                Some(ServerMessage::HostChanged { host, turn, .. }) => {
-                    check(format!(
-                        "'{}' was told the host is now '{host}', from turn {turn}",
-                        self.username
-                    ));
-                    return Ok((host, turn));
-                }
-                Some(_) => continue,
-                None => return Err("connection closed awaiting HostChanged".into()),
-            }
-        }
-        Err(format!(
-            "'{}' was never told the host changed",
-            self.username
-        ))
-    }
-
-    pub async fn expect_state_from(
-        &mut self,
-        host: &str,
-        deadline: Duration,
-    ) -> Result<(), String> {
-        let started = tokio::time::Instant::now();
-        while started.elapsed() < deadline {
-            match recv(&mut self.write, &mut self.read).await {
-                Some(ServerMessage::StateUpdate { from_player, .. }) => {
-                    if from_player == host {
-                        check(format!(
-                            "'{}' received engine output from '{host}'",
-                            self.username
-                        ));
-                        return Ok(());
-                    }
-                }
-                Some(_) => continue,
-                None => return Err("connection closed awaiting state".into()),
-            }
-        }
-        Err(format!(
-            "'{}' received nothing from '{host}'",
-            self.username
-        ))
-    }
-
-    pub async fn broadcast_value(&mut self, state: Value) -> Result<(), String> {
-        send(
-            &mut self.write,
-            &ClientMessage::BroadcastState {
-                state,
-                target_player: None,
             },
         )
         .await
@@ -1274,7 +1096,6 @@ fn spawn_relay(port: u16, direct: bool, events_dir: Option<&std::path::Path>) ->
     let mut command = Command::new(bin("manabrew-server", "REGRESSION_RELAY_BIN"));
     command
         .env("FORGE_PORT", port.to_string())
-        .env("SECRET_MANABREW_KEY", "networking-test-official")
         .env("FORGE_HEALTH_PORT", (port + 1).to_string())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
@@ -1301,7 +1122,6 @@ fn spawn_node(relay_url: &str, manifest: Option<&str>) -> Proc {
     let mut command = Command::new(bin("self-hosted-node", "REGRESSION_NODE_BIN"));
     command
         .env("SELF_HOSTED_NODE_RELAY_URL", relay_url)
-        .env("SELF_HOSTED_NODE_OFFICIAL_KEY", "networking-test-official")
         .env("SELF_HOSTED_NODE_ROOM_NAME", "Regression room")
         .env("SELF_HOSTED_NODE_FORGE_AI", "false")
         .env(
@@ -1319,14 +1139,6 @@ fn spawn_node(relay_url: &str, manifest: Option<&str>) -> Proc {
             .env("SELF_HOSTED_NODE_SHUTDOWN_ON_STALE", "1")
             .env("SELF_HOSTED_NODE_MANIFEST_URL", manifest)
             .env("SELF_HOSTED_NODE_STALE_POLL_SECS", "2");
-    }
-    if let Ok(path) = std::env::var("REGRESSION_NODE_LOG") {
-        let log = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-            .expect("node log");
-        command.stdout(log.try_clone().unwrap()).stderr(log);
     }
     if let Ok(backend) = std::env::var("REGRESSION_NODE_ENGINE_BACKEND") {
         command.env("SELF_HOSTED_NODE_ENGINE_BACKEND", backend);

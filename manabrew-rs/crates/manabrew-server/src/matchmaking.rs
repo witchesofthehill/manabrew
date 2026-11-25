@@ -909,8 +909,7 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
 
 fn open_table(room: &Room) -> Option<OpenTable> {
     let bracket = room.table_bracket?;
-    let open = room.handoff_for.is_none()
-        && room.host_connected()
+    let open = room.host_connected()
         && room.status == RoomStatus::Lobby
         && room.players.len() < room.max_players as usize
         && matches!(room.format, GameFormat::Any | GameFormat::Commander)
@@ -1043,7 +1042,6 @@ fn requeue(state: &Arc<ServerState>, members: Vec<QueueEntry>) {
 
 fn pool_room_is_free(room: &Room) -> bool {
     room.hosted
-        && room.handoff_for.is_none()
         && room.host_connected()
         && room.status == RoomStatus::Lobby
         && room.players.is_empty()

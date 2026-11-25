@@ -42,7 +42,6 @@ pub struct ClientBuild {
     pub acquisition_source: Option<&'static str>,
     version: Option<Version>,
     raw_version: Option<String>,
-    pub features: Vec<String>,
 }
 
 impl ClientBuild {
@@ -64,12 +63,7 @@ impl ClientBuild {
             acquisition_source: None,
             version: raw_version.as_deref().and_then(Version::parse),
             raw_version,
-            features: Vec::new(),
         }
-    }
-
-    pub fn supports(&self, feature: &str) -> bool {
-        self.features.iter().any(|named| named == feature)
     }
 
     /// What goes in the analytics event. `None` for a client that reported

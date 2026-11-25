@@ -162,28 +162,6 @@ pub fn game_started_event(started: &StartedGame) -> AnalyticsEvent {
     }
 }
 
-pub fn emit_host_handoff(
-    handle: &AnalyticsHandle,
-    room_id: &str,
-    replay: &GameReplayCache,
-    outcome: &str,
-) {
-    let Some(handoff) = &replay.handoff else {
-        return;
-    };
-    handle.emit(AnalyticsEvent::HostHandoff {
-        ts: now_ts(),
-        room_id: room_id.to_string(),
-        game_id: replay.game_id.clone(),
-        attempt_id: handoff.attempt_id.clone(),
-        outcome: outcome.to_string(),
-        turn: Some(handoff.turn),
-        seconds_lost: Some(handoff.seconds_lost),
-        host_type: handoff.host_type.to_string(),
-        target_host_type: "pod".to_string(),
-    });
-}
-
 pub fn emit_game_ended(
     handle: &AnalyticsHandle,
     room: &Room,
@@ -197,13 +175,6 @@ pub fn emit_game_ended(
     } else {
         fallback
     };
-    if replay
-        .handoff
-        .as_ref()
-        .is_some_and(|handoff| handoff.claimed && !handoff.completed)
-    {
-        emit_host_handoff(handle, &room.room_id, replay, "restore_failed");
-    }
     metrics::record_game_ended(reason);
     let winner = replay
         .outcome

@@ -133,48 +133,6 @@ pub fn create_room_sync(
 pub struct ResumedRoom {
     pub room_info: RoomInfo,
     pub awaiting_rejoin: Vec<String>,
-    pub host_change: Option<HostChange>,
-}
-
-pub struct HostChange {
-    pub game_id: String,
-    pub previous_host: String,
-    pub turn: u32,
-}
-
-pub fn handoff_request(
-    room: &Room,
-    replay: &GameReplayCache,
-    resume_token: String,
-    official_key: Option<String>,
-) -> ResumeRoomRequest {
-    ResumeRoomRequest {
-        room_id: room.room_id.clone(),
-        resume_token,
-        room_name: room.room_name.clone(),
-        max_players: room.max_players,
-        format: room.format.clone(),
-        hosted: room.hosted,
-        allow_spectators: Some(room.allow_spectators),
-        table_style: room.table_style.clone(),
-        seat_indices: None,
-        engine: room.engine,
-        official_key: room.official.then_some(official_key).flatten(),
-        password: room.password.clone(),
-        reconnect_timeout_s: Some(room.reconnect_timeout_s),
-        draft_config: room.draft_config.clone(),
-        sealed_config: room.sealed_config.clone(),
-        player_order: replay.player_order.clone(),
-        player_decks: replay.player_decks.clone(),
-        starting_life: replay.starting_life,
-        bot_players: room
-            .players
-            .iter()
-            .filter(|slot| slot.is_bot)
-            .map(|slot| slot.username.clone())
-            .collect(),
-        game_id: replay.game_id.clone(),
-    }
 }
 
 pub fn resume_room_sync(
@@ -236,39 +194,8 @@ pub fn resume_room_sync(
     }
 
     if let Some(mut room) = state.rooms.get_mut(&spec.room_id) {
-        let is_handoff = room
-            .replay
-            .as_ref()
-            .and_then(|r| r.handoff.as_ref())
-            .is_some_and(|handoff| {
-                handoff.token == spec.resume_token
-                    && !handoff.claimed
-                    && handoff.offered_at.elapsed() < std::time::Duration::from_secs(45)
-                    && room
-                        .replay
-                        .as_ref()
-                        .is_some_and(|r| r.game_id == spec.game_id)
-                    && state
-                        .players
-                        .get(&room.host_player_id)
-                        .is_none_or(|p| !p.connected)
-            });
-        if room.parent_limited_room.is_some()
-            || (!is_handoff
-                && (room.resume_token != spec.resume_token || room.host_username != username))
-        {
+        if room.parent_limited_room.is_some() || room.resume_token != spec.resume_token {
             return Err(ServerError::InvalidResumeToken);
-        }
-        if is_handoff {
-            room.transports.clear();
-            room.resume_token = spec.resume_token.clone();
-            room.replay
-                .as_mut()
-                .unwrap()
-                .handoff
-                .as_mut()
-                .unwrap()
-                .claimed = true;
         }
         if room.is_limited_session() && room.host_username != username {
             return Err(ServerError::InvalidResumeToken);
@@ -299,20 +226,8 @@ pub fn resume_room_sync(
         }
 
         let old_host_pid = room.host_player_id.clone();
-        let old_host_username = std::mem::replace(&mut room.host_username, username.clone());
         room.host_player_id = player_id.to_string();
-        let host_change = if is_handoff {
-            room.replay.as_mut().map(|replay| {
-                replay.host_changed();
-                HostChange {
-                    game_id: replay.game_id.clone(),
-                    previous_host: old_host_username,
-                    turn: replay.checkpoint.as_ref().map_or(0, |held| held.turn),
-                }
-            })
-        } else {
-            None
-        };
+        room.host_username = username.clone();
         if room.hosted {
             room.remove_observer(&old_host_pid);
             let _ = room.add_observer(player_id.to_string(), username.clone());
@@ -328,7 +243,6 @@ pub fn resume_room_sync(
         let resumed = ResumedRoom {
             room_info: room.to_room_info(),
             awaiting_rejoin: awaiting_rejoin(&room),
-            host_change,
         };
         drop(room);
 
@@ -401,7 +315,6 @@ pub fn resume_room_sync(
     let resumed = ResumedRoom {
         room_info: room.to_room_info(),
         awaiting_rejoin: awaiting_rejoin(&room),
-        host_change: None,
     };
     let pending_seats: Vec<String> = room
         .players

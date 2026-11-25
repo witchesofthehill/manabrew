@@ -68,7 +68,6 @@ pub struct Room {
     pub pool_max_players: Option<u8>,
     pub table_bracket: Option<u8>,
     pub auto_start: bool,
-    pub handoff_for: Option<String>,
 }
 
 impl Room {
@@ -152,7 +151,6 @@ impl Room {
             matchmade_bot_fill: false,
             pool_max_players: None,
             table_bracket: None,
-            handoff_for: None,
             auto_start,
         }
     }
@@ -227,10 +225,6 @@ impl Room {
         is_bot: bool,
         seat_index: Option<u8>,
     ) -> Result<(), ServerError> {
-        if self.handoff_for.is_some() {
-            return Err(ServerError::RoomFull(self.room_id.clone()));
-        }
-
         if self.status != RoomStatus::Lobby {
             return Err(ServerError::GameAlreadyStarted);
         }

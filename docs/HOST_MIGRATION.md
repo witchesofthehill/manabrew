@@ -1,42 +1,65 @@
-# Forge host migration
+# Warm journal replicas for Forge host migration
 
-## Scope and history
+## Status and shipping dependency
 
-PR #902 was closed because its author superseded it with #1026. Neither PR has a rejection in its review discussion. #1026 combined checkpoint takeover with a durable decision journal and was also closed. This change ports the small checkpoint path onto current main. Main's local decision replay remains separate. `TurnCheckpoint` is the old #902 `GameCheckpoint`; the current `GameCheckpoint` name already belongs to verified journal rewind.
+This is the implementation handoff for fedpoi. Ship host migration after deterministic Forge bots. The remaining code in this draft only excludes disconnected engine hosts from matchmaking and game startup, and tests that a human departure does not end a matchmade node game.
 
-Start with native Forge hosts, including fleet pods and the native desktop host process. Browser Forge has no checkpoint export. Ironsmith already migrates its input sequencer and does not need this path.
+Host migration itself is not implemented here. The recovery design uses a live standby engine on another node, continuously applying the authoritative decision journal. Promotion must not start a fresh JVM or replay the entire game after the host dies. Do not use Forge `GameState` text, turn-start rollback, or the lossy sidecar from #902.
 
-Matchmade pods prefer a free hosted room. Two-player pods prefer a `can_host` member. Queue table calls can also seat people at an existing native desktop table. `hosted=true` and the relay's “non-playing host” log describe the separate engine connection, not proof that it is a fleet node. Disconnected hosts must be excluded from both pool selection and table calls, and cannot start games.
+#902 was superseded by #1026, which also explored durable journals. The existing verified journal machinery on main is the foundation. `docs/DECISION_REPLAY.md` describes its current boundaries: rewind constructs a fresh isolated engine on demand; it does not maintain an idle replica. Reuse its canonical inputs, verification and process isolation, and add continuous follower execution.
 
-## Recovery contract
+## Existing journal surface
 
-The harness exports once per turn at the first available MAIN1 priority window with an empty stack, no simultaneous entries and no combat. The immutable text and sidecar travel through the isolated engine command bridge. They include all hands and library order and never go to a player or spectator. Checkpoint receipt is authorized against the current room host and game, capped at 2 MiB and ordered per host session.
+`DecisionJournal` version 2 carries the exact start request followed by ordered entries containing sequence, deciding player, canonical prompt, action and verification. `readDecisionJournal` and cumulative `acknowledgeDecisionJournal` support retryable delivery. Do not mix them with drained delivery. The commit barrier holds startup and inputs until acknowledgement. The delivery buffer is bounded and is not a durable full-game log.
 
-After 20 seconds, or the configured reconnect window plus margin when shorter, the relay offers recovery to an official idle Forge pod advertising `host_handoff`. Every retained human must advertise that feature so its client can clear old IDs. The selected idle room is reserved while the offer is pending. The node releases that idle room and uses its pool slot for the takeover.
+Current verification covers prompts, seats, views, ordered card identities and RNG position. Define exactly which before-input or after-input boundary each witness proves. Do not treat receipt of an entry, or its existing verification field, as proof that its resulting state has been applied. Add an explicit verified boundary for the current pending prompt and terminal game state.
 
-A separate expiring token authorizes a new session's `ResumeRoom`. The original host can still reconnect before the claim. A claim invalidates the original credential and clears cached states, prompts, directives, queued inputs and transports. It preserves game ID, seats and elapsed game duration. Takeovers allocate a new prompt-ID range, so delayed old responses cannot answer restored prompts. The client clears prompts and card-dependent UI and waits for full state. A published full state confirms success. An unclaimed offer times out after 45 seconds. A claimed engine that never publishes state is also aborted.
+Interactive rewind currently owns journal delivery and rejects `decisionJournalCommitBarrier`. Resolve that ownership before enabling replicated games. A rewind is a coordinated journal branch change: both engines must switch to the same accepted prefix and generation. Otherwise disable rewind for protected games until this is implemented. Do not silently combine the two existing consumers.
 
-Restore runs on the engine thread through a `GameState` subclass calling `applyGameOnThread`, never `applyToGame`. Previously eliminated seats are removed before applying the text. Seats that departed after the checkpoint are conceded after import. The sidecar restores commander cast counts and damage, monarch, initiative and day/night.
+## Active host and warm standby
 
-Player message: “The table moved to a new host. Play resumes from the start of turn N. Actions since then must be played again. Emblems and effects that last several turns may be missing.” The checkpoint is actually the first main-phase boundary. It does not preserve stack, pending prompts, turn history, layer timestamps or arbitrary persistent effects. It is a lossy recovery, not exact replay.
+1. At game start, allocate an active engine and a standby on different node processes and failure domains. Reserve the standby against real engine capacity. Keep both alive for the game. A loaded JVM alone is insufficient: the standby must hold this game's execution state at a verified boundary.
+2. Pin identical harness, assets, runtime, effective preferences, start request and seed. Current cross-runtime and cross-artifact replay is unsupported. Native desktop, JVM pod and Web Image are not interchangeable until compatibility is demonstrated. Begin with compatible node-to-node Commander games.
+3. Send the start request and sequenced journal stream through a private authenticated replication path. Retain a durable ordered log outside the active process. Acknowledge the source only after the required durable replication receipt. Record received, committed, applied and verified positions separately.
+4. Run a persistent follower in its own isolated worker or process. Incrementally feed canonical journal entries, verify every boundary, and wait for the next entry. Never publish its state, issue player prompts, send bot actions, or report outcomes while it is a follower. Do not independently choose external Manabot actions; replay their consumed inputs. Internal Forge bot replay depends on fedpoi's deterministic implementation and matching RNG behavior.
+5. Replicate all gameplay-affecting inputs, including concessions, timeout decisions and relevant directives. Preserve ordering and deduplicate retried player commands. Do not use relay arrival order as a substitute for the engine's consumed journal order.
+6. A divergent, incompatible or lagging standby is ineligible for promotion. Surface the protection state and replace the standby while the active host still serves the game. Initial synchronization and replacement can replay history in the background; the normal failure path promotes an already running follower.
 
-An ordinary human leaving a node table remains a concession. Surviving humans continue against each other or existing Manabot seats. No replacement human identity is fabricated.
+## Commit boundary and promotion
+
+The relay assigns a monotonically increasing host epoch and validates it for host output, outcomes, replication acknowledgements and client routing. A disconnected socket is not a fencing mechanism. Old hosts must lose authority even if their process remains alive or reconnects later.
+
+On host loss, freeze new game inputs, fence the old epoch, and determine the durable committed journal prefix. Let the warm standby finish any committed tail and verify the exact pending boundary. Promote only that verified engine under the new epoch. Preserve game ID, stable seats and match identity. Publish fresh full views and the pending prompt before accepting responses. Invalidate old transport routes and stale prompt responses; journal reconstruction alone does not establish wire authority.
+
+Define player acknowledgement around the committed prefix. An acknowledged action must be durably replicated before its result becomes authoritative. In-flight uncommitted actions can be retried using command IDs; they must not be silently applied twice. If the standby or durable tail is unavailable, pause recovery and report the limitation. Do not claim seamless failover or fall back silently to lossy turn checkpoints. A cold rebuild would be a separate, explicitly slower disaster-recovery path, not this handoff contract.
+
+Normal handoff copy should say that the table is reconnecting to its standby, then that play has resumed. There is no turn-start rollback notice or warning about discarded emblems. Exactness must be established by continued-play verification, including stack and pending choices.
+
+After promotion, provision another standby without exceeding pool capacity. Stop both replicas when the game ends or all humans leave. Shutdown, node drain, room cleanup and repeated failover must preserve a single authoritative engine and release both reservations.
+
+## Matchmaking and browser follow-up
+
+Larger matchmade pods currently prefer free hosted rooms. Two-player pods prefer a `can_host` browser. Open-table calls can also seat players at a native desktop table. `hosted=true` and the non-playing-host log do not distinguish desktop engines from fleet pods.
+
+The existing human-departure path concedes that seat and lets the remaining humans or existing Manabot seats continue. It needs no replacement identity or new game. Protection must include these concessions in the replicated journal.
+
+Browser protection needs journal delivery through the Web Image, worker and `seat.js`, plus a compatible warm follower runtime. It does not need a `GameState` export API. Persistently stream journal entries while the browser is alive, including when gameplay uses WebRTC; never depend on a closing tab sending its final state. Verify cross-runtime replay before enabling browser-to-native standby. Otherwise use a matching runtime or leave that pairing unsupported.
+
+Retain #898's host ranking at game start: native desktop, desktop-class wasm browser, then pod. A pod wins when not every seat explicitly opts into hidden-information hosting. Phones and PWAs never host. A standby receives all hidden information too, so peer-hosted replicas need the same unanimous consent. Feature support and `can_host` are not consent. Official node standbys keep that data away from other players.
 
 ## Measurement
 
-`host_handoff` events carry `game_id`, `room_id`, a non-secret `attempt_id`, `outcome`, checkpoint `turn`, `seconds_lost`, source `host_type` and `target_host_type`. Outcomes distinguish offered, claimed, succeeded, host_resumed, no_checkpoint, no_candidate, unsupported_clients, timed_out and restore_failed. `seconds_lost` estimates rollback from relay checkpoint receipt to host disconnect, excluding the recovery wait. Missing checkpoints have null turn and loss. Transfer tokens and checkpoint contents are never analytics fields.
+Add relay `host_handoff` events when the implementation lands. Include a non-secret attempt ID, game ID, old and new epoch, source and target host types, outcome, turn, committed and verified journal sequence, input lag, catch-up time and total interruption. `seconds_lost` measures rolled-back authoritative gameplay, not downtime. It should be zero for a successful fully committed warm promotion; report it as unknown when evidence cannot establish that. Use a separate interruption-duration field.
 
-The ingester increments `games.host_changes` only for succeeded. Raw events retain every outcome. Join them to `games` on `game_id`; successful recovery does not emit a game end or mint another game. Subsequent completion keeps its actual `games.end_reason`. Exhausted recovery falls back to `host_lost`; an engine failure can retain `engine_fatal` under existing outcome precedence. Abandonment is still abandonment.
+Outcomes must distinguish promotion success, no ready standby, incompatible artifacts, journal divergence, missing durable tail, promotion timeout and fencing rejection. Never log journal contents, hidden cards, credentials or transfer tokens. Measure standby readiness, replication lag, memory and reserved capacity separately.
 
-## Handoff to the next implementation
+Keep the same `game_id` through promotion. Successful handoff must not emit `game_ended`; the eventual game keeps its actual `games.end_reason`. Recovery exhaustion ends through the explicit lifecycle path, normally `host_lost`, without masking an independently reported engine failure. Join handoff attempts to games by game ID and count confirmed promotions only.
 
-This draft is the checkpoint recovery foundation for fedpoi. The existing deterministic decision-journal work stays separate. Before enabling production takeover, run a two-pod staging drill against the packaged native runtime, including bot seats, a second host loss, reconnect races and failed restore. Browser export and exact deterministic recovery remain follow-ups.
+## Acceptance tests for the implementation
 
-## Browser follow-up
-
-1. Add a host-only export channel to the Forge Web Image entry point, `SabTransport`, engine worker and `packages/forge-wasm/seat.js`. Publish only immutable turn-checkpoint strings captured on the game thread. Do not traverse live zones from a worker RPC or expose export on ordinary guest seats.
-2. Add a worker-to-host checkpoint notification carrying game ID, sequence and turn. Send `ReportCheckpoint` through the relay even while gameplay uses WebRTC. Cache the newest checkpoint outside the worker and bound payload and polling cost. Browser closure must require no last-second message.
-3. Support checkpoint startup in Web Image and preserve the same sidecar and direct game-thread import. Skip mulligans, invalidate every ID-based cache, restart seat readers and require fresh full views. Test four seats, eliminated players, Commander metadata and departures after checkpoint capture.
-4. Enable browser-to-pod first. Browser-to-browser transfers expose hidden information and require every seat's explicit opt-in. Do not infer consent from `can_host`, platform or matchmaking participation.
-5. Apply #898 ranking at game start: native desktop, desktop-class wasm browser, then pod. A pod wins when any seat has not opted in. Phones and PWAs never host. Measure checkpoint cost on desktop wasm before choosing a broader cadence.
-6. Test abrupt tab death, stale inputs, restore failure, incompatible clients, takeover timeout, reconnect races and a second handoff. Rebuild and verify the real Web Image artifact before enabling the wire capability.
+- Extend the relay host-loss test to promote an already running follower. Prove fencing rejects the old host's states, outcomes and delayed messages, including after it reconnects.
+- Replace the GameState round-trip test with an active/follower journal test in separate compatible processes. Compare every seat, spectator state, prompts, RNG witnesses and continued play. Cover four-seat Commander, eliminated seats, commander damage and tax, monarch, initiative, day/night, stack, pending decisions, emblems and persistent effects.
+- Kill the active process after committed input, before acknowledgement, and during a pending choice. No acknowledged action is lost and retries are applied at most once. Assert the promoted engine existed before the kill and no fresh engine startup occurs during handoff.
+- Leave a human seat mid-game, fail over, and continue with the remaining humans and Manabot. Repeat with deterministic internal Forge bots after that dependency ships.
+- Exercise standby lag, loss and replacement, duplicate and reordered batches, journal limits, divergence, relay reconnect, coordinated rewind and a second promotion. Verify capacity and cleanup on every path.
+- Assert analytics outcomes and unchanged game identity, and verify the real packaged runtime on two nodes before production enablement.

@@ -238,8 +238,6 @@ def open_db(path: Path) -> sqlite3.Connection:
     # Seats the host served off the relay, from its transport report; NULL
     # when none did. Compare with player_count for the room's shape.
     ensure_column(db, "games", "direct_seats", "INTEGER")
-    # Times the engine moved to another host mid-game; NULL when it never did.
-    ensure_column(db, "games", "host_changes", "INTEGER")
     db.execute("UPDATE games SET source = 'relay' WHERE source IS NULL")
     db.execute(
         "UPDATE games SET game_over = 0 "
@@ -356,17 +354,6 @@ def ingest_transport_used(db, ev):
            VALUES (?, ?, ?, 'relay')
            ON CONFLICT(game_id) DO UPDATE SET direct_seats=excluded.direct_seats""",
         (ev.get("game_id"), ev.get("room_id"), direct),
-    )
-
-
-def ingest_host_handoff(db, ev):
-    if ev.get("outcome") != "succeeded":
-        return
-    db.execute(
-        """INSERT INTO games (game_id, room_id, host_changes, source)
-           VALUES (?, ?, 1, 'relay')
-           ON CONFLICT(game_id) DO UPDATE SET host_changes=coalesce(host_changes, 0) + 1""",
-        (ev.get("game_id"), ev.get("room_id")),
     )
 
 
@@ -503,7 +490,6 @@ INGESTERS = {
     "engine_stats": ingest_engine_stats,
     "transport_used": ingest_transport_used,
     "plane_quality": ingest_plane_quality,
-    "host_handoff": ingest_host_handoff,
 }
 
 

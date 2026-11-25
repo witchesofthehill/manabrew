@@ -23,28 +23,6 @@ pub struct ReportedOutcome {
 }
 
 #[derive(Debug)]
-pub struct HostCheckpoint {
-    pub host_player_id: String,
-    pub seq: u64,
-    pub turn: u32,
-    pub checkpoint: String,
-    pub received_at: Instant,
-}
-
-#[derive(Debug)]
-pub struct HostHandoff {
-    pub attempt_id: String,
-    pub token: String,
-    pub candidate: String,
-    pub offered_at: Instant,
-    pub seconds_lost: f64,
-    pub host_type: &'static str,
-    pub turn: u32,
-    pub claimed: bool,
-    pub completed: bool,
-}
-
-#[derive(Debug)]
 pub struct GameReplayCache {
     pub game_id: String,
     pub started_at: Instant,
@@ -58,8 +36,6 @@ pub struct GameReplayCache {
     pub pending_directives: HashMap<(String, String), Value>,
     pub queued_inputs: HashMap<String, Vec<QueuedEngineInput>>,
     pub outcome: ReportedOutcome,
-    pub checkpoint: Option<HostCheckpoint>,
-    pub handoff: Option<HostHandoff>,
 }
 
 impl GameReplayCache {
@@ -83,42 +59,7 @@ impl GameReplayCache {
             pending_directives: HashMap::new(),
             queued_inputs: HashMap::new(),
             outcome: ReportedOutcome::default(),
-            checkpoint: None,
-            handoff: None,
         }
-    }
-
-    pub fn record_checkpoint(
-        &mut self,
-        host_player_id: &str,
-        seq: u64,
-        turn: u32,
-        checkpoint: String,
-    ) -> bool {
-        if self
-            .checkpoint
-            .as_ref()
-            .is_some_and(|held| held.host_player_id == host_player_id && held.seq >= seq)
-        {
-            return false;
-        }
-        self.checkpoint = Some(HostCheckpoint {
-            host_player_id: host_player_id.to_string(),
-            seq,
-            turn,
-            checkpoint,
-            received_at: Instant::now(),
-        });
-        true
-    }
-
-    pub fn host_changed(&mut self) {
-        self.last_state = None;
-        self.last_state_by_slot.clear();
-        self.pending_directives.clear();
-        self.outcome = ReportedOutcome::default();
-        self.pending_prompts.clear();
-        self.queued_inputs.clear();
     }
 
     pub fn observe(&mut self, envelope: &Value) {

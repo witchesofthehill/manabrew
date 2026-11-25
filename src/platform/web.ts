@@ -1289,7 +1289,6 @@ class WebServerApi implements IServerApi {
           client_version: APP_VERSION,
           engine_gate: forgeWasmGate(),
           acquisition_source: getAcquisitionSource(),
-          features: ["host_handoff"],
         });
         this.startKeepalive();
         resolve();
@@ -2388,7 +2387,7 @@ class WebServerApi implements IServerApi {
       }
     }
 
-    if (type === "GameStarted" || type === "HostChanged") {
+    if (type === "GameStarted") {
       for (const bot of this.bots.values()) {
         if (bot.roomId === msg.room_id) bot.status = "InGame";
       }
@@ -2491,10 +2490,6 @@ class WebServerApi implements IServerApi {
         },
       ],
       GameAborted: ["server:game_aborted", { room_id: msg.room_id }],
-      HostChanged: [
-        "server:host_changed",
-        { room_id: msg.room_id, game_id: msg.game_id, host: msg.host, turn: msg.turn },
-      ],
       ChatMessage: [
         "server:chat_message",
         {

@@ -15,7 +15,6 @@ public final class EngineCommands {
             case "submitAction" -> adapter.submitAction(session, request.get("payload").getAsString());
             case "getPrompt" -> adapter.getPrompt(session, request.get("playerIndex").getAsInt());
             case "getSnapshot" -> adapter.getSnapshot(session, request.has("viewer") ? request.get("viewer").getAsInt() : -1);
-            case "getCheckpoint" -> adapter.getCheckpoint(session);
             case "getGameOver" -> adapter.getGameOver(session);
             case "getStateRevision" -> adapter.getStateRevision(session);
             case "drainCheckpointMetrics" -> adapter.drainCheckpointMetrics(session);

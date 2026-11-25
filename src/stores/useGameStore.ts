@@ -16,6 +16,7 @@ import {
   currentOfflineGameId,
 } from "@/lib/offlinePlayRecord";
 import { announceLocalGame, clearLocalGame } from "@/lib/localGamePresence";
+import { closeOfflineGame } from "@/lib/closeOfflineGame";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
@@ -885,6 +886,7 @@ export const useGameStore = create<GameState>()(
           gameLaunchGeneration += 1;
           set({ gameLaunchReady: false });
           const activeSession = peekActiveGameSession();
+          closeOfflineGame(get(), !!activeSession?.relayHost);
           if (!options?.preserveRoom) clearActiveGameSession();
           const runtime = getSelectedGameRuntime();
           const wasMultiplayer = get().isMultiplayer || (get().isRestartingGame && !!activeSession);

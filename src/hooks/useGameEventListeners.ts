@@ -8,8 +8,8 @@ import {
 } from "@/game";
 import { teardownForgeAiSession } from "@/game/hostedAiPlay";
 import { engineReportGameId, reportEngineStats } from "@/lib/engineStatsReport";
-import { currentOfflineGameId, reportOfflineGame } from "@/lib/offlinePlayRecord";
-import { offlineSeats } from "@/lib/offlineSeats";
+import { currentOfflineGameId } from "@/lib/offlinePlayRecord";
+import { closeOfflineGame } from "@/lib/closeOfflineGame";
 import { clearLocalGame } from "@/lib/localGamePresence";
 import { reportClientError, setErrorReportingEngine } from "@/lib/errorReporting";
 import { useGameStore } from "@/stores/useGameStore";
@@ -200,16 +200,7 @@ function reportEngineGame(): void {
   const localRelayGame = !!peekActiveGameSession()?.relayHost;
   if (state.isMultiplayer) reportHostOutcome(state);
   if (!state.isMultiplayer) clearLocalGame();
-  if (!state.isMultiplayer || localRelayGame) {
-    const seats = offlineSeats(state.gameView);
-    const winnerId = state.gameView?.winnerId ?? null;
-    reportOfflineGame({
-      gameOver: isOver(state),
-      winner: seats.find((seat) => seat.seatId === winnerId)?.username ?? null,
-      seats,
-      engineError: state.engineCrash,
-    });
-  }
+  closeOfflineGame(state, localRelayGame);
   reportEngineStats({
     multiplayer: state.isMultiplayer,
     seats: Object.keys(state.gameDecks).length || 2,
@@ -512,6 +503,13 @@ export function useGameEventListeners() {
           const message = payload?.message ?? `Forced game exit`;
           const { isMultiplayer, isHost } = getState();
           const activeSession = peekActiveGameSession();
+          closeOfflineGame(
+            {
+              ...state,
+              engineCrash: state.engineCrash ?? `forced_end ${payload?.reason}: ${message}`,
+            },
+            !!activeSession?.relayHost,
+          );
           clearActiveGameSession();
           setErrorReportingEngine(null);
           setState({

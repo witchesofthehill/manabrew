@@ -26,6 +26,7 @@ export const useInviteStore = create<InviteState>()((set, get) => ({
   sent: new Set(),
 
   add(invite) {
+    if (invite.room.engine === "Manabrew") return;
     const roomId = invite.room.room_id;
     clearTimeout(expiry.get(roomId));
     expiry.set(

@@ -1,9 +1,9 @@
 <h1 align="center">Manabrew</h1>
 
-> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
+> **Manabrew Engine and the parity harness are deprecated.** The app no longer plays games on the Rust rules engine. Maintainers are not accepting work on either unless they explicitly request it. See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 <p align="center">
-  <strong>An open-source Magic: The Gathering client and rules engine, built around <a href="https://github.com/Card-Forge/forge">Forge</a> compatibility.</strong>
+  <strong>An open-source Magic: The Gathering client powered by <a href="https://github.com/Card-Forge/forge">Forge</a>.</strong>
 </p>
 
 <p align="center">
@@ -68,22 +68,9 @@
 
 ## What This Is
 
-`Manabrew` is a React/Tauri client and Rust rules-engine project for playing
-Magic online. It uses Forge as the rules reference instead of defining a new
-interpretation of the game.
-
-The repository includes:
-
-- a desktop client, web client, deck tools, and multiplayer runtime;
-- a Rust port of Forge's game engine;
-- Java Forge interop for Forge-backed games through the same client stack;
-- a parity harness that compares Rust and Java Forge with the same decks, seed,
-  and deterministic choices.
-
-> [!TIP]
-> The Rust engine is still catching up to Forge. The client stack can also drive
-> Java Forge-backed sessions, which gives the project a usable path while Rust
-> parity work continues.
+Manabrew is a React/Tauri client for playing Magic online. The repository includes
+desktop and web clients, deck tools, and multiplayer runtime code for Forge.
+The deprecated Rust rules engine and parity harness remain in the repository.
 
 ## Start playing online now - for free
 
@@ -93,11 +80,10 @@ To get started visit our [landing page](https://manabrew.app)
 
 `Manabrew` is pre-release software.
 
-- The client and Java Forge backend path are the most practical way to play
-  today.
-- The Rust engine works for selected matchups, but broad card coverage is still
-  in progress.
-- Engine work is driven by parity testing against Java Forge.
+- Forge is the default for offline and multiplayer play. Ironsmith is a separate
+  opt-in for multiplayer.
+- Multiplayer Draft and Sealed pool creation is paused. Offline Limited and
+  multiplayer matches with saved Draft and Sealed decks are still available.
 - Packaging, contributor onboarding, and release-readiness work are ongoing.
 - The deck editor's **Customize card** action adjusts finish, frame, border and
   wear for selected physical copies. Art and printing selection use the existing
@@ -113,7 +99,7 @@ To get started visit our [landing page](https://manabrew.app)
 - Node.js 24.x
 - Yarn v1
 - Rust stable managed by rustup, plus native compiler/linker tools
-- JDK 18–21 and Maven for the Java Forge harness / parity runs. Newer JDKs
+- JDK 18–21 and Maven for the Java Forge host. Newer JDKs
   (e.g. 26) currently fail to compile Forge; if `/usr/libexec/java_home`
   resolves to one, pin an older one: `JAVA_HOME="$(/usr/libexec/java_home -v 21)"`.
 - Platform prerequisites for [Tauri](https://tauri.app/start/prerequisites/)
@@ -272,10 +258,7 @@ yarn lint:all
 | `yarn web`             | Build the WASM engine and start the web client         |
 | `yarn build`           | Build the desktop app                                  |
 | `yarn build:web`       | Build the web app                                      |
-| `yarn build:harness`   | Build the Java Forge parity harness                    |
-| `yarn parity`          | Run named parity scenarios                             |
-| `yarn parity:test --`  | Run the parity binary with custom arguments            |
-| `yarn parity:gui`      | Start the engine debugger                              |
+| `yarn build:harness`   | Build the Java Forge host                              |
 | `yarn lint:all`        | Run frontend lint/typecheck and Rust fmt/clippy checks |
 | `yarn import-deck ...` | Import a deck from Archidekt or Moxfield               |
 
@@ -296,24 +279,14 @@ Forge Java reference         forge/
 Parity harness               manabrew-rs/crates/parity/
 ```
 
-The deeper engine workspace map is in
-[manabrew-engine/README.md](./manabrew-engine/README.md).
+See the [Rust workspace map](./manabrew-rs/README.md).
 
 ## Parity Harness
 
-Most engine work starts with a failing parity run:
+The deprecated harness compared the Rust rules engine with Java Forge. It is
+not functioning and is not part of current gameplay verification.
 
-```bash
-yarn build:harness
-yarn parity:test -- --deck1 red_burn --deck2 green_stompy --seed 42 --max-turns 20
-```
-
-The harness runs Rust and Java Forge with the same inputs, compares trace
-snapshots, and reports the first mismatch. A good fix restores the missing
-general rule in Rust by reading the corresponding Java file, not by special
-casing the card that exposed the bug.
-
-Start here:
+Historical references:
 
 - [Parity Testing Guide](./docs/PARITY_TESTING.md)
 - [Engine Bugfix Workflow](./docs/agents/ENGINE_BUGFIX_WORKFLOW.md)
@@ -371,7 +344,7 @@ Forge is the foundation of this project.
 - The Java Forge source under `forge/` is the reference implementation.
 - The Rust engine mirrors Forge's rules structure and consumes Forge card
   scripts.
-- The parity harness keeps behavior faithful to Forge.
+- The deprecated parity harness compared the two implementations.
 - The engine and bundled card data are derivative of Forge (GPL-3.0-or-later);
   this project's own code is AGPL-3.0-or-later (a GPL-compatible license that
   also covers network use). The vendored `forge/` tree stays GPL-3.0-or-later.
@@ -389,15 +362,15 @@ ecosystem context, see [Ecosystem](./docs/ECOSYSTEM.md).
 
 ## Contributing
 
-The most useful contributions are small, well-scoped parity fixes,
-documentation improvements, UI bug fixes, and reproducible issue reports.
+The most useful contributions are focused fixes to active features,
+documentation improvements, and reproducible issue reports.
 
 Before opening a PR, read [CONTRIBUTING.md](./CONTRIBUTING.md). In short:
 
 - work from an issue or open one first for larger changes;
 - use Conventional Commit messages;
 - sign commits with a DCO `Signed-off-by:` trailer;
-- for engine fixes, read the Java Forge counterpart before editing Rust;
+- for gameplay fixes, identify the active runtime and reproduce the issue there;
 - run `yarn lint:all` before asking for review;
 - do not bundle card images or secrets.
 
@@ -420,9 +393,8 @@ installers are uploaded to the Actions run (30-day retention).
 
 ### AI-Assisted Development
 
-This repository welcomes the use of AI assistance for mechanical porting, parity
-investigation, trace analysis, documentation, and large-scale inventory work. AI
-output is treated as code written by a contributor: it must be well thought of, reviewed, and properly tested.
+AI-assisted contributions must meet the same review and verification standards
+as other contributions.
 
 Do not push code you don't understand.
 

@@ -1,6 +1,6 @@
 // UI e2e: in-game board settings + unified card sizing.
 //
-// Drives a real bot game on the default (Manabrew) engine and checks:
+// Drives a real Forge bot game and checks:
 //   1. the settings shortcut opens the Board settings modal,
 //   2. the card size slider persists and rescales the live board,
 //   3. the zone-pile lock persists.
@@ -22,6 +22,7 @@ import {
   connectLocal,
   createRoom,
   pickPreset,
+  pickBotPreset,
   deckButton,
 } from "../e2e-ironsmith/lib.mjs";
 import { answerPrompt } from "./forgeSolo.mjs";
@@ -45,11 +46,9 @@ async function fail(msg) {
 const NM = uniqueName();
 await onboard(page, NM);
 await connectLocal(page, NM);
-await createRoom(page, { name: "UiSettingsE2E", engine: "Manabrew", format: "Standard" });
+await createRoom(page, { name: "UiSettingsE2E", format: "Standard" });
 await pickPreset(page, () => deckButton(page).click(), DECK);
-await page.getByRole("button", { name: /Add (a )?bot/i }).click();
-await page.waitForTimeout(900);
-if (await page.locator("[role=dialog]").count()) await pickPreset(page, async () => {}, DECK);
+await pickBotPreset(page, DECK);
 await page.getByRole("button", { name: /Start (Game|Table)/i }).click();
 await page.waitForURL(/\/play/, { timeout: 60000 }).catch(() => {});
 if (!/\/play/.test(page.url())) await fail("did not reach the board");

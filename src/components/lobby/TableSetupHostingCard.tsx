@@ -1,48 +1,33 @@
 import { ChevronDown, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { GameIcon } from "@/components/game/GameIcon";
 import { EngineMark } from "@/components/lobby/EngineMark";
-import { RECONNECT_TIMEOUT_OPTIONS, type RoomKind } from "@/components/lobby/tableSetup.constants";
+import { RECONNECT_TIMEOUT_OPTIONS } from "@/components/lobby/tableSetup.constants";
 import { cn } from "@/lib/utils";
-import type { EngineKind } from "@/types/server";
 interface TableSetupHostingCardProps {
-  kind: RoomKind;
-  engine: EngineKind;
-  onEngineChange: (engine: EngineKind) => void;
-  canHostForge: boolean;
+  engine: "Forge" | "Ironsmith";
+  onEngineChange: (engine: "Forge" | "Ironsmith") => void;
   isTauri: boolean;
   hostedNode: boolean;
-  forgeRoomAvailable: boolean;
   ironsmithEnabled: boolean;
   reconnectTimeoutS: number;
   onReconnectTimeoutSChange: (seconds: number) => void;
 }
 export function TableSetupHostingCard({
-  kind,
   engine,
   onEngineChange,
-  canHostForge,
   isTauri,
   hostedNode,
-  forgeRoomAvailable,
   ironsmithEnabled,
   reconnectTimeoutS,
   onReconnectTimeoutSChange,
 }: TableSetupHostingCardProps) {
-  const warningText =
-    kind !== "match"
-      ? `Limited runs on the Manabrew engine only \u2014 a work in progress that may have bugs or missing cards. Forge nodes host constructed matches, not drafts.`
-      : engine === "Ironsmith"
-        ? `Ironsmith is experimental with partial card support \u2014 some decks won't run yet. Tables use Trusted mode: the host browser is authoritative, and hidden information is redacted per player.`
-        : isTauri && !forgeRoomAvailable
-          ? `This build does not include native Forge hosting. Manabrew remains available.`
-          : `The Manabrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine.`;
+  const forgeLocation = hostedNode ? "on a node" : isTauri ? "on this device" : "in this browser";
   return (
     <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
       <h2 className="text-ui-label font-semibold">Hosting</h2>
       <div className="mt-3 space-y-4">
-        {kind === "match" ? (
+        {ironsmithEnabled ? (
           <details className="group rounded-lg border border-border/70 bg-muted/20">
             <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-ui-label font-medium [&::-webkit-details-marker]:hidden touch:min-h-11 touch:min-w-11">
               Engine
@@ -53,102 +38,57 @@ export function TableSetupHostingCard({
               <ChevronDown className="ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform group-open:rotate-180" />
             </summary>
             <div className="grid gap-1 border-t border-border/60">
-              {canHostForge && (
-                <EngineOption
-                  selected={engine === "Forge"}
-                  onClick={() => onEngineChange("Forge")}
-                  mark={
-                    <EngineMark
-                      engine="Forge"
-                      className={cn(
-                        "h-3.5 w-3.5",
-                        engine === "Forge" ? "text-primary" : "text-muted-foreground",
-                      )}
-                    />
-                  }
-                  label={`Forge`}
-                  badge={
-                    <Badge variant="outline" className="text-ui-meta">
-                      {isTauri ? `on this device` : hostedNode ? `on a node` : `in this browser`}
-                    </Badge>
-                  }
-                  description={
-                    isTauri
-                      ? `Full card support, hosted in-app on this device. Others join from the lobby.`
-                      : hostedNode
-                        ? `Full card support, hosted on a Manabrew node. Others join from the lobby.`
-                        : `Full card support, hosted in this browser tab. Others join from the lobby.`
-                  }
-                />
-              )}
               <EngineOption
-                selected={engine === "Manabrew"}
-                onClick={() => onEngineChange("Manabrew")}
-                mark={
-                  <GameIcon
-                    name="beer-stein"
-                    className={cn(
-                      "h-3.5 w-3.5",
-                      engine === "Manabrew" ? "text-primary" : "text-muted-foreground",
-                    )}
-                  />
-                }
-                label={`Manabrew`}
+                selected={engine === "Forge"}
+                onClick={() => onEngineChange("Forge")}
+                mark={<EngineMark engine="Forge" className="h-3.5 w-3.5" />}
+                label="Forge"
                 badge={
                   <Badge variant="outline" className="text-ui-meta">
-                    in-browser
+                    {forgeLocation}
                   </Badge>
                 }
-                description={`Manabrew's own engine, hosted by the table creator.`}
+                description="Full card support. Other players join from the lobby."
               />
-              {ironsmithEnabled && (
-                <EngineOption
-                  selected={engine === "Ironsmith"}
-                  onClick={() => onEngineChange("Ironsmith")}
-                  mark={
-                    <EngineMark
-                      engine="Ironsmith"
-                      className={cn(
-                        "h-3.5 w-3.5",
-                        engine === "Ironsmith" ? "text-primary" : "text-muted-foreground",
-                      )}
-                    />
-                  }
-                  label={`Ironsmith`}
-                  badge={
-                    <>
-                      <Badge variant="outline" className="text-ui-meta">
-                        trusted
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="border-warning/40 text-ui-meta text-warning"
-                      >
-                        experimental
-                      </Badge>
-                    </>
-                  }
-                  description={`Ironsmith WASM hosted by the table creator. Partial card support.`}
-                />
-              )}
+              <EngineOption
+                selected={engine === "Ironsmith"}
+                onClick={() => onEngineChange("Ironsmith")}
+                mark={<EngineMark engine="Ironsmith" className="h-3.5 w-3.5" />}
+                label="Ironsmith"
+                badge={
+                  <>
+                    <Badge variant="outline" className="text-ui-meta">
+                      trusted
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="border-warning/40 text-ui-meta text-warning"
+                    >
+                      experimental
+                    </Badge>
+                  </>
+                }
+                description="Ironsmith WASM hosted by the table creator. Partial card support."
+              />
             </div>
           </details>
         ) : (
-          <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2.5 text-ui-meta font-medium">
-            Engine
-            <span className="flex items-center gap-1 font-normal text-muted-foreground">
-              <GameIcon name="beer-stein" className="h-3.5 w-3.5" />
-              Manabrew
-            </span>
+          <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2.5 text-ui-label">
+            <EngineMark engine="Forge" className="h-3.5 w-3.5" />
+            <span className="font-medium">Forge</span>
+            <span className="text-muted-foreground">{forgeLocation}</span>
           </div>
         )}
-        {!(kind === "match" && engine === "Forge") && (
+        {engine === "Ironsmith" && (
           <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-ui-meta text-warning">
             <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <p>{warningText}</p>
+            <p>
+              Ironsmith has partial card support, so some decks may not run. The host browser runs
+              the game and sends each player only the information they can see.
+            </p>
           </div>
         )}
-        {kind === "match" && !(engine === "Forge" && hostedNode) && (
+        {!(engine === "Forge" && hostedNode) && (
           <div className="space-y-1.5">
             <Label className="text-ui-label font-medium">Reconnect timeout</Label>
             <div className="flex items-center gap-2">

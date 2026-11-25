@@ -84,6 +84,10 @@ node tests/e2e-ironsmith/ironsmith-reload-rejoin.mjs
 
 Each prints `PASS: …` and exits 0 on success, or `FAIL: …` and exits non-zero.
 
+`yarn test:e2e:engines` checks that browser Forge can start a multiplayer table
+with a bot, without opting in to Ironsmith. See the
+[browser Forge prerequisites](../e2e-ui/README.md#prerequisites).
+
 ## How an Ironsmith game is shared
 
 The human host runs one Manabot agent per bot seat, using that seat’s private

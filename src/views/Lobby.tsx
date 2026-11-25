@@ -25,7 +25,7 @@ import { buildEngineGameRouteState } from "@/game/engineGameLaunch";
 import { localAiTableLaunch } from "@/game/localAiTable";
 import { useGameStore } from "@/stores/useGameStore";
 import { startMpSealed } from "@/game/sealedStart";
-import { limitedGameLaunch } from "@/game/limitedSession";
+import { limitedGameLaunch, peekLimitedMatchReturn } from "@/game/limitedSession";
 import { getDeckFingerprint } from "@/lib/decks";
 import { getFormat } from "@/lib/formats";
 import { ROUTES } from "@/lib/constants";
@@ -101,7 +101,7 @@ export default function Lobby() {
     error,
     username,
     playerId,
-    rooms,
+    rooms: relayRooms,
     currentRoom,
     roomPassword,
     hostingForgeRoom,
@@ -126,6 +126,7 @@ export default function Lobby() {
     startGame,
     relayFeatures,
   } = useServerStore();
+  const rooms = relayRooms.filter((room) => room.engine !== "Manabrew");
   const chatEnabled = relayFeatures.includes(RELAY_FEATURE.Chat);
   const pendingInviteCount = useInviteStore((s) => s.invites.length);
   const invitesEnabled = relayFeatures.includes(RELAY_FEATURE.RoomInvites);
@@ -254,6 +255,8 @@ export default function Lobby() {
     if (!gameStarted || playerOrder.length === 0) return;
     if (!currentRoom || currentRoom.status !== "InGame") return;
     if (gameRoomId !== currentRoom.room_id) return;
+    if (currentRoom.engine === "Manabrew" && peekLimitedMatchReturn()?.roomId === gameRoomId)
+      return;
     const limitedLaunch = limitedGameLaunch({
       room_id: gameRoomId,
       game_id: useServerStore.getState().gameId,

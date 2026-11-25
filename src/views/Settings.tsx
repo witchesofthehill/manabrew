@@ -837,7 +837,7 @@ export default function Settings() {
 
             <PreferenceCard
               title={`AI opponent`}
-              description={`Choose who pilots computer opponents in Forge-engine games. ManaBot is fast. Forge bot makes stronger decisions, but can take 10+ seconds per bot on large Commander boards. The Manabrew engine always uses ManaBot.`}
+              description={`Choose who pilots computer opponents in Forge games. ManaBot is fast. Forge bot makes stronger decisions, but can take 10+ seconds per bot on large Commander boards.`}
             >
               <div className="flex flex-wrap gap-2">
                 <Button

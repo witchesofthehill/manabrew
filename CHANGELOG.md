@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.96.2](https://github.com/witchesofthehill/manabrew/compare/v3.96.1...v3.96.2) (2026-11-25)
+
+### Fixes
+
+* **telemetry:** file offline games that are left or force-ended ([#1288](https://github.com/witchesofthehill/manabrew/issues/1288)) ([9e338a9](https://github.com/witchesofthehill/manabrew/commit/9e338a9be2a11a49443cfe60a35afec4015ad850))
+
 ## [3.96.1](https://github.com/witchesofthehill/manabrew/compare/v3.96.0...v3.96.1) (2026-11-25)
 
 ## [3.96.0](https://github.com/witchesofthehill/manabrew/compare/v3.95.0...v3.96.0) (2026-11-25)

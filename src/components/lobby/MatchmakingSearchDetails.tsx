@@ -69,14 +69,16 @@ export function MatchmakingSearchDetails({
       )}
       {botFill && (
         <p className="text-ui-meta text-muted-foreground">
-          Manabot fills empty seats when another player who allows it is ready.
+          Manabot fills empty seats. After a minute with nobody at your bracket, your game starts
+          with Manabot.
         </p>
       )}
       {botFillOffer !== null && (
         <div className="space-y-2 rounded-lg border border-border p-3">
           <p className="text-ui-label">
-            {botFillOffer === 1 ? "Another player is" : `${botFillOffer} players are`} ready at your
-            bracket. Let Manabot fill the remaining seats?
+            {botFillOffer === 0
+              ? "Nobody else is searching at your bracket yet. Let Manabot fill the empty seats?"
+              : `${botFillOffer === 1 ? "Another player is" : `${botFillOffer} players are`} ready at your bracket. Let Manabot fill the remaining seats?`}
           </p>
           <div className="flex flex-wrap gap-2">
             <Button

@@ -217,8 +217,8 @@ export function FindGameDialog({
                   Fill empty seats with Manabot
                 </span>
                 <span className="block text-ui-meta text-muted-foreground">
-                  Start with at least one other player who allows it, instead of waiting for a full
-                  table.
+                  Start with another player who allows it. After a minute alone, start with Manabot
+                  in every other seat.
                 </span>
               </Label>
             </div>

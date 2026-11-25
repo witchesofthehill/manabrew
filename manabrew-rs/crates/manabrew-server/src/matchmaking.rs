@@ -18,6 +18,9 @@ const QUEUE_TICK: Duration = Duration::from_secs(1);
 const STATUS_EVERY_TICKS: u64 = 5;
 const STEP_OFFER_AFTER: Duration = Duration::from_secs(30);
 const BOT_FILL_OFFER_AFTER: Duration = Duration::from_secs(30);
+/// A player who allowed Manabot and has found nobody else by now starts
+/// alone, with Manabot in every other seat.
+const SOLO_BOT_FILL_AFTER: Duration = Duration::from_secs(60);
 const PROPOSAL_TIMEOUT: Duration = Duration::from_secs(30);
 const TABLE_CALL_TIMEOUT: Duration = Duration::from_secs(30);
 const MIN_BRACKET: u8 = 1;
@@ -500,19 +503,27 @@ impl MatchQueue {
             .collect()
     }
 
-    pub fn take_pods(&mut self, hosted: &mut Vec<u8>) -> Vec<Pod> {
+    pub fn take_pods(&mut self, hosted: &mut Vec<u8>, now: Instant) -> Vec<Pod> {
         let mut pods = Vec::new();
-        while let Some(pod) = self.take_one(hosted) {
+        while let Some(pod) = self.take_one(hosted, now) {
             pods.push(pod);
         }
         pods
     }
 
-    fn take_one(&mut self, hosted: &mut Vec<u8>) -> Option<Pod> {
+    fn take_one(&mut self, hosted: &mut Vec<u8>, now: Instant) -> Option<Pod> {
+        // Any pod with two or more humans goes first, so a player starting
+        // alone never takes someone a full table could have seated.
+        self.take_first(hosted, None)
+            .or_else(|| self.take_first(hosted, Some(now)))
+    }
+
+    /// `solo_at` is `Some(now)` on the pass that may start one player alone.
+    fn take_first(&mut self, hosted: &mut Vec<u8>, solo_at: Option<Instant>) -> Option<Pod> {
         for anchor in 0..self.entries.len() {
             for pod_size in self.entries[anchor].pod_sizes.clone() {
                 for bracket in self.entries[anchor].brackets() {
-                    if let Some(pod) = self.take_at(anchor, pod_size, bracket, hosted) {
+                    if let Some(pod) = self.take_at(anchor, pod_size, bracket, hosted, solo_at) {
                         return Some(pod);
                     }
                 }
@@ -558,6 +569,7 @@ impl MatchQueue {
         pod_size: u8,
         bracket: u8,
         hosted: &mut Vec<u8>,
+        solo_at: Option<Instant>,
     ) -> Option<Pod> {
         let accepting: Vec<usize> = (0..self.entries.len())
             .filter(|&i| {
@@ -588,7 +600,7 @@ impl MatchQueue {
                     .filter(|&i| self.entries[i].bot_fill)
                     .collect();
                 let chosen = self.pick(anchor, &willing, pod_size, need_host)?;
-                if chosen.len() < MIN_POD as usize {
+                if chosen.len() < self.min_bot_fill_pod(anchor, pod_size, solo_at) {
                     return None;
                 }
                 (chosen, true)
@@ -609,6 +621,17 @@ impl MatchQueue {
             members,
             bot_fill,
         })
+    }
+
+    /// Humans a Manabot-filled pod needs. Two, until the anchor has waited
+    /// `SOLO_BOT_FILL_AFTER` for a 3 or 4 seat table; then the anchor alone.
+    fn min_bot_fill_pod(&self, anchor: usize, pod_size: u8, solo_at: Option<Instant>) -> usize {
+        let waited = solo_at.map(|now| now.duration_since(self.entries[anchor].queued_at));
+        if pod_size > MIN_POD && waited.is_some_and(|waited| waited >= SOLO_BOT_FILL_AFTER) {
+            1
+        } else {
+            MIN_POD as usize
+        }
     }
 
     fn due_offers(&mut self, now: Instant) -> Vec<(String, Option<u8>, Option<u8>)> {
@@ -636,8 +659,8 @@ impl MatchQueue {
                     && !entry.bot_fill_offered
                     && now.duration_since(entry.queued_at) >= BOT_FILL_OFFER_AFTER
             })
+            .filter(|(_, entry)| entry.pod_sizes.iter().any(|&size| size > MIN_POD))
             .map(|(i, entry)| (i, self.compatible_players(entry)))
-            .filter(|(_, players)| *players > 0)
             .collect();
         due.into_iter()
             .map(|(i, players)| {
@@ -840,7 +863,7 @@ fn run_tick(state: &Arc<ServerState>, now: Instant, send_status: bool) {
             }
         }
         let proposals: Vec<_> = queue
-            .take_pods(&mut hosted)
+            .take_pods(&mut hosted, now)
             .into_iter()
             .map(|pod| {
                 let ids: Vec<String> = pod.members.iter().map(|e| e.player_id.clone()).collect();
@@ -1366,7 +1389,7 @@ mod tests {
             entry("silent", 60, false),
             entry("third", 30, true),
         ]);
-        let pods = queue.take_pods(&mut Vec::new());
+        let pods = queue.take_pods(&mut Vec::new(), Instant::now());
         assert_eq!(pods.len(), 1);
         assert!(pods[0].bot_fill);
         assert_eq!(names(&pods[0]), ["first", "third"]);
@@ -1375,10 +1398,39 @@ mod tests {
     }
 
     #[test]
-    fn bot_fill_needs_two_willing_players() {
-        let mut queue = queue(vec![entry("alone", 90, true), entry("silent", 60, false)]);
-        assert!(queue.take_pods(&mut Vec::new()).is_empty());
+    fn bot_fill_needs_two_willing_players_for_the_first_minute() {
+        let mut queue = queue(vec![entry("alone", 45, true), entry("silent", 40, false)]);
+        assert!(queue.take_pods(&mut Vec::new(), Instant::now()).is_empty());
         assert_eq!(queue.entries.len(), 2);
+    }
+
+    #[test]
+    fn a_willing_player_alone_after_a_minute_starts_with_manabot() {
+        let mut queue = queue(vec![entry("alone", 61, true), entry("silent", 40, false)]);
+        let pods = queue.take_pods(&mut Vec::new(), Instant::now());
+        assert_eq!(pods.len(), 1);
+        assert!(pods[0].bot_fill);
+        assert_eq!(pods[0].pod_size, 4);
+        assert_eq!(names(&pods[0]), ["alone"]);
+        assert_eq!(queue.entries[0].username, "silent");
+    }
+
+    #[test]
+    fn a_one_v_one_search_never_starts_alone() {
+        let mut alone = entry("alone", 600, true);
+        alone.pod_sizes = vec![2];
+        let mut queue = queue(vec![alone]);
+        assert!(queue.take_pods(&mut Vec::new(), Instant::now()).is_empty());
+        assert!(queue.due_bot_fill_offers(Instant::now()).is_empty());
+    }
+
+    #[test]
+    fn the_bot_fill_offer_reaches_a_player_searching_alone() {
+        let mut queue = queue(vec![entry("alone", 31, false)]);
+        assert_eq!(
+            queue.due_bot_fill_offers(Instant::now()),
+            [("alone".to_string(), 0)]
+        );
     }
 
     #[test]
@@ -1388,7 +1440,7 @@ mod tests {
             entry("b", 60, false),
             entry("c", 30, false),
         ]);
-        let pods = queue.take_pods(&mut Vec::new());
+        let pods = queue.take_pods(&mut Vec::new(), Instant::now());
         assert_eq!(pods.len(), 1);
         assert!(!pods[0].bot_fill);
         assert_eq!(pods[0].pod_size, 3);
@@ -1408,8 +1460,8 @@ mod tests {
             entry.pod_sizes = vec![4];
         }
         let mut queue = queue(entries);
-        assert!(queue.take_pods(&mut Vec::new()).is_empty());
-        let pods = queue.take_pods(&mut vec![4]);
+        assert!(queue.take_pods(&mut Vec::new(), Instant::now()).is_empty());
+        let pods = queue.take_pods(&mut vec![4], Instant::now());
         assert_eq!(pods.len(), 1);
         assert!(pods[0].bot_fill);
         assert_eq!(names(&pods[0]), ["a", "b"]);

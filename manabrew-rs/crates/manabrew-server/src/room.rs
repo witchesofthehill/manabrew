@@ -67,6 +67,9 @@ pub struct Room {
     pub matchmade_bot_fill: bool,
     pub pool_max_players: Option<u8>,
     pub table_bracket: Option<u8>,
+    /// A game has started since the room last emptied. A seat freed after
+    /// that is not a pod seat waiting to be filled, so it never reopens the table.
+    pub game_started: bool,
     pub auto_start: bool,
 }
 
@@ -151,6 +154,7 @@ impl Room {
             matchmade_bot_fill: false,
             pool_max_players: None,
             table_bracket: None,
+            game_started: false,
             auto_start,
         }
     }
@@ -288,11 +292,13 @@ impl Room {
                 self.matchmade_bracket = None;
                 self.matchmade_bot_fill = false;
                 self.table_bracket = None;
+                self.game_started = false;
                 self.auto_start = self.password.is_none()
                     && self.draft_config.is_none()
                     && self.sealed_config.is_none();
             } else if !slot.is_bot
                 && self.status == RoomStatus::Lobby
+                && !self.game_started
                 && self.matchmade_bracket.is_some()
                 && self.players.iter().any(|p| !p.is_bot)
             {
@@ -830,5 +836,28 @@ mod tests {
         let stored = &r.transports["human"].direct_addrs;
         assert_eq!(stored.len(), MAX_DIRECT_ADDRS);
         assert!(stored.iter().all(|addr| addr.len() <= MAX_ADDR_LEN));
+    }
+
+    #[test]
+    fn a_seat_freed_after_the_game_does_not_reopen_the_table() {
+        let mut r = room(false);
+        r.matchmade_bracket = Some(2);
+        for name in ["a", "b", "c"] {
+            r.add_player(name.into(), name.into(), false, None).unwrap();
+        }
+
+        r.remove_player("c");
+        assert_eq!(r.table_bracket, Some(2), "a pod seat left before the game");
+
+        r.add_player("c".into(), "c".into(), false, None).unwrap();
+        r.table_bracket = None;
+        r.game_started = true;
+        r.remove_player("c");
+        assert_eq!(r.table_bracket, None, "the pod already played");
+
+        r.remove_player("b");
+        r.remove_player("a");
+        assert!(!r.game_started, "an empty pool room starts clean");
+        assert_eq!(r.matchmade_bracket, None);
     }
 }

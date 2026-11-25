@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.96.0](https://github.com/witchesofthehill/manabrew/compare/v3.95.0...v3.96.0) (2026-11-25)
+
+### Features
+
+* **matchmaking:** group Find a game decks by bracket ([#1287](https://github.com/witchesofthehill/manabrew/issues/1287)) ([ad8c052](https://github.com/witchesofthehill/manabrew/commit/ad8c052712c7709275b44d0960c89e78ee3cf461))
+
 ## [3.95.0](https://github.com/witchesofthehill/manabrew/compare/v3.94.0...v3.95.0) (2026-11-25)
 
 ### Features

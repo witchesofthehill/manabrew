@@ -191,6 +191,11 @@ final class GameCheckpoint {
             if (!Files.isRegularFile(engine) || !engine.equals(forgeArtifact)) {
                 throw new IllegalArgumentException("replay snapshots require the packaged harness jar");
             }
+            for (final String property : new String[] {
+                    "java.vm.name", "java.vm.vendor", "java.runtime.version", "os.name", "os.arch"}) {
+                hash.update((property + "=" + System.getProperty(property, "") + "\n")
+                        .getBytes(StandardCharsets.UTF_8));
+            }
             hashTree(hash, engine);
             hashTree(hash, Path.of(assetsDir, "res"));
             for (final ForgePreferences.FPref pref : ForgePreferences.FPref.values()) {

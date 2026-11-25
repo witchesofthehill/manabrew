@@ -1,4 +1,6 @@
 use super::*;
+
+pub mod warm_replica;
 use std::cell::RefCell;
 use std::rc::Rc;
 

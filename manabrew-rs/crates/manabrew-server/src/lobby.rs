@@ -820,6 +820,12 @@ pub fn start_game_sync(
             return Err(ServerError::GameAlreadyStarted);
         }
 
+        if !room.host_connected() {
+            return Err(ServerError::AuthFailed(
+                "The engine host is disconnected".into(),
+            ));
+        }
+
         if room.format == GameFormat::Any {
             match format {
                 Some(chosen) if chosen != GameFormat::Any => room.format = chosen,

@@ -302,6 +302,61 @@ async fn dead_node_room_is_reclaimed() {
     .await;
 }
 
+async fn human_leaves_matchmade_node_table_and_survivors_keep_playing() {
+    let sim = Sim::spawn(9684).await;
+    let mut alice = Client::connect(&sim.relay_url, "queue-alice")
+        .await
+        .unwrap();
+    let mut bob = Client::connect(&sim.relay_url, "queue-bob").await.unwrap();
+    let mut carol = Client::connect(&sim.relay_url, "queue-carol")
+        .await
+        .unwrap();
+    let (a, b, c) = tokio::join!(
+        alice.enter_commander_queue(),
+        bob.enter_commander_queue(),
+        carol.enter_commander_queue()
+    );
+    a.unwrap();
+    b.unwrap();
+    c.unwrap();
+    let (a, b, c) = tokio::join!(
+        alice.await_game_started(),
+        bob.await_game_started(),
+        carol.await_game_started()
+    );
+    a.unwrap();
+    b.unwrap();
+    c.unwrap();
+    let game_id = alice.game_id.clone().unwrap();
+    assert_eq!(bob.game_id.as_ref(), Some(&game_id));
+    let until = tokio::time::Instant::now() + Duration::from_secs(60);
+    while alice.turn < 2 {
+        tokio::select! {
+            result = alice.step() => { result.unwrap(); },
+            result = bob.step() => { result.unwrap(); },
+            result = carol.step() => { result.unwrap(); },
+            _ = tokio::time::sleep_until(until) => panic!("matchmade game did not advance"),
+        }
+    }
+    alice.leave().await.unwrap();
+    play_pair(&mut bob, &mut carol, 12).await.unwrap();
+    sim.wait_room(
+        Duration::from_secs(5),
+        "survivors keep their running table",
+        |room| {
+            room.is_some_and(|r| {
+                r.status == manabrew_agent_interface::protocol::RoomStatus::InGame
+                    && r.hosted
+                    && r.players.len() == 2
+                    && !r.players.iter().any(|p| p.username == "queue-alice")
+            })
+        },
+    )
+    .await;
+    assert_eq!(bob.game_id.as_ref(), Some(&game_id));
+    assert_eq!(carol.game_id.as_ref(), Some(&game_id));
+}
+
 async fn creating_a_room_seats_the_creator() {
     scenario(
         "a player creating a room from the lobby.",
@@ -879,6 +934,10 @@ fn main() {
     ];
 
     if std::env::var("REGRESSION_NODE_ENGINE_BACKEND").as_deref() == Ok("forge") {
+        cases.push(case(
+            "human_leaves_matchmade_node_table_and_survivors_keep_playing",
+            human_leaves_matchmade_node_table_and_survivors_keep_playing,
+        ));
         cases.push(case(
             "journal_rewind_keeps_the_room_and_resumes_play",
             journal_rewind_keeps_the_room_and_resumes_play,

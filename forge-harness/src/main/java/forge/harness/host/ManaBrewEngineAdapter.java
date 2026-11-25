@@ -293,14 +293,14 @@ public final class ManaBrewEngineAdapter {
         }
     }
 
-    synchronized String replayIdentity() {
+    public synchronized String replayIdentity() {
         if (replayIdentity == null) {
             replayIdentity = GameCheckpoint.identity(assetsDir);
         }
         return replayIdentity;
     }
 
-    String replayBoundary(final String sessionId) {
+    public String replayBoundary(final String sessionId) {
         return getSession(sessionId).exportReplaySnapshot(null);
     }
 

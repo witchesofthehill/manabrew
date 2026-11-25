@@ -311,6 +311,8 @@ pub struct Client {
     read: WsRead,
     ai: SimpleAi,
     last_prompt: Option<String>,
+    pub turn: u32,
+    keep_opening_hand: bool,
     envelope_kinds: HashSet<String>,
 }
 
@@ -400,6 +402,8 @@ impl Client {
                         read,
                         ai: SimpleAi::default(),
                         last_prompt: None,
+                        turn: 0,
+                        keep_opening_hand: false,
                         envelope_kinds: HashSet::new(),
                     });
                 }
@@ -475,6 +479,47 @@ impl Client {
             }),
         };
         self.broadcast(&envelope).await
+    }
+
+    pub async fn enter_commander_queue(&mut self) -> Result<(), String> {
+        self.keep_opening_hand = true;
+        let mut deck = basic_deck("Queued Commander", "Mountain", "Hill Giant");
+        deck["commanders"] = json!([card("commander".into(), "Krenko, Mob Boss")]);
+        send(
+            &mut self.write,
+            &ClientMessage::EnterQueue {
+                format: GameFormat::Commander,
+                pod_sizes: vec![3],
+                can_host: false,
+                decks: vec![manabrew_agent_interface::protocol::QueuedDeck {
+                    deck_name: "Queued Commander".into(),
+                    deck: serde_json::from_value(deck).unwrap(),
+                    published_deck_id: None,
+                    commander_name: Some("Krenko, Mob Boss".into()),
+                    bracket: 3,
+                }],
+            },
+        )
+        .await?;
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
+        loop {
+            let message = tokio::select! {
+                message = recv(&mut self.write, &mut self.read) => message,
+                _ = tokio::time::sleep_until(deadline) => return Err("queue proposal timed out".into()),
+            };
+            match message {
+                Some(ServerMessage::MatchProposal { .. }) => {
+                    return send(
+                        &mut self.write,
+                        &ClientMessage::AcceptMatch { deck_index: None },
+                    )
+                    .await;
+                }
+                Some(ServerMessage::Error { message, .. }) => return Err(message),
+                Some(_) => {}
+                None => return Err("queue connection closed".into()),
+            }
+        }
     }
 
     pub async fn select_deck_and_ready(&mut self) -> Result<(), String> {
@@ -575,7 +620,7 @@ impl Client {
 
     /// Receive one message and answer it if it is our prompt. `Ok(true)` when
     /// a prompt was answered.
-    async fn step(&mut self) -> Result<bool, String> {
+    pub async fn step(&mut self) -> Result<bool, String> {
         let Some(message) = recv(&mut self.write, &mut self.read).await else {
             return Err(format!("'{}' connection closed mid-game", self.username));
         };
@@ -678,6 +723,12 @@ impl Client {
     }
 
     fn envelope_response(&mut self, state: Value) -> Result<Option<StateEnvelope>, String> {
+        if let Some(turn) = state
+            .pointer("/state/gameView/turn")
+            .and_then(Value::as_u64)
+        {
+            self.turn = turn as u32;
+        }
         if let Some(kind) = state.get("kind").and_then(serde_json::Value::as_str) {
             self.envelope_kinds.insert(kind.to_string());
         }
@@ -695,6 +746,13 @@ impl Client {
             return Ok(None);
         }
         self.last_prompt = Some(key);
+        if self.keep_opening_hand && prompt["input"]["type"] == "mulligan" {
+            return Ok(Some(StateEnvelope::Response {
+                from_player: for_player,
+                prompt_id: prompt["promptId"].as_u64().unwrap() as u32,
+                action: json!({"type":"mulligan","output":{"type":"mulliganDecision","keep":true}}),
+            }));
+        }
         let Ok(agent_prompt) = serde_json::from_value::<AgentPrompt>(prompt) else {
             return Ok(None);
         };

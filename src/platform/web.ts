@@ -5,6 +5,7 @@
  * The game engine runs in a Web Worker for non-blocking UI.
  */
 
+import { sendBufferDrained, socketIsStale } from "./keepalive";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { deckHasCardCosmetics, normalizeCardCosmetics } from "@/lib/cardCosmetics";
@@ -1131,6 +1132,9 @@ class WebServerApi implements IServerApi {
   private bots = new Map<string, BotEntry>();
   private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
   private lastInboundAt = 0;
+  // The last keepalive tick at which the socket's send buffer had shrunk.
+  private lastDrainAt = 0;
+  private lastBufferedAmount = 0;
   private lastKeepaliveTickAt = 0;
   private connectParams: ServerConnectParams | null = null;
   private connectedAt: number | null = null;
@@ -1404,17 +1408,32 @@ class WebServerApi implements IServerApi {
   private startKeepalive(): void {
     this.stopKeepalive();
     this.lastInboundAt = Date.now();
+    this.lastDrainAt = Date.now();
+    this.lastBufferedAmount = 0;
     this.lastKeepaliveTickAt = Date.now();
     this.keepaliveTimer = setInterval(() => {
       const now = Date.now();
       const sinceTick = now - this.lastKeepaliveTickAt;
       this.lastKeepaliveTickAt = now;
       if (this.ws?.readyState !== WebSocket.OPEN) return;
+      // Our pings queue behind anything already being uploaded, so a seat sending
+      // a large payload hears no pong until it is through. A buffer that keeps
+      // shrinking is a slow link, not a dead one.
+      const buffered = this.ws.bufferedAmount;
+      if (sendBufferDrained(this.lastBufferedAmount, buffered)) this.lastDrainAt = now;
+      this.lastBufferedAmount = buffered;
       // A background tab throttles timers to roughly once a minute, so a late tick
       // says nothing about the socket. Re-baseline instead of reading it as death.
       if (sinceTick > KEEPALIVE_INTERVAL_MS * 2) {
         this.lastInboundAt = now;
-      } else if (now - this.lastInboundAt > KEEPALIVE_SILENCE_MS) {
+      } else if (
+        socketIsStale({
+          now,
+          lastInboundAt: this.lastInboundAt,
+          lastDrainAt: this.lastDrainAt,
+          silenceMs: KEEPALIVE_SILENCE_MS,
+        })
+      ) {
         this.failStaleSocket();
         return;
       }
@@ -1703,7 +1722,8 @@ class WebServerApi implements IServerApi {
     this.send({ type: "BroadcastState", state, target_player: targetPlayer });
   }
 
-  async sendRoomMessage(message: RoomRelayEnvelope): Promise<void> {
+  async sendRoomMessage(message: RoomRelayEnvelope, options?: { direct?: boolean }): Promise<void> {
+    if (options?.direct && this.webrtc?.trySendDirect(message, message.targetPlayer)) return;
     this.send({ type: "BroadcastState", state: message, target_player: message.targetPlayer });
   }
 

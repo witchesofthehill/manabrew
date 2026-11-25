@@ -17,8 +17,7 @@ import type { HandActionOption } from "@/stores/useGameUIStore";
 import { deriveCardRailState, type CardRailState } from "@/components/game/cardRailState";
 import {
   cardTypeLine,
-  counterColorKey,
-  counterIconName,
+  counterBadgePresentation,
   ROOM_DOOR_BOUNDS,
   roomDoorState,
 } from "@/components/game/cardPresentation";
@@ -389,9 +388,6 @@ function badgeRule(card: CardDto): BadgeRule | undefined {
 
 function badgeColor(key: CardStatusKey): number {
   return hexToNum(activeTheme.gameTheme.cardStatus[key]);
-}
-function getCounterColor(type: string): number {
-  return hexToNum(activeTheme.gameTheme.counter[counterColorKey(type)]);
 }
 const parseStat = (value: string | null | undefined): number => {
   if (!value) return 0;
@@ -2221,9 +2217,8 @@ export class CardSprite extends Container {
       (this.frameCounterReserve > 0 ? this.frameCounterReserve + 1 : 0);
     let offsetX = 3;
     for (const [type, count] of entries) {
-      const color = getCounterColor(type);
-      const iconName = counterIconName(type);
-      const textLabel = type.slice(0, 3);
+      const { colorKey, displayCount, iconName, label } = counterBadgePresentation(type, count);
+      const color = hexToNum(activeTheme.gameTheme.counter[colorKey]);
       const badge = new Container();
       const bg = new Graphics();
       let contentWidth = 0;
@@ -2236,7 +2231,7 @@ export class CardSprite extends Container {
         glyph = sprite;
         contentWidth = iconSize;
       } else {
-        glyph = new Text({ text: textLabel, style: COUNTER_STYLE });
+        glyph = new Text({ text: label, style: COUNTER_STYLE });
         glyph.resolution = TEXT_RASTER_RESOLUTION;
         glyph.anchor.set(0, 0.5);
         glyph.x = 4;
@@ -2245,8 +2240,8 @@ export class CardSprite extends Container {
       }
       let countText: Text | null = null;
       let countWidth = 0;
-      if (count > 1) {
-        countText = new Text({ text: ` ${count}`, style: COUNTER_STYLE });
+      if (displayCount != null) {
+        countText = new Text({ text: ` ${displayCount}`, style: COUNTER_STYLE });
         countText.resolution = TEXT_RASTER_RESOLUTION;
         countText.anchor.set(0, 0.5);
         countText.x = 4 + contentWidth;

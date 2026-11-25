@@ -1478,11 +1478,9 @@ public final class InteractiveSnapshotExtractor {
     private static String uiCounterName(final CounterType counterType) {
         if (counterType instanceof CounterEnumType) {
             final CounterEnumType counterEnumType = (CounterEnumType) counterType;
-            switch (counterEnumType) {
-                case P1P1: return "P1P1";
-                case M1M1: return "M1M1";
-                default: return pascalCase(counterEnumType.name());
-            }
+            return counterEnumType.getName().contains("/")
+                    ? counterEnumType.name()
+                    : pascalCase(counterEnumType.name());
         }
         return pascalCase(counterType.getName());
     }

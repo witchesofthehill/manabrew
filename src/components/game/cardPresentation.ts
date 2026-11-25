@@ -92,8 +92,6 @@ interface CounterConfig {
   title: string;
 }
 const COUNTER_CONFIG: Record<string, CounterConfig> = {
-  P1P1: { label: "+1/+1", colorKey: "p1p1", title: "+1/+1" },
-  M1M1: { label: "−1/−1", colorKey: "m1m1", title: "−1/−1" },
   Loyalty: {
     iconName: "vibrating-shield",
     label: `Loyalty`,
@@ -185,7 +183,20 @@ const COUNTER_CONFIG: Record<string, CounterConfig> = {
     title: `Shield`,
   },
 };
+const PT_COUNTER_TYPE = /^([PM])(\d)([PM])(\d)$/;
+function ptCounterLabel(type: string, count: number): string | null {
+  const match = PT_COUNTER_TYPE.exec(type);
+  if (!match) return null;
+  const [, powerSign, power, toughnessSign, toughness] = match;
+  const stat = (sign: string, value: string) =>
+    `${sign === "P" ? "+" : "−"}${Number(value) * count}`;
+  return `${stat(powerSign!, power!)}/${stat(toughnessSign!, toughness!)}`;
+}
 export function getCounterConfig(type: string): CounterConfig {
+  const ptLabel = ptCounterLabel(type, 1);
+  if (ptLabel) {
+    return { label: ptLabel, colorKey: type.startsWith("P") ? "p1p1" : "m1m1", title: ptLabel };
+  }
   return (
     COUNTER_CONFIG[type] ?? {
       label: type.slice(0, 3),
@@ -196,24 +207,18 @@ export function getCounterConfig(type: string): CounterConfig {
 }
 export function counterBadgePresentation(type: string, count: number): CardCounterPresentation {
   const config = getCounterConfig(type);
-  const sign = type === "P1P1" ? "+" : type === "M1M1" ? "−" : null;
+  const ptLabel = ptCounterLabel(type, count);
   return {
     ...config,
     type,
     count,
-    label: sign ? `${sign}${count}/${sign}${count}` : config.label,
-    displayCount: sign || count <= 1 ? null : count,
+    label: ptLabel ?? config.label,
+    displayCount: ptLabel || count <= 1 ? null : count,
   };
 }
 export function cardTypeLine(card: CardDto): string {
   const cardTypes = [...card.supertypes, ...card.types].join(" ");
   return card.subtypes.length > 0 ? `${cardTypes} — ${card.subtypes.join(" ")}` : cardTypes;
-}
-export function counterColorKey(type: string): keyof GameThemeColors["counter"] {
-  return getCounterConfig(type).colorKey;
-}
-export function counterIconName(type: string): string | undefined {
-  return getCounterConfig(type).iconName;
 }
 function deriveStatuses(card: CardDto): CardStatusPresentation[] {
   const statuses: CardStatusPresentation[] = [];

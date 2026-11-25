@@ -1145,10 +1145,9 @@ fn claim_sessions(state: &Arc<ServerState>, room_id: &str, members: &[QueueEntry
 
 fn seat_pod(state: &Arc<ServerState>, pod: Pod) {
     let browser_host = pod.members.iter().any(|entry| entry.can_host);
-    // A browser host that leaves ends the game for everyone, so every pod size
-    // waits for a node room first. A browser room is the fallback when the
-    // fleet is full.
-    if let Some(room_id) = free_pool_room(state, pod.pod_size) {
+    if pod.pod_size == 2 && browser_host {
+        seat_in_browser_room(state, pod);
+    } else if let Some(room_id) = free_pool_room(state, pod.pod_size) {
         seat_in_pool_room(state, room_id, pod);
     } else if browser_host {
         seat_in_browser_room(state, pod);

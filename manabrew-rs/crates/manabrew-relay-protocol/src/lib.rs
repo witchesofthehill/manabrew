@@ -235,6 +235,8 @@ pub enum ClientMessage {
         // One of `ACQUISITION_SOURCES`; the relay records anything else as `other`.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         acquisition_source: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        features: Vec<String>,
     },
 
     Ping,
@@ -358,6 +360,13 @@ pub enum ClientMessage {
     },
 
     RequestResync,
+
+    ReportCheckpoint {
+        game_id: String,
+        seq: u64,
+        turn: u32,
+        checkpoint: String,
+    },
 
     BroadcastState {
         state: serde_json::Value,
@@ -505,6 +514,17 @@ pub enum ServerMessage {
 
     RoomResumed {
         room: RoomInfo,
+    },
+    HostHandoff {
+        request: ResumeRoomRequest,
+        turn: u32,
+        checkpoint: String,
+    },
+    HostChanged {
+        room_id: String,
+        game_id: String,
+        host: String,
+        turn: u32,
     },
 
     PlayerJoined {
@@ -898,6 +918,8 @@ pub const FEATURE_QUEUE_STEPS: &str = "queue_steps";
 
 pub const FEATURE_SPECTATORS: &str = "spectators";
 
+pub const FEATURE_HOST_HANDOFF: &str = "host_handoff";
+
 pub const FEATURES: &[&str] = &[
     FEATURE_SPECTATORS,
     FEATURE_LOCAL_GAME,
@@ -917,6 +939,7 @@ pub const FEATURES: &[&str] = &[
     FEATURE_LIMITED_SESSIONS,
     FEATURE_LIMITED_DRAFT_CLOCKS,
     FEATURE_LIMITED_SESSION_RECOVERY,
+    FEATURE_HOST_HANDOFF,
 ];
 
 /// Largest signalling blob the relay forwards.

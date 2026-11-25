@@ -94,6 +94,11 @@ public final class ManaBrewInteractiveSession {
     private volatile int decidingPlayerIndex = -1;
     private long promptSeq;
     private volatile boolean closed;
+    private volatile String latestTurnCheckpoint;
+    private int lastTurnCheckpoint = -1;
+    private int turnCheckpointSequence;
+    private TurnCheckpoint.Restore turnRestore;
+    private boolean exportTurnCheckpoints;
     private volatile Thread gameThread;
     private static volatile InteractiveBridge bridge;
     private volatile SpellAbility castingAbility;
@@ -190,6 +195,31 @@ public final class ManaBrewInteractiveSession {
         this.actionRepeat = new ActionRepeat(this, game);
     }
 
+    void setTurnRestore(final TurnCheckpoint.Restore restore, final boolean export) {
+        turnRestore = restore;
+        exportTurnCheckpoints = export;
+    }
+
+    boolean isTurnRestoring() {
+        return turnRestore != null;
+    }
+
+    public String getLatestTurnCheckpoint() {
+        return latestTurnCheckpoint;
+    }
+
+    void maybeTurnCheckpoint() {
+        if (!exportTurnCheckpoints || !TurnCheckpoint.atCleanPoint(game)) return;
+        final int turn = game.getPhaseHandler().getTurn();
+        if (turn == lastTurnCheckpoint) return;
+        lastTurnCheckpoint = turn;
+        try {
+            latestTurnCheckpoint = TurnCheckpoint.export(game, ++turnCheckpointSequence);
+        } catch (RuntimeException error) {
+            System.err.println("[mana-brew] turn checkpoint export failed: " + error);
+        }
+    }
+
     public String getSessionId() {
         return sessionId;
     }
@@ -209,7 +239,7 @@ public final class ManaBrewInteractiveSession {
         if (bridge != null) {
             forge.util.MyRandom.setRandom(rng);
             try {
-                match.startGame(game);
+                match.startGame(game, turnRestore == null ? null : () -> TurnCheckpoint.apply(game, turnRestore));
             } catch (RuntimeException | Error error) {
                 recordEngineError(error);
             }
@@ -222,7 +252,7 @@ public final class ManaBrewInteractiveSession {
                 if (decisionJournal != null) {
                     decisionJournal.awaitAcknowledgement();
                 }
-                match.startGame(game);
+                match.startGame(game, turnRestore == null ? null : () -> TurnCheckpoint.apply(game, turnRestore));
             } catch (RuntimeException | Error error) {
                 if (!closed) {
                     recordEngineError(error);

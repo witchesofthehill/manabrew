@@ -86,6 +86,7 @@ async fn discover_rooms(relay: &str, key: &str, want: usize) -> Result<Vec<Strin
             client_version: None,
             engine_gate: manabrew_relay_protocol::EngineGate::Unknown,
             acquisition_source: None,
+            features: Vec::new(),
         },
     )
     .await?;
@@ -136,6 +137,7 @@ async fn play_game(
                 client_version: None,
                 engine_gate: manabrew_relay_protocol::EngineGate::Unknown,
                 acquisition_source: None,
+                features: Vec::new(),
             },
         )
         .await?;

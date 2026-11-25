@@ -48,7 +48,7 @@ use tracing::warn;
 #[cfg(forge_backend)]
 use tracing::{debug, info};
 
-use super::HostedGameOver;
+use super::{HostedCheckpoint, HostedGameOver};
 use crate::config::workspace_root;
 
 pub fn unsupported_message() -> &'static str {
@@ -577,6 +577,14 @@ impl JavaEngineHandle {
         guard.get_snapshot(session_id, viewer)
     }
 
+    pub fn get_checkpoint(&self, session_id: &str) -> Result<Option<String>, String> {
+        let bridge = self.bridge_for(session_id)?;
+        let mut guard = bridge
+            .lock()
+            .map_err(|_| "java subprocess mutex poisoned".to_string())?;
+        guard.get_checkpoint(session_id)
+    }
+
     pub fn end_game(&self, session_id: &str) -> Result<(), String> {
         let bridge = {
             let mut in_use = self
@@ -715,6 +723,10 @@ mod graal_ffi {
             session_id: *const c_char,
         ) -> *mut c_char;
         pub fn forge_get_state_revision(
+            thread: *mut graal_isolatethread_t,
+            session_id: *const c_char,
+        ) -> *mut c_char;
+        pub fn forge_get_checkpoint(
             thread: *mut graal_isolatethread_t,
             session_id: *const c_char,
         ) -> *mut c_char;
@@ -1010,6 +1022,14 @@ impl GraalEngineHandle {
         self.bridge.decode(unsafe {
             graal_ffi::forge_get_snapshot(self.bridge.thread, session.as_ptr(), viewer)
         })
+    }
+
+    fn get_checkpoint(&self, session_id: &str) -> Result<Option<String>, String> {
+        let session = cstring(session_id)?;
+        let checkpoint = self.bridge.decode(unsafe {
+            graal_ffi::forge_get_checkpoint(self.bridge.thread, session.as_ptr())
+        })?;
+        Ok((!checkpoint.is_empty()).then_some(checkpoint))
     }
 
     fn end_game(&self, session_id: &str) -> Result<(), String> {
@@ -1414,9 +1434,11 @@ pub fn run_hosted_engine_game(
     ai_player_indices: Vec<usize>,
     bot_player_indices: Vec<usize>,
     starting_life: i32,
+    checkpoint: Option<String>,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<ClientToServerMessage>)>,
     game_over_tx: std_mpsc::Sender<HostedGameOver>,
+    checkpoint_tx: std_mpsc::Sender<HostedCheckpoint>,
     cancel: Arc<AtomicBool>,
 ) -> Result<(), String> {
     run_hosted_engine_game_inner(
@@ -1430,9 +1452,11 @@ pub fn run_hosted_engine_game(
         ai_player_indices,
         bot_player_indices,
         starting_life,
+        checkpoint,
         remote_prompt_tx,
         remote_response_rxs,
         game_over_tx,
+        checkpoint_tx,
         cancel,
     )
 }
@@ -1450,9 +1474,11 @@ pub fn run_hosted_engine_game(
     _ai_player_indices: Vec<usize>,
     _bot_player_indices: Vec<usize>,
     _starting_life: i32,
+    _checkpoint: Option<String>,
     _remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     _remote_response_rxs: Vec<(usize, std_mpsc::Receiver<ClientToServerMessage>)>,
     _game_over_tx: std_mpsc::Sender<HostedGameOver>,
+    _checkpoint_tx: std_mpsc::Sender<HostedCheckpoint>,
     _cancel: Arc<AtomicBool>,
 ) -> Result<(), String> {
     Err(unsupported_message().to_string())
@@ -1559,9 +1585,11 @@ fn run_hosted_engine_game_inner(
     ai_player_indices: Vec<usize>,
     bot_player_indices: Vec<usize>,
     starting_life: i32,
+    checkpoint: Option<String>,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<ClientToServerMessage>)>,
     game_over_tx: std_mpsc::Sender<HostedGameOver>,
+    checkpoint_tx: std_mpsc::Sender<HostedCheckpoint>,
     cancel: Arc<AtomicBool>,
 ) -> Result<(), String> {
     let engine = obtain_engine()?;
@@ -1584,6 +1612,22 @@ fn run_hosted_engine_game_inner(
             player.ai = true;
         }
     }
+    let restored = checkpoint.is_some();
+    let prompt_epoch = match checkpoint.as_deref() {
+        Some(text) => {
+            serde_json::from_str::<Value>(text)
+                .map_err(|e| e.to_string())?
+                .get("promptEpoch")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                + 1
+        }
+        None => 0,
+    };
+    let prompt_base = u32::try_from(prompt_epoch)
+        .ok()
+        .and_then(|epoch| epoch.checked_mul(1 << 24))
+        .ok_or("prompt epoch exhausted")?;
     for &idx in &bot_player_indices {
         if let Some(player) = players.get_mut(idx) {
             player.bot = true;
@@ -1597,6 +1641,8 @@ fn run_hosted_engine_game_inner(
         players,
     );
     request.checkpoint_metrics = true;
+    request.checkpoint = checkpoint;
+    request.checkpoint_export = true;
     let mut request: Value = serde_json::to_value(request).map_err(|err| err.to_string())?;
     if ai_player_indices.is_empty() {
         request["decisionJournal"] = json!(true);
@@ -1604,7 +1650,10 @@ fn run_hosted_engine_game_inner(
         request["snapshotRecording"] = json!(false);
     }
     let session_id = engine.start_game(&request.to_string())?;
-    info!(game_id, session_id, "hosted java-forge session started");
+    info!(
+        game_id,
+        session_id, restored, "hosted java-forge session started"
+    );
 
     struct SessionGuard {
         engine: ForgeEngine,
@@ -1636,7 +1685,9 @@ fn run_hosted_engine_game_inner(
     // hot for a moment after either, which is when the next is due.
     let mut last_activity = Instant::now();
     let mut state_revision = 0;
-    let mut prompt_offset = 0_u32;
+    let mut prompt_offset = prompt_base;
+    let mut last_checkpoint_seq: Option<u64> = None;
+    let mut checkpoint_sequence = 0_u64;
 
     loop {
         if cancel.load(std::sync::atomic::Ordering::Relaxed) {
@@ -1794,6 +1845,7 @@ fn run_hosted_engine_game_inner(
                 .map_or(Some(1), |prompt| prompt.prompt_id.checked_add(1))
                 .ok_or("prompt id overflow")?;
             prompt_offset = next_prompt.saturating_sub(target_prompt);
+            last_checkpoint_seq = None;
             last_prompt = None;
             pending_roll_acks = 0;
             decision_received = None;
@@ -1809,6 +1861,10 @@ fn run_hosted_engine_game_inner(
                 .prompt_id
                 .checked_add(prompt_offset)
                 .ok_or("prompt id overflow")?;
+            // Each host owns a disjoint prompt range, including answers still in flight at takeover.
+            if u64::from(prompt.prompt_id >> 24) != prompt_epoch {
+                return Err("host prompt range exhausted".into());
+            }
             if last_prompt.as_ref().map(|p| p.prompt_id) != Some(prompt.prompt_id) {
                 last_activity = Instant::now();
                 let decision_elapsed = decision_received.take().map(|started| started.elapsed());
@@ -1843,6 +1899,15 @@ fn run_hosted_engine_game_inner(
                     }
                 }
                 last_prompt = Some(prompt.clone());
+                forward_checkpoint(
+                    &engine,
+                    &session_id,
+                    &game_id,
+                    &mut last_checkpoint_seq,
+                    &mut checkpoint_sequence,
+                    prompt_epoch,
+                    &checkpoint_tx,
+                );
                 let player = player_index(&prompt.deciding_player_id);
                 debug!(player, "forwarding java prompt to remote");
                 if matches!(prompt.input, PromptInput::DiceRolled(_)) {
@@ -1954,6 +2019,53 @@ fn wait_for_prompt<B: JavaBridge>(
         std::thread::sleep(Duration::from_millis(50));
     }
     Ok(None)
+}
+
+#[cfg(forge_backend)]
+#[derive(serde::Deserialize)]
+struct CheckpointHeader {
+    seq: u64,
+    turn: u32,
+}
+
+#[cfg(forge_backend)]
+fn forward_checkpoint(
+    engine: &ForgeEngine,
+    session_id: &str,
+    game_id: &str,
+    last_seq: &mut Option<u64>,
+    sequence: &mut u64,
+    prompt_epoch: u64,
+    checkpoint_tx: &std_mpsc::Sender<HostedCheckpoint>,
+) {
+    let checkpoint = match engine.get_checkpoint(session_id) {
+        Ok(Some(checkpoint)) => checkpoint,
+        Ok(None) => return,
+        Err(error) => {
+            warn!(%error, session_id, "checkpoint unavailable");
+            return;
+        }
+    };
+    let header: CheckpointHeader = match serde_json::from_str(&checkpoint) {
+        Ok(header) => header,
+        Err(error) => {
+            warn!(%error, session_id, "checkpoint header unreadable");
+            return;
+        }
+    };
+    if *last_seq == Some(header.seq) {
+        return;
+    }
+    *last_seq = Some(header.seq);
+    *sequence += 1;
+    let mut payload: Value = serde_json::from_str(&checkpoint).expect("validated checkpoint");
+    payload["promptEpoch"] = json!(prompt_epoch);
+    let _ = checkpoint_tx.send(HostedCheckpoint {
+        game_id: game_id.to_string(),
+        seq: *sequence,
+        turn: header.turn,
+        checkpoint: payload.to_string(),
+    });
 }
 
 #[cfg(forge_backend)]
@@ -2653,6 +2765,7 @@ pub trait JavaBridge {
         player_index: usize,
     ) -> Result<Option<String>, String>;
     fn get_snapshot(&mut self, session_id: &str, viewer: Option<usize>) -> Result<String, String>;
+    fn get_checkpoint(&mut self, session_id: &str) -> Result<Option<String>, String>;
     fn is_game_over(&mut self, session_id: &str) -> Result<bool, String>;
     fn drain_checkpoint_metrics(&mut self, session_id: &str) -> Result<String, String>;
     fn drain_directives(&mut self, session_id: &str) -> Result<String, String>;
@@ -2702,6 +2815,11 @@ impl<B: JavaBridge> JavaForgeSession<B> {
         self.bridge.get_snapshot(&session_id, viewer)
     }
 
+    pub fn get_checkpoint(&mut self) -> Result<Option<String>, String> {
+        let session_id = self.require_session_id()?.to_string();
+        self.bridge.get_checkpoint(&session_id)
+    }
+
     pub fn is_game_over(&mut self) -> Result<bool, String> {
         let session_id = self.require_session_id()?.to_string();
         self.bridge.is_game_over(&session_id)
@@ -2749,6 +2867,10 @@ impl JavaBridge for UnavailableJavaBridge {
         _session_id: &str,
         _viewer: Option<usize>,
     ) -> Result<String, String> {
+        Err(unsupported_message().to_string())
+    }
+
+    fn get_checkpoint(&mut self, _session_id: &str) -> Result<Option<String>, String> {
         Err(unsupported_message().to_string())
     }
 
@@ -3063,6 +3185,12 @@ impl JavaBridge for SubprocessBridge {
         self.call(&body.to_string())
     }
 
+    fn get_checkpoint(&mut self, session_id: &str) -> Result<Option<String>, String> {
+        let body = json!({ "command": "getCheckpoint", "sessionId": session_id });
+        let checkpoint = self.call(&body.to_string())?;
+        Ok((!checkpoint.is_empty()).then_some(checkpoint))
+    }
+
     fn is_game_over(&mut self, session_id: &str) -> Result<bool, String> {
         let body = json!({ "command": "getGameOver", "sessionId": session_id });
         let value = self.call(&body.to_string())?;
@@ -3143,6 +3271,9 @@ pub struct StartGameRequest {
     seed: u64,
     players: Vec<PlayerConfig>,
     checkpoint_metrics: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    checkpoint: Option<String>,
+    checkpoint_export: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -3195,7 +3326,14 @@ impl StartGameRequest {
             seed,
             players,
             checkpoint_metrics: false,
+            checkpoint: None,
+            checkpoint_export: true,
         }
+    }
+
+    pub fn with_checkpoint(mut self, checkpoint: Option<String>) -> Self {
+        self.checkpoint = checkpoint;
+        self
     }
 
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
@@ -3424,5 +3562,135 @@ mod gc_log_tests {
         assert!(json.contains(
             r#""deck":[{"name":"Forest","setCode":"EOE","collectorNumber":"266","foil":true,"commander":false}]"#
         ));
+    }
+}
+
+#[cfg(all(test, feature = "java-forge"))]
+mod checkpoint_tests {
+    use super::*;
+    use manabot::{BotAgent, SimpleAi};
+
+    fn play_until_checkpoint<B: JavaBridge>(
+        session: &mut JavaForgeSession<B>,
+        target_turn: u32,
+        max_prompts: usize,
+    ) -> Result<String, String> {
+        let mut bots: HashMap<usize, SimpleAi> = HashMap::new();
+        let mut last_prompt: Option<String> = None;
+        let mut acted = 0usize;
+        for _ in 0..max_prompts.saturating_mul(200) {
+            if let Some(checkpoint) = session.get_checkpoint()? {
+                let header: CheckpointHeader = serde_json::from_str(&checkpoint)
+                    .map_err(|err| format!("checkpoint header: {err}"))?;
+                if header.turn >= target_turn {
+                    return Ok(checkpoint);
+                }
+            }
+            if session.is_game_over()? {
+                return Err("game over before the target turn".to_string());
+            }
+            let Some(prompt_json) = session.get_prompt(0)? else {
+                std::thread::sleep(Duration::from_millis(20));
+                continue;
+            };
+            if last_prompt.as_deref() == Some(prompt_json.as_str()) {
+                std::thread::sleep(Duration::from_millis(20));
+                continue;
+            }
+            let prompt: AgentPrompt =
+                serde_json::from_str(&prompt_json).map_err(|err| format!("prompt: {err}"))?;
+            let player = player_index(&prompt.deciding_player_id);
+            if let Some(action) = bots.entry(player).or_default().decide(prompt) {
+                submit_player_action(session, &action)?;
+                acted += 1;
+                if acted >= max_prompts {
+                    return Err(format!(
+                        "no checkpoint at turn {target_turn} within {max_prompts} decisions"
+                    ));
+                }
+            }
+            last_prompt = Some(prompt_json);
+        }
+        Err("iteration cap".to_string())
+    }
+
+    #[test]
+    #[ignore = "needs a JVM and forge-harness/target/forge-harness-jar-with-dependencies.jar"]
+    fn checkpoint_round_trip() {
+        let config = JavaRuntimeConfig::from_env();
+        let assets_dir = config.assets_dir.to_string_lossy().to_string();
+        let bridge = SubprocessBridge::spawn(&config).expect("java subprocess");
+        let mut session = JavaForgeSession::new(bridge);
+        session.initialize(&assets_dir).expect("initialize");
+        let mut cards = scenario_deck("Mountain");
+        cards[0].name = "Krenko, Mob Boss".to_string();
+        let players: Vec<PlayerConfig> = (0..4)
+            .map(|index| {
+                PlayerConfig::new(
+                    format!("Seat {}", index + 1),
+                    &cards,
+                    vec!["Krenko, Mob Boss".to_string()],
+                )
+            })
+            .collect();
+
+        let source = StartGameRequest::new(
+            "checkpoint-source".to_string(),
+            "Commander".to_string(),
+            40,
+            7,
+            players.clone(),
+        );
+        session.start_game(&source).expect("source game");
+        play_until_checkpoint(&mut session, 3, 600).expect("a checkpoint at turn 3");
+        session
+            .submit_action(&directive_json(3, DirectiveInput::Concede))
+            .unwrap();
+        let checkpoint =
+            play_until_checkpoint(&mut session, 5, 900).expect("checkpoint after elimination");
+        let mut checkpoint: Value = serde_json::from_str(&checkpoint).unwrap();
+        assert_eq!(checkpoint["players"][3]["eliminated"], true);
+        checkpoint["players"][0]["commanderCast"]["Krenko, Mob Boss"] = json!(2);
+        checkpoint["players"][1]["commanderDamage"] =
+            json!([{"owner": 0, "commander": "Krenko, Mob Boss", "damage": 7}]);
+        checkpoint["monarch"] = json!(1);
+        checkpoint["initiative"] = json!(2);
+        checkpoint["dayTime"] = json!(false);
+        let header: CheckpointHeader = serde_json::from_value(checkpoint.clone()).unwrap();
+        session.end_game().expect("end source game");
+        drop(session);
+        let bridge = SubprocessBridge::spawn(&config).expect("fresh engine process");
+        let mut session = JavaForgeSession::new(bridge);
+        session.initialize(&assets_dir).unwrap();
+
+        let restored = StartGameRequest::new(
+            "checkpoint-restored".to_string(),
+            "Commander".to_string(),
+            40,
+            8,
+            players,
+        )
+        .with_checkpoint(Some(checkpoint.to_string()));
+        session.start_game(&restored).expect("restored game");
+        let recovered =
+            play_until_checkpoint(&mut session, header.turn, 600).expect("restored checkpoint");
+        let recovered: Value = serde_json::from_str(&recovered).unwrap();
+        assert_eq!(recovered["players"], checkpoint["players"]);
+        for key in ["turn", "activePlayer", "monarch", "initiative", "dayTime"] {
+            assert_eq!(recovered[key], checkpoint[key], "{key}");
+        }
+        let continued = play_until_checkpoint(&mut session, header.turn + 1, 600)
+            .expect("play past the restored turn");
+        let continued: CheckpointHeader = serde_json::from_str(&continued).unwrap();
+        assert_eq!(continued.turn, header.turn + 1);
+        let view: GameViewDto =
+            serde_json::from_str(&session.get_snapshot(None).unwrap()).expect("snapshot");
+        assert!(
+            view.turn >= header.turn,
+            "turn {} did not continue from {}",
+            view.turn,
+            header.turn
+        );
+        session.end_game().unwrap();
     }
 }

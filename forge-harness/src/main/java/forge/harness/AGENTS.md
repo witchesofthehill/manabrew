@@ -200,3 +200,7 @@ Web Image's `Throwable.getStackTrace()` can return only the entry point (`WasmMa
 Journal mode requires an isolated process, native card IDs and RNG seeding on both construction and execution threads. Name threaded engines `Game-*` so Forge's `GameAction.invoke` stays on the seeded thread. Never expose full journals or witnesses to players.
 
 The direct `build-wasm.sh` build also needs `forge/forge-gui/res/languages` on the classpath; `FORGE_ASSETS` alone is insufficient.
+
+### Host migration checkpoints
+
+`TurnCheckpoint` exports lossy `GameState` text at a clean MAIN1 boundary, plus Commander and eliminated-seat metadata. It is separate from `GameCheckpoint`, which serves verified local journal rewind. Restore uses a subclass calling `applyGameOnThread` from the startup hook. Never call `applyToGame`, which schedules work past the startup boundary. Export crosses the bridge as an immutable string through `getCheckpoint`; browser transport export is still pending.

@@ -96,6 +96,17 @@ pub enum AnalyticsEvent {
         #[serde(skip_serializing_if = "Option::is_none")]
         turns: Option<u32>,
     },
+    HostHandoff {
+        ts: String,
+        room_id: String,
+        game_id: String,
+        attempt_id: String,
+        outcome: String,
+        turn: Option<u32>,
+        seconds_lost: Option<f64>,
+        host_type: String,
+        target_host_type: String,
+    },
     /// Which seats left the relay's data plane, as reported by the host.
     TransportUsed {
         ts: String,

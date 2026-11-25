@@ -632,6 +632,7 @@ async fn authenticate(
             client_version: Some(var("CLIENT_VERSION", "3.17.3")),
             engine_gate: EngineGate::Unknown,
             acquisition_source: None,
+            features: Vec::new(),
         },
     )
     .await?;

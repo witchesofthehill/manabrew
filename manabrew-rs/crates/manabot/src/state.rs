@@ -196,6 +196,7 @@ impl BotState {
             client_version: None,
             engine_gate: EngineGate::Unknown,
             acquisition_source: None,
+            features: Vec::new(),
         }]
     }
 

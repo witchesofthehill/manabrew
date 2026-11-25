@@ -124,6 +124,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public boolean mulliganKeepHand(final Player mulliganingPlayer, final int cardsToReturn) {
+        if (session.isTurnRestoring()) return true;
         final boolean keep = session.awaitMulliganDecision(me(), cardsToReturn);
         if (keep && cardsToReturn > 0) {
             final CardCollection hand = new CardCollection(player.getCardsIn(ZoneType.Hand));
@@ -189,6 +190,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             }
         }
         while (true) {
+            session.maybeTurnCheckpoint();
             final List<SpellAbility> all;
             probingPayability = true;
             try {
@@ -2489,7 +2491,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public Player chooseStartingPlayer(final boolean isFirstGame) {
         final List<Player> players = getGame().getPlayers();
-        if (players.size() <= 1) {
+        if (players.size() <= 1 || session.isTurnRestoring()) {
             return players.get(0);
         }
         return session.awaitFirstPlayerRoll(me(), players);

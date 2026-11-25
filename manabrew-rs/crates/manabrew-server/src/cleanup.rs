@@ -6,7 +6,8 @@ use tracing::{info, warn};
 use crate::analytics::{self, GameEndReason};
 use crate::connection::{broadcast_room_transport, broadcast_to_room, emit_to};
 use crate::lobby;
-use crate::protocol::{RoomStatus, ServerMessage};
+use crate::metrics;
+use crate::protocol::{RoomStatus, ServerMessage, FEATURE_HOST_HANDOFF};
 use crate::room::Room;
 use crate::state::ServerState;
 
@@ -14,6 +15,8 @@ const CLEANUP_INTERVAL: Duration = Duration::from_secs(60);
 const STALE_CONNECTED_TIMEOUT: Duration = Duration::from_secs(180);
 const IN_GAME_DISCONNECTED_GRACE: Duration = Duration::from_secs(3600);
 const RECONNECT_ABORT_MARGIN: Duration = Duration::from_secs(5);
+const HOST_HANDOFF_GRACE: Duration = Duration::from_secs(20);
+const HOST_HANDOFF_WINDOW: Duration = Duration::from_secs(45);
 
 pub async fn cleanup_loop(state: Arc<ServerState>) {
     let mut ticker = tokio::time::interval(CLEANUP_INTERVAL);
@@ -155,32 +158,63 @@ pub fn schedule_host_resume_abort(
     else {
         return;
     };
-    let timeout = Duration::from_secs(timeout_s as u64);
+    let timeout = Duration::from_secs(timeout_s as u64) + RECONNECT_ABORT_MARGIN;
     let disconnected_at = state
         .players
         .get(&host_player_id)
         .and_then(|p| p.disconnected_at);
 
     tokio::spawn(async move {
-        tokio::time::sleep(timeout + RECONNECT_ABORT_MARGIN).await;
-
-        // ResumeRoom rotates host_player_id and session reclaim flips the
-        // player back to connected; either one disarms this abort.
-        let host_still_gone = state
-            .rooms
-            .get(&room_id)
-            .map(|room| {
-                matches!(room.status, RoomStatus::InGame | RoomStatus::Finished)
-                    && room.host_player_id == host_player_id
-            })
-            .unwrap_or(false)
-            && state
-                .players
-                .get(&host_player_id)
-                .map(|player| !player.connected && player.disconnected_at == disconnected_at)
-                .unwrap_or(true);
-        if !host_still_gone {
+        let handoff_after = HOST_HANDOFF_GRACE.min(timeout);
+        tokio::time::sleep(handoff_after).await;
+        if !host_still_gone(&state, &room_id, &host_player_id, disconnected_at) {
             return;
+        }
+        let offered = offer_host_handoff(&state, &room_id, &host_player_id);
+        if !offered {
+            release_handoff_slot(&state, &room_id);
+        }
+        tokio::time::sleep(if offered {
+            HOST_HANDOFF_WINDOW
+        } else {
+            timeout.saturating_sub(handoff_after)
+        })
+        .await;
+        release_handoff_slot(&state, &room_id);
+        let restore_stalled = offered
+            && state.rooms.get(&room_id).is_some_and(|room| {
+                room.replay
+                    .as_ref()
+                    .and_then(|r| r.handoff.as_ref())
+                    .is_some_and(|h| h.claimed && !h.completed)
+            });
+        if !restore_stalled && !host_still_gone(&state, &room_id, &host_player_id, disconnected_at)
+        {
+            if offered {
+                if let Some(mut room) = state.rooms.get_mut(&room_id) {
+                    if room.host_player_id == host_player_id {
+                        if let Some(replay) = room.replay.as_mut() {
+                            analytics::emit_host_handoff(
+                                &state.analytics,
+                                &room_id,
+                                replay,
+                                "host_resumed",
+                            );
+                            replay.handoff = None;
+                        }
+                    }
+                }
+            }
+            return;
+        }
+        if offered && !restore_stalled {
+            if let Some(mut room) = state.rooms.get_mut(&room_id) {
+                if let Some(replay) = room.replay.as_mut() {
+                    analytics::emit_host_handoff(&state.analytics, &room_id, replay, "timed_out");
+                    replay.handoff = None;
+                }
+            }
+            metrics::record_host_handoff(metrics::HANDOFF_UNCLAIMED);
         }
 
         info!(
@@ -196,6 +230,183 @@ pub fn schedule_host_resume_abort(
         );
         remove_room_and_clear_sessions(&state, &room_id, GameEndReason::HostLost);
     });
+}
+
+fn host_still_gone(
+    state: &Arc<ServerState>,
+    room_id: &str,
+    host_player_id: &str,
+    disconnected_at: Option<Instant>,
+) -> bool {
+    state
+        .rooms
+        .get(room_id)
+        .map(|room| {
+            matches!(room.status, RoomStatus::InGame | RoomStatus::Finished)
+                && room.host_player_id == host_player_id
+        })
+        .unwrap_or(false)
+        && state
+            .players
+            .get(host_player_id)
+            .map(|player| !player.connected && player.disconnected_at == disconnected_at)
+            .unwrap_or(true)
+}
+
+fn release_handoff_slot(state: &Arc<ServerState>, source_room: &str) {
+    for mut room in state.rooms.iter_mut() {
+        if room.handoff_for.as_deref() == Some(source_room) {
+            room.handoff_for = None;
+        }
+    }
+}
+
+fn offer_host_handoff(state: &Arc<ServerState>, room_id: &str, old_host_pid: &str) -> bool {
+    let busy: Vec<String> = state
+        .rooms
+        .iter()
+        .filter_map(|room| {
+            room.replay
+                .as_ref()?
+                .handoff
+                .as_ref()
+                .map(|h| h.candidate.clone())
+        })
+        .collect();
+    let candidate = state.rooms.iter_mut().find_map(|mut room| {
+        if room.room_id == room_id
+            || room.handoff_for.is_some()
+            || !room.hosted
+            || !room.official
+            || room.status != RoomStatus::Lobby
+            || !room.players.is_empty()
+            || busy.contains(&room.host_player_id)
+            || room.engine != crate::protocol::EngineKind::Forge
+        {
+            return None;
+        }
+        let host = state.players.get(&room.host_player_id)?;
+        if !host.connected || !host.is_service || !host.client.supports(FEATURE_HOST_HANDOFF) {
+            return None;
+        }
+        let id = host.player_id.clone();
+        drop(host);
+        room.handoff_for = Some(room_id.to_string());
+        Some(id)
+    });
+    let offer = {
+        let Some(mut room) = state.rooms.get_mut(room_id) else {
+            return false;
+        };
+        if room.status != RoomStatus::InGame
+            || room.host_player_id != old_host_pid
+            || room.engine != crate::protocol::EngineKind::Forge
+            || !room.hosted
+            || room.is_limited_session()
+            || room.parent_limited_room.is_some()
+            || !room.has_connected_human()
+        {
+            return false;
+        }
+        let compatible = room.players.iter().filter(|seat| !seat.is_bot).all(|seat| {
+            state
+                .players
+                .get(&seat.player_id)
+                .is_some_and(|player| player.client.supports(FEATURE_HOST_HANDOFF))
+        });
+        let host_type = if room.official
+            || state
+                .players
+                .get(old_host_pid)
+                .is_some_and(|p| p.client.supports(FEATURE_HOST_HANDOFF))
+        {
+            "pod"
+        } else {
+            "native_desktop"
+        };
+        let Some(replay) = room.replay.as_ref() else {
+            return false;
+        };
+        if !compatible {
+            state
+                .analytics
+                .emit(crate::analytics::AnalyticsEvent::HostHandoff {
+                    ts: analytics::now_ts(),
+                    room_id: room_id.to_string(),
+                    game_id: replay.game_id.clone(),
+                    attempt_id: uuid::Uuid::new_v4().to_string(),
+                    outcome: "unsupported_clients".to_string(),
+                    turn: None,
+                    seconds_lost: None,
+                    host_type: host_type.to_string(),
+                    target_host_type: "pod".to_string(),
+                });
+            return false;
+        }
+        let Some(held) = replay
+            .checkpoint
+            .as_ref()
+            .filter(|h| h.host_player_id == old_host_pid)
+        else {
+            state
+                .analytics
+                .emit(crate::analytics::AnalyticsEvent::HostHandoff {
+                    ts: analytics::now_ts(),
+                    room_id: room_id.to_string(),
+                    game_id: replay.game_id.clone(),
+                    attempt_id: uuid::Uuid::new_v4().to_string(),
+                    outcome: "no_checkpoint".to_string(),
+                    turn: None,
+                    seconds_lost: None,
+                    host_type: host_type.to_string(),
+                    target_host_type: "pod".to_string(),
+                });
+            metrics::record_host_handoff(metrics::HANDOFF_NO_CHECKPOINT);
+            return false;
+        };
+        let turn = held.turn;
+        let disconnected_at = state
+            .players
+            .get(old_host_pid)
+            .and_then(|p| p.disconnected_at)
+            .unwrap_or_else(Instant::now);
+        let seconds_lost = disconnected_at
+            .saturating_duration_since(held.received_at)
+            .as_secs_f64();
+        let token = uuid::Uuid::new_v4().to_string();
+        let request = lobby::handoff_request(&room, replay, token.clone(), None);
+        let checkpoint = held.checkpoint.clone();
+        let replay = room.replay.as_mut().unwrap();
+        replay.handoff = Some(crate::replay::HostHandoff {
+            attempt_id: uuid::Uuid::new_v4().to_string(),
+            token,
+            candidate: candidate.clone().unwrap_or_default(),
+            offered_at: Instant::now(),
+            seconds_lost,
+            host_type,
+            turn,
+            claimed: false,
+            completed: false,
+        });
+        if candidate.is_none() {
+            analytics::emit_host_handoff(&state.analytics, room_id, replay, "no_candidate");
+            replay.handoff = None;
+            metrics::record_host_handoff(metrics::HANDOFF_NO_CANDIDATE);
+            return false;
+        }
+        analytics::emit_host_handoff(&state.analytics, room_id, replay, "offered");
+        ServerMessage::HostHandoff {
+            request,
+            turn,
+            checkpoint,
+        }
+    };
+    let Ok(json) = serde_json::to_string(&offer) else {
+        return false;
+    };
+    emit_to(state, &candidate.unwrap(), &offer, &json);
+    metrics::record_host_handoff(metrics::HANDOFF_OFFERED);
+    true
 }
 
 pub fn schedule_peer_host_loss(state: Arc<ServerState>, room_id: String, player_id: String) {

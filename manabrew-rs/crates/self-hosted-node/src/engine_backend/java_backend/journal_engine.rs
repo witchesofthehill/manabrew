@@ -75,6 +75,11 @@ impl JournalEngine {
         self.bridge.borrow_mut().state_revision(session)
     }
 
+    pub(super) fn get_checkpoint(&self, session: &str) -> Result<Option<String>, String> {
+        let raw = self.call("getCheckpoint", session)?;
+        Ok((!raw.is_empty()).then_some(raw))
+    }
+
     pub(super) fn drain_checkpoint_metrics(&self, session: &str) -> Result<String, String> {
         self.bridge.borrow_mut().drain_checkpoint_metrics(session)
     }

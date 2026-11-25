@@ -133,6 +133,9 @@ public final class ManaBrewEngineAdapter {
         }
         final ManaBrewInteractiveSession session =
                 new ManaBrewInteractiveSession(request.getGameId());
+        final TurnCheckpoint.Restore restore = request.checkpoint == null
+                ? null : TurnCheckpoint.parse(request.checkpoint, playerCount);
+        session.setTurnRestore(restore, request.checkpointExport);
         final List<RegisteredPlayer> registeredPlayers = new ArrayList<>();
         final List<List<CardCosmeticBindings.DeckEntry>> deckEntries = new ArrayList<>();
         final Set<Integer> botSeats = new HashSet<>();
@@ -145,6 +148,7 @@ public final class ManaBrewEngineAdapter {
             deckEntries.add(entries);
             RegisteredPlayer registeredPlayer = RegisteredPlayer.forVariants(
                     playerCount, variants, deck, null, false, null, null);
+            if (restore != null) registeredPlayer.setStartingHand(0);
             if (pauperCommander) {
                 registeredPlayer.setStartingLife(PAUPER_COMMANDER_STARTING_LIFE);
             } else if (request.startingLifeSpecified) {
@@ -181,6 +185,11 @@ public final class ManaBrewEngineAdapter {
             playerIndexes.add(i);
         }
         return new SessionHandle(session.getSessionId(), playerIndexes);
+    }
+
+    public String getCheckpoint(final String sessionId) {
+        final String checkpoint = getSession(sessionId).getLatestTurnCheckpoint();
+        return checkpoint == null ? "" : checkpoint;
     }
 
     public String startGameJson(final String requestJson) {
@@ -579,9 +588,8 @@ public final class ManaBrewEngineAdapter {
         if (root.has("replaySnapshot")) {
             request.replaySnapshot = root.remove("replaySnapshot").getAsJsonObject();
         }
-        if (root.has("checkpoint") || (root.has("checkpointExport") && root.get("checkpointExport").getAsBoolean())) {
-            throw new IllegalArgumentException("GameState checkpoints are unsupported; restore a replay snapshot instead");
-        }
+        request.checkpoint = optionalString(root, "checkpoint");
+        request.checkpointExport = root.has("checkpointExport") && root.get("checkpointExport").getAsBoolean();
         if (root.has("decisionJournal") && root.get("decisionJournal").getAsBoolean()) {
             request.journalStart = root.toString();
         }
@@ -645,6 +653,8 @@ public final class ManaBrewEngineAdapter {
         private final long seed;
         private final boolean snapshotRecording;
         private boolean checkpointMetrics;
+        private String checkpoint;
+        private boolean checkpointExport;
         private String journalStart;
         private boolean journalCommitBarrier;
         private final List<PlayerConfig> players;

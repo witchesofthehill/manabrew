@@ -373,6 +373,9 @@ public final class Main {
                         case "restoreReplaySnapshot":
                             sendOk(adapter.restoreReplaySnapshot(requireString(request, "payload")));
                             break;
+                        case "getCheckpoint":
+                            sendOk(adapter.getCheckpoint(requireString(request, "sessionId")));
+                            break;
                         case "getGameOver":
                             sendOk(adapter.getGameOver(requireString(request, "sessionId")));
                             break;

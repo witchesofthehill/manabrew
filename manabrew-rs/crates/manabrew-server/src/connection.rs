@@ -18,6 +18,8 @@ use crate::identity::{self, SessionIdentity};
 use crate::lobby;
 use crate::matchmaking;
 use crate::metrics;
+
+const MAX_CHECKPOINT_BYTES: usize = 2 * 1024 * 1024;
 use crate::protocol::{
     ChatMessage, ChatScope, ClientMessage, GameFormat, RoomStatus, ServerMessage,
     CHAT_MESSAGE_MAX_CHARS, CHAT_MIN_INTERVAL_MS,
@@ -1325,11 +1327,13 @@ async fn authenticate(
             client_version,
             engine_gate,
             acquisition_source,
+            features,
         } => {
             let mut client = ClientBuild::new(client_platform, client_version, engine_gate);
             client.acquisition_source = acquisition_source
                 .as_deref()
                 .map(crate::client_build::acquisition_source);
+            client.features = features;
             if password != state.server_key {
                 let reply = ServerMessage::AuthResult {
                     success: false,
@@ -1844,6 +1848,38 @@ fn handle_client_message(
                         },
                     );
                     resume_ready_rematch(state, &room_id);
+                    if let Some(change) = resumed.host_change {
+                        broadcast_room_transport(state, &room_id);
+                        info!(
+                            "[handoff] room {} now hosted by '{}' (was '{}', turn {})",
+                            &room_id[..8],
+                            username,
+                            change.previous_host,
+                            change.turn
+                        );
+                        metrics::record_host_handoff(metrics::HANDOFF_CLAIMED);
+                        broadcast_to_room_except(
+                            state,
+                            player_id,
+                            &room_id,
+                            &ServerMessage::HostChanged {
+                                room_id: room_id.clone(),
+                                game_id: change.game_id.clone(),
+                                host: username.to_string(),
+                                turn: change.turn,
+                            },
+                        );
+                        if let Some(room) = state.rooms.get(&room_id) {
+                            if let Some(replay) = &room.replay {
+                                analytics::emit_host_handoff(
+                                    &state.analytics,
+                                    &room_id,
+                                    replay,
+                                    "claimed",
+                                );
+                            }
+                        }
+                    }
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' resume room failed: {}", username, e);
@@ -2181,6 +2217,44 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::ReportCheckpoint {
+            game_id,
+            seq,
+            turn,
+            checkpoint,
+        } => {
+            let room_id = state.players.get(player_id).and_then(|p| p.room_id.clone());
+            let recorded = checkpoint.len() <= MAX_CHECKPOINT_BYTES
+                && room_id
+                    .and_then(|room_id| state.rooms.get_mut(&room_id))
+                    .filter(|room| {
+                        room.is_host(player_id)
+                            && room.hosted
+                            && room.status == RoomStatus::InGame
+                            && room.engine == crate::protocol::EngineKind::Forge
+                    })
+                    .and_then(|mut room| {
+                        room.replay
+                            .as_mut()
+                            .filter(|replay| replay.game_id == game_id)
+                            .map(|replay| {
+                                replay.record_checkpoint(player_id, seq, turn, checkpoint)
+                            })
+                    })
+                    .unwrap_or(false);
+            metrics::record_checkpoint(if recorded {
+                metrics::CHECKPOINT_ACCEPTED
+            } else {
+                metrics::CHECKPOINT_REJECTED
+            });
+            if !recorded {
+                debug!(
+                    "[handoff] '{}' filed a checkpoint for a game it does not host",
+                    username
+                );
+            }
+        }
+
         ClientMessage::RequestResync => {
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             let replayed = room_id.and_then(|rid| {
@@ -2394,6 +2468,26 @@ fn handle_client_message(
                     canonical_target
                 };
                 let should_deliver = source != GameMessageSource::Player || host_connected;
+                if source == GameMessageSource::Engine && game_state["kind"] == "state" {
+                    if let Some(replay) = room.replay.as_mut() {
+                        if let Some(handoff) = replay.handoff.as_mut().filter(|h| {
+                            h.claimed
+                                && !h.completed
+                                && game_state
+                                    .pointer("/state/gameView/turn")
+                                    .and_then(serde_json::Value::as_u64)
+                                    .is_some_and(|turn| turn >= u64::from(h.turn))
+                        }) {
+                            handoff.completed = true;
+                            analytics::emit_host_handoff(
+                                &state.analytics,
+                                &rid,
+                                replay,
+                                "succeeded",
+                            );
+                        }
+                    }
+                }
                 let capture_game_id = room
                     .replay
                     .as_mut()
@@ -2924,6 +3018,8 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::PlayerList { .. } => "PlayerList",
         ServerMessage::RoomCreated { .. } => "RoomCreated",
         ServerMessage::RoomResumed { .. } => "RoomResumed",
+        ServerMessage::HostHandoff { .. } => "HostHandoff",
+        ServerMessage::HostChanged { .. } => "HostChanged",
         ServerMessage::PlayerJoined { .. } => "PlayerJoined",
         ServerMessage::PlayerLeft { .. } => "PlayerLeft",
         ServerMessage::PlayerConnected { .. } => "PlayerConnected",
@@ -2974,6 +3070,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::SetRematchIntent { .. } => "SetRematchIntent",
         ClientMessage::ReturnToLobby { .. } => "ReturnToLobby",
         ClientMessage::ReportGameOutcome { .. } => "ReportGameOutcome",
+        ClientMessage::ReportCheckpoint { .. } => "ReportCheckpoint",
         ClientMessage::ReportEngineStats { .. } => "ReportEngineStats",
         ClientMessage::RequestResync => "RequestResync",
         ClientMessage::BroadcastState { .. } => "BroadcastState",

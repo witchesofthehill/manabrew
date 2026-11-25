@@ -35,7 +35,15 @@ import type {
 import type { CardIdentity, GameViewDto } from "@/protocol/game";
 import { warmLibraryTop } from "@/lib/cardFaceWarmup";
 import { RELAY_FEATURE, SERVER_ERROR_CODE } from "@/types/server";
-import type { AuthResultPayload, GameAbortedPayload, RoomMessagePayload } from "@/types/server";
+import type {
+  AuthResultPayload,
+  GameAbortedPayload,
+  HostChangedPayload,
+  RoomMessagePayload,
+} from "@/types/server";
+import { useGameUIStore } from "@/stores/useGameUIStore";
+import { useStackUIStore } from "@/stores/useStackUIStore";
+
 type SelfHostedNodeRoomPayload = {
   type?: unknown;
   gameId?: unknown;
@@ -502,6 +510,32 @@ export function useGameEventListeners() {
           void useGameStore.getState().endGame();
         }),
       );
+      unsubscribers.push(
+        platform.events.on<HostChangedPayload>("server:host_changed", (payload) => {
+          const state = getState();
+          if (!state.isMultiplayer || !state.isGameActive) return;
+          const roomId =
+            peekActiveGameSession()?.roomId ?? useServerStore.getState().currentRoom?.room_id;
+          if (roomId && payload.room_id !== roomId) return;
+          if (payload.game_id !== useServerStore.getState().gameId) return;
+          setState({
+            currentPrompt: null,
+            deferredQueue: [],
+            isFlashing: false,
+            isWaitingForResponse: false,
+            relinquishedPriority: false,
+            seatAddressedStates: false,
+            gameView: null,
+            debugInfo: `Host changed to ${payload.host}; resuming from turn ${payload.turn}`,
+          });
+          useGameUIStore.getState().resetAll();
+          useStackUIStore.getState().reset();
+          toast.info(
+            `The table moved to a new host. Play resumes from the start of turn ${payload.turn}. Actions since then must be played again. Emblems and effects that last several turns may be missing.`,
+          );
+        }),
+      );
+
       unsubscribers.push(
         platform.events.on<{
           reason: string;

@@ -116,25 +116,39 @@ export function FindGameDialog({
   }
 
   function deckGrid(options: DeckOption[]) {
+    const groups = new Map<number | undefined, DeckOption[]>();
+    for (const option of options) {
+      const bracket = brackets[option.id];
+      groups.set(bracket, [...(groups.get(bracket) ?? []), option]);
+    }
+    const ordered = [...groups].sort(
+      ([a], [b]) => (a ?? Number.POSITIVE_INFINITY) - (b ?? Number.POSITIVE_INFINITY),
+    );
     return (
-      <div className={DECK_GRID}>
-        {options.map((option) => (
-          <DeckSelectionCard
-            key={option.id}
-            name={option.deck.name}
-            desc={option.isPreset ? option.deck.description : undefined}
-            color={option.isPreset ? option.deck.color : undefined}
-            labels={option.deck.labels}
-            cards={[...option.deck.cards, ...(option.deck.commanders ?? [])]}
-            cover={resolveCoverCard(option.deck)}
-            isPreset={option.isPreset}
-            badge={`Bracket ${brackets[option.id] ?? "…"}`}
-            isSelected={selectedIds.includes(option.id)}
-            dense
-            isTouch={isTouch}
-            disabled={disabled}
-            onSelect={() => toggle(option)}
-          />
+      <div className="space-y-5">
+        {ordered.map(([bracket, items]) => (
+          <div key={bracket ?? "checking"} className="space-y-2">
+            <BracketHeader bracket={bracket} />
+            <div className={DECK_GRID}>
+              {items.map((option) => (
+                <DeckSelectionCard
+                  key={option.id}
+                  name={option.deck.name}
+                  desc={option.isPreset ? option.deck.description : undefined}
+                  color={option.isPreset ? option.deck.color : undefined}
+                  labels={option.deck.labels}
+                  cards={[...option.deck.cards, ...(option.deck.commanders ?? [])]}
+                  cover={resolveCoverCard(option.deck)}
+                  isPreset={option.isPreset}
+                  isSelected={selectedIds.includes(option.id)}
+                  dense
+                  isTouch={isTouch}
+                  disabled={disabled}
+                  onSelect={() => toggle(option)}
+                />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     );
@@ -319,6 +333,27 @@ export function FindGameDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function BracketHeader({ bracket }: { bracket: number | undefined }) {
+  if (bracket === undefined) {
+    return (
+      <p className="flex items-center gap-2 text-ui-label text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Checking bracket…
+      </p>
+    );
+  }
+  const info = BRACKET_INFO[bracket as Bracket];
+  return (
+    <p className="flex min-w-0 items-baseline gap-2 text-ui-label">
+      <span className="shrink-0 font-semibold">
+        Bracket {bracket}
+        {info && ` · ${info.name}`}
+      </span>
+      {info && <span className="truncate text-ui-meta text-muted-foreground">{info.blurb}</span>}
+    </p>
   );
 }
 

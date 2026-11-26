@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.96.5](https://github.com/witchesofthehill/manabrew/compare/v3.96.4...v3.96.5) (2026-11-26)
+
+### Fixes
+
+* **forge:** finish hybrid mana payments from the pool ([#1302](https://github.com/witchesofthehill/manabrew/issues/1302)) ([88068ee](https://github.com/witchesofthehill/manabrew/commit/88068eed68072d3c8fc5138cee3fc49db7153764))
+
 ## [3.96.4](https://github.com/witchesofthehill/manabrew/compare/v3.96.3...v3.96.4) (2026-11-26)
 
 ### Fixes

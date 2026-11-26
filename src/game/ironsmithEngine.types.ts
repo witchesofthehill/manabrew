@@ -33,6 +33,8 @@ export type IronsmithInput =
   | { kind: "directive"; slot: string; directive: DirectiveInput };
 
 export interface IronsmithEngineMethods {
+  // Compiles the decks' cards ahead of `start`, which then finds them ready.
+  prepare(decks: Deck[]): void;
   start(config: IronsmithMatchConfig, validate: boolean): IronsmithDeckIssue[] | null;
   view(viewer: number): IronsmithViewResult;
   publicState(): { gameView?: GameViewDto };

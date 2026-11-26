@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.96.3](https://github.com/witchesofthehill/manabrew/compare/v3.96.2...v3.96.3) (2026-11-26)
+
+### Fixes
+
+* **ironsmith:** stop Commander games freezing, start seats together, stop the guest hand blinking ([#1300](https://github.com/witchesofthehill/manabrew/issues/1300)) ([6eb573a](https://github.com/witchesofthehill/manabrew/commit/6eb573accc2db0ddfe322e868aaa68f9b5ff91ff))
+
 ## [3.96.2](https://github.com/witchesofthehill/manabrew/compare/v3.96.1...v3.96.2) (2026-11-25)
 
 ### Fixes

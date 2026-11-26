@@ -91,6 +91,8 @@ export function DeckVsSelector({
   const lastOfflineFormatId = usePreferencesStore((state) => state.lastOfflineFormatId);
   const lastAiOpponent = usePreferencesStore((state) => state.lastAiOpponent);
   const boardBackground = usePreferencesStore((state) => state.boardBackgroundId);
+  const tablePickerSeen = usePreferencesStore((state) => state.tablePickerSeen);
+  const markTablePickerSeen = usePreferencesStore((state) => state.markTablePickerSeen);
   const setBoardBackground = usePreferencesStore((state) => state.setBoardBackgroundId);
   const rememberedFormatId =
     !preSelectedDeckEntry && lastOfflineFormatId && getFormat(lastOfflineFormatId)
@@ -424,7 +426,12 @@ export function DeckVsSelector({
   function handleFight() {
     if (!isReady || starting) return;
     trackClientUiAction("setup_fight");
-    void startFight();
+    if (tablePickerSeen) {
+      void startFight();
+      return;
+    }
+    markTablePickerSeen();
+    setTableDialogOpen(true);
   }
 
   function handleTableChosen() {

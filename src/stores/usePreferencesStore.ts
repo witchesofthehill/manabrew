@@ -179,6 +179,9 @@ export interface PreferencesState {
   lastOfflineFormatId: string | null;
   setLastOfflineFormatId: (formatId: string) => void;
 
+  tablePickerSeen: boolean;
+  markTablePickerSeen: () => void;
+
   lastAiOpponent: AiOpponentRef | null;
   setLastAiOpponent: (opponent: AiOpponentRef) => void;
 
@@ -238,6 +241,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "lastPlayedDeckId",
   "lastPlayedAtByDeck",
   "lastOfflineFormatId",
+  "tablePickerSeen",
   "lastAiOpponent",
   "lastRoomSetup",
   "tableBackground",
@@ -471,6 +475,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           lastOfflineFormatId: null,
           setLastOfflineFormatId: (lastOfflineFormatId) => set({ lastOfflineFormatId }),
+
+          tablePickerSeen: false,
+          markTablePickerSeen: () => set({ tablePickerSeen: true }),
 
           lastAiOpponent: null,
           setLastAiOpponent: (lastAiOpponent) => set({ lastAiOpponent }),

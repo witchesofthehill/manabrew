@@ -14,6 +14,7 @@ import type { GameViewDto } from "@/protocol/game";
 type IronsmithWasmGame = InstanceType<typeof WasmGame> & {
   validateManabrewMatchConfig(config: unknown): { valid?: boolean; issues?: IronsmithDeckIssue[] };
   startManabrewMatch(config: unknown): unknown;
+  registerManabrewDeckSources(decks: unknown): unknown;
   manabrewView(viewer: number): IronsmithViewResult;
   manabrewPublicState(): { gameView?: GameViewDto };
   manabrewRespond(player: number, promptId: number, output: PromptOutput): IronsmithViewResult;
@@ -42,6 +43,9 @@ async function initialize(): Promise<void> {
 }
 
 const methods: IronsmithEngineMethods = {
+  prepare(decks) {
+    game.registerManabrewDeckSources(decks);
+  },
   start(config, validate) {
     methods.clearBots();
     if (validate) {
@@ -92,6 +96,8 @@ const methods: IronsmithEngineMethods = {
 async function dispatch(request: IronsmithEngineRequest): Promise<unknown> {
   await initialize();
   switch (request.method) {
+    case "prepare":
+      return methods.prepare(...request.args);
     case "start":
       return methods.start(...request.args);
     case "view":

@@ -101,6 +101,7 @@ async fn main() {
             seal,
         )
         .with_art_base_url(config.art_base_url.clone())
+        .with_moderation(config.moderation_file.clone().map(Into::into))
         .with_direct_transport(config.direct_transport, config.ice_servers.clone()),
     );
 
@@ -148,6 +149,8 @@ async fn main() {
     // A relay in a cupboard is the half nobody logs into, and one left behind
     // far enough refuses its own clients on `PROTOCOL_VERSION`. Off unless
     // asked: production is deployed on purpose.
+    tokio::spawn(manabrew_server::moderation::watch(state.clone()));
+
     let updating = state.clone();
     tokio::spawn(manabrew_server::self_update::run(
         manabrew_server::self_update::UpdateConfig::from_env(),

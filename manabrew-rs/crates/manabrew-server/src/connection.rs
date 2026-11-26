@@ -751,7 +751,10 @@ pub(crate) fn apply_moderation(state: &Arc<ServerState>) {
         })
         .collect();
     for (room_id, messages) in changed {
-        info!("[moderation] resent room '{}' chat without removed lines", room_id);
+        info!(
+            "[moderation] resent room '{}' chat without removed lines",
+            room_id
+        );
         broadcast_chat_to_room(
             state,
             &room_id,

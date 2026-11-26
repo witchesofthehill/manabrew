@@ -22,6 +22,12 @@ impl ChatHistory {
         self.messages.iter().cloned().collect()
     }
 
+    pub fn retain(&mut self, keep: impl Fn(&ChatMessage) -> bool) -> bool {
+        let before = self.messages.len();
+        self.messages.retain(|message| keep(message));
+        self.messages.len() != before
+    }
+
     fn prune(&mut self, now_ms: u64) {
         let cutoff = now_ms.saturating_sub(CHAT_HISTORY_MAX_AGE_MS);
         while self.messages.front().is_some_and(|m| m.sent_at_ms < cutoff) {

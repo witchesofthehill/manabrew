@@ -120,6 +120,19 @@ The relay is the only party that sees a session's socket, so it is the only part
 
 Behind Caddy the socket peer is the proxy, so the address is read from `X-Forwarded-For` at the WebSocket handshake whenever the header is present, falling back to the socket peer. The header is trusted unconditionally: a relay exposed without a proxy would accept a spoofed value, and the only thing that affects is the IP inside a seal.
 
+## Moderation
+
+`MANABREW_MODERATION_FILE` names a JSON file the relay polls every 5s (`moderation.rs`); on prod it is `ops/moderation/chat.json` on the box, mounted read-only and never in git. `bans` entries match a `username` (case-insensitive) or the `ip` a report's seal opened to, with a `reason`, optional RFC 3339 `until` and optional `report` id. A banned sender gets `chat_banned`. `redact` entries (`from`, `sentAtMs`) remove single lines. On every change the relay drops banned and redacted lines from the lobby and room rings and pushes the cleaned `ChatHistory` to everyone in scope, so open clients lose the line without a reload. An IP-only ban stops new messages but cannot remove old lines, because the rings keep no address. A file that fails to parse keeps the last good list; a missing file means no moderation.
+
+```json
+{
+  "bans": [{ "username": "SomePlayer", "ip": "203.0.113.7", "reason": "harassment", "report": "<chat_reports.id>" }],
+  "redact": [{ "from": "SomePlayer", "sentAtMs": 1795000000000 }]
+}
+```
+
+Write the file atomically (temp file, then `mv`). The relay keys reloads on modification time, so two writes inside the same timestamp tick read as one.
+
 ## Games the relay cannot see
 
 `SetLocalGame` is the one thing on the wire the relay does not observe but only believes. A game against the AI runs on the player's machine with no room and no state, so the client says it is happening; the relay holds the `LocalGameKind` on `ConnectedPlayer`, reports it in `PlayerInfo.local_game` and counts it in `manabrew_relay_local_games{kind}`. It is session state, so a dropped socket clears it and the client re-asserts after re-authenticating, and it is only reported while `connected` so a half-open socket cannot leave a player playing forever. Keep it out of `manabrew_relay_rooms`: those gauges are what the relay saw, and merging a claim into them would quietly make the fleet-sizing numbers unfalsifiable.

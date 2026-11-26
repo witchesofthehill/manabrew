@@ -92,6 +92,7 @@ pub struct ServerState {
     pub seal: Option<MessageSealer>,
     pub art_base_url: Option<String>,
     pub queue: Mutex<MatchQueue>,
+    pub moderation: crate::moderation::Moderation,
 }
 
 impl ServerState {
@@ -118,7 +119,13 @@ impl ServerState {
             seal,
             art_base_url: None,
             queue: Mutex::new(MatchQueue::default()),
+            moderation: crate::moderation::Moderation::default(),
         }
+    }
+
+    pub fn with_moderation(mut self, path: Option<std::path::PathBuf>) -> Self {
+        self.moderation = crate::moderation::Moderation::from_path(path);
+        self
     }
 
     pub fn with_direct_transport(

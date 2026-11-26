@@ -665,6 +665,13 @@ fn send_chat(
         if scope == ChatScope::Lobby && !player.verified() {
             return Err(ServerError::AccountRequired);
         }
+        if let Some(ban) = state.moderation.ban_for(username, &player.client_ip) {
+            info!(
+                "[moderation] refused chat from '{}' ({}, report {:?})",
+                username, ban.reason, ban.report
+            );
+            return Err(ServerError::ChatBanned);
+        }
         let now = Instant::now();
         if player.last_chat_at.is_some_and(|last| {
             now.duration_since(last) < Duration::from_millis(CHAT_MIN_INTERVAL_MS)
@@ -715,6 +722,49 @@ fn send_chat(
         }
     }
     Ok(())
+}
+
+pub(crate) fn apply_moderation(state: &Arc<ServerState>) {
+    let visible = |message: &ChatMessage| state.moderation.visible(message);
+    let lobby = {
+        let mut history = state.lobby_chat.lock().unwrap();
+        history.retain(visible).then(|| history.snapshot())
+    };
+    if let Some(messages) = lobby {
+        info!("[moderation] resent lobby chat without removed lines");
+        broadcast_to_lobby(
+            state,
+            &ServerMessage::ChatHistory {
+                scope: ChatScope::Lobby,
+                room_id: None,
+                messages,
+            },
+        );
+    }
+    let changed: Vec<(String, Vec<ChatMessage>)> = state
+        .rooms
+        .iter_mut()
+        .filter_map(|mut room| {
+            room.chat
+                .retain(visible)
+                .then(|| (room.key().clone(), room.chat.snapshot()))
+        })
+        .collect();
+    for (room_id, messages) in changed {
+        info!(
+            "[moderation] resent room '{}' chat without removed lines",
+            room_id
+        );
+        broadcast_chat_to_room(
+            state,
+            &room_id,
+            &ServerMessage::ChatHistory {
+                scope: ChatScope::Room,
+                room_id: Some(room_id.clone()),
+                messages,
+            },
+        );
+    }
 }
 
 fn send_lobby_chat_history(state: &Arc<ServerState>, player_id: &str) {

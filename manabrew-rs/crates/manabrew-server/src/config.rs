@@ -49,6 +49,7 @@ pub struct ServerConfig {
     pub events_dir: Option<String>,
     pub capture_dir: Option<String>,
     pub capture_max_gb: u64,
+    pub moderation_file: Option<String>,
     pub deck_hub_enabled: bool,
     /// The hub takes the analytics feed and, with `DECK_HUB`, deck-play
     /// evidence. Env names keep the older `DECK_PLAYS` spelling.
@@ -109,6 +110,9 @@ impl ServerConfig {
             capture_dir: std::env::var("MANABREW_GAME_CAPTURE_DIR")
                 .ok()
                 .filter(|dir| !dir.is_empty()),
+            moderation_file: std::env::var("MANABREW_MODERATION_FILE")
+                .ok()
+                .filter(|path| !path.is_empty()),
             capture_max_gb: std::env::var("MANABREW_GAME_CAPTURE_MAX_GB")
                 .ok()
                 .and_then(|gb| gb.parse().ok())

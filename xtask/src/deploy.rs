@@ -53,8 +53,9 @@ const CONFIG_PATHS: [&str; 5] = [
 // Codeload tarballs contain only tracked files, so the box's data dirs can
 // never be in the set; these excludes matter for --config-from, where the
 // source is a live checkout that DOES contain them.
-const CONFIG_EXCLUDES: [&str; 5] = [
+const CONFIG_EXCLUDES: [&str; 6] = [
     "ops/hub-data",
+    "ops/moderation",
     "ops/events",
     "ops/observability/data",
     "ops/sidestore",

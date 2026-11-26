@@ -86,9 +86,11 @@ services:
       # Peer-to-peer game traffic, see docs/TRANSPORT.md. Unset = fail closed.
       MANABREW_DIRECT_TRANSPORT: "${MANABREW_DIRECT_TRANSPORT:-1}"
       MANABREW_ICE_SERVERS: "${MANABREW_ICE_SERVERS:-stun:relay.manabrew.app:3478}"
+      MANABREW_MODERATION_FILE: "/var/manabrew/moderation/chat.json"
     volumes:
       - ./ops/observability/data/events:/var/manabrew/events
       - ./ops/observability/data/captures:/var/manabrew/captures
+      - ./ops/moderation:/var/manabrew/moderation:ro
     expose:
       - "9443"
       - "9444"

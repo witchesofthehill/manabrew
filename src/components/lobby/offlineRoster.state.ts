@@ -22,7 +22,7 @@ type OfflineRosterAction =
   | { type: "assign"; seatId: string; deck: SelectedDeck }
   | { type: "suggest"; deck: SelectedDeck }
   | { type: "clear"; seatId: string }
-  | { type: "add" }
+  | { type: "add"; deck?: SelectedDeck }
   | { type: "remove"; seatId: string }
   | { type: "reset" };
 
@@ -98,7 +98,7 @@ export function offlineRosterReducer(
       if (state.seats.length - 1 >= MAX_OFFLINE_BOTS) return state;
       const id = `bot-${state.nextBotId}`;
       return {
-        seats: [...state.seats, emptySeat(id)],
+        seats: [...state.seats, { ...emptySeat(id), deck: action.deck ?? null }],
         activeSeatId: id,
         nextBotId: state.nextBotId + 1,
       };

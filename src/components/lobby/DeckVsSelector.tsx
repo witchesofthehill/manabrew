@@ -23,7 +23,7 @@ import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Deck } from "@/protocol/deck";
-import { Loader2, Search, Swords } from "lucide-react";
+import { ImageIcon, Loader2, Search, Swords } from "lucide-react";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { useHubStore } from "@/stores/useHubStore";
@@ -393,9 +393,8 @@ export function DeckVsSelector({
     if (!selectedFormat && entry.formatId) setSelectedFormat(entry.formatId);
     assignDeck(entry);
   }
-  function handleRandomOpponent(seatId: string) {
-    if (!deckFormat) return;
-    trackClientUiAction("setup_random_opponent");
+  function randomOpponentDeck(): SelectedDeck | undefined {
+    if (!deckFormat) return undefined;
     const candidates = [
       ...formatFilteredPresets.map(
         (deck): SelectedDeck => ({
@@ -410,7 +409,12 @@ export function DeckVsSelector({
       ),
       ...formatFilteredUserDecks,
     ].filter((selected) => !offlineSelectionError(selected, deckFormat, cardPool));
-    const random = pickRandom(candidates);
+    return pickRandom(candidates);
+  }
+  function handleRandomOpponent(seatId: string) {
+    if (!deckFormat) return;
+    trackClientUiAction("setup_random_opponent");
+    const random = randomOpponentDeck();
     if (!random) {
       toast.error("No playable decks are available for this format.");
       return;
@@ -420,12 +424,13 @@ export function DeckVsSelector({
   function handleFight() {
     if (!isReady || starting) return;
     trackClientUiAction("setup_fight");
-    setTableDialogOpen(true);
+    void startFight();
   }
 
   function handleTableChosen() {
-    trackClientUiAction("setup_table_start");
     setTableDialogOpen(false);
+    if (!isReady) return;
+    trackClientUiAction("setup_table_start");
     void startFight();
   }
   async function startFight() {
@@ -767,20 +772,33 @@ export function DeckVsSelector({
           onAdd={() => {
             trackClientUiAction("setup_seat_add");
             invalidateHubSelection();
-            dispatchRoster({ type: "add" });
+            dispatchRoster({ type: "add", deck: randomOpponentDeck() });
           }}
         />
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={handleFight}
-          disabled={!isReady || starting}
-          aria-busy={starting}
-          className="min-h-14 w-full shrink-0 gap-2 px-10 text-ui-body font-bold sm:w-auto sm:min-w-48 sm:justify-self-end"
-        >
-          {starting ? <Loader2 className="size-5 animate-spin" /> : <Swords className="size-5" />}
-          {starting ? `Starting\u2026` : `Fight!`}
-        </Button>
+        <div className="flex w-full shrink-0 gap-2 sm:w-auto sm:justify-self-end">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => setTableDialogOpen(true)}
+            disabled={starting}
+            aria-label={`Choose table`}
+            title={`Choose table`}
+            className="min-h-14 shrink-0 px-4"
+          >
+            <ImageIcon className="size-5" />
+          </Button>
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={handleFight}
+            disabled={!isReady || starting}
+            aria-busy={starting}
+            className="min-h-14 flex-1 gap-2 px-10 text-ui-body font-bold sm:min-w-48 sm:flex-none"
+          >
+            {starting ? <Loader2 className="size-5 animate-spin" /> : <Swords className="size-5" />}
+            {starting ? `Starting\u2026` : `Fight!`}
+          </Button>
+        </div>
       </div>
       <TablePickerDialog
         open={tableDialogOpen}
@@ -790,6 +808,7 @@ export function DeckVsSelector({
           setBoardBackground(background);
         }}
         onStart={handleTableChosen}
+        startLabel={isReady ? `Fight` : `Done`}
         onCancel={() => {
           trackClientUiAction("setup_table_cancel");
           setTableDialogOpen(false);

@@ -99,7 +99,9 @@ Call `dispose()` to terminate the worker. A running Forge game is synchronous in
 
 `decisionJournal: true` emits `forge:journal` v2 batches through `onEvent`. Batches contain the start request, consumed inputs and verification witnesses, including hidden information; only trusted hosts may receive them. Overflow or legacy snapshot restoration sets `unavailableReason`.
 
-`journalRewind: true` keeps the journal private and exposes redacted history through `gameView.checkpoints`. Restore votes select a position; a fresh engine replays and verifies it before replacing the source. This requires external decision makers. The 64 MiB / 50,000-entry cap stops recording but preserves retained rewind positions.
+Set both `decisionJournal: true` and `journalRewind: true` to keep the journal private and expose redacted history through `gameView.checkpoints`. Restore votes select a position; a fresh engine replays and verifies it before replacing the source. The 64 MiB / 50,000-entry cap stops recording but preserves retained rewind positions.
+
+For experimental rewind with built-in Forge AI, also set `forgeAiPolicy: "deterministic-v1"`. Use `forgeAi: true` for `startGame`, or pass the built-in bot seat indices in `forgeAiSeats` for `startMultiplayerGame`. Rewind requires the same engine build, assets, and preferences.
 
 ## Types
 

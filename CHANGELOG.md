@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.97.0](https://github.com/witchesofthehill/manabrew/compare/v3.96.5...v3.97.0) (2026-11-27)
+
+### Fixes
+
+* **ui:** unify escape dismissal and fullscreen handling ([#1142](https://github.com/witchesofthehill/manabrew/issues/1142)) ([874224d](https://github.com/witchesofthehill/manabrew/commit/874224d275642a892cd8757b08f772af4af43fd0))
+
 ## [3.96.5](https://github.com/witchesofthehill/manabrew/compare/v3.96.4...v3.96.5) (2026-11-26)
 
 ### Fixes

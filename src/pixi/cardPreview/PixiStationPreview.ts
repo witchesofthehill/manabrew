@@ -49,7 +49,10 @@ export class PixiStationPreview extends Container {
     const badges = tiers.map(
       (tier) =>
         new Text({
-          text: `${tier.threshold}+`,
+          text:
+            tier.power !== undefined && tier.toughness !== undefined
+              ? `${tier.threshold}+\n${tier.power}/${tier.toughness}`
+              : `${tier.threshold}+`,
           style: new TextStyle({
             fill:
               charge !== null && charge >= tier.threshold
@@ -58,6 +61,7 @@ export class PixiStationPreview extends Container {
             fontFamily: frame.bodyFont,
             fontSize,
             fontWeight: "700",
+            align: "center",
           }),
           resolution: 2,
         }),

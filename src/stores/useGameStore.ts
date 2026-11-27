@@ -154,6 +154,7 @@ async function initializeGame({
   commanderName,
   engine,
   aiController,
+  forgeAiRewind,
   isLaunchCurrent,
 }: {
   deck: Deck;
@@ -163,6 +164,7 @@ async function initializeGame({
   engine?: EngineKind;
   set: (partial: Partial<GameState>) => void;
   aiController: AiController;
+  forgeAiRewind?: boolean;
   get: () => GameState;
   isLaunchCurrent: () => boolean;
 }): Promise<void> {
@@ -171,6 +173,9 @@ async function initializeGame({
   const format = getFormat(selectedFormatId);
   const startingLife = format?.deckRules.startingLife ?? DEFAULT_STARTING_LIFE;
   const platformType = getPlatform().type;
+  if (forgeAiRewind && (platformType !== "web" || !isForgeWasmSupported())) {
+    throw new Error("Experimental Forge AI rewind requires Forge running in the browser.");
+  }
   const tauriForgeRoomAvailable = platformType === "tauri" && isTauriForgeRoomAvailable();
   const useHostedForge =
     (platformType === "tauri" && !tauriForgeRoomAvailable) ||
@@ -319,7 +324,7 @@ async function initializeGame({
   setErrorReportingEngine(engineLabel);
   const firstForgeStart = engine === "Forge" && platformType === "web" && !hasForgeWasmVerdict();
   const firstPrompt = firstForgeStart ? firstGameSignal(true) : null;
-  if (firstForgeStart) beginForgeWasmTrial();
+  if (firstForgeStart && !forgeAiRewind) beginForgeWasmTrial();
   try {
     const start = runtime.api.startGame({
       deck,
@@ -328,6 +333,7 @@ async function initializeGame({
       opponentDecks: opponentDecks ?? null,
       engine,
       aiController,
+      forgeAiRewind,
     });
     const result = await (firstPrompt
       ? withForgeStartTimeout(start.then((started) => firstPrompt.signal.then(() => started)))
@@ -337,16 +343,18 @@ async function initializeGame({
       throw new GameLaunchCancelledError();
     }
     set({ debugInfo: `Game started: ${result}.` });
-    if (firstForgeStart) recordForgeWasmVerdict(true);
+    if (firstForgeStart && !forgeAiRewind) recordForgeWasmVerdict(true);
   } catch (error) {
     if (!isLaunchCurrent() && !(error instanceof GameLaunchCancelledError)) {
       throw new GameLaunchCancelledError();
     }
+    if (firstPrompt && !(error instanceof GameLaunchCancelledError)) await runtime.api.endGame();
     // A launch that never became a game must not be reported as the next one.
     abandonOfflineGame();
     clearLocalGame();
     if (
       firstForgeStart &&
+      !forgeAiRewind &&
       isHostedEngineAvailable() &&
       !(error instanceof GameLaunchCancelledError)
     ) {
@@ -502,6 +510,7 @@ export const useGameStore = create<GameState>()(
             commanderName,
             engine: launchEngine,
             aiController: singlePlayerSetup.aiController,
+            forgeAiRewind: singlePlayerSetup.forgeAiRewind,
             set,
             get,
             isLaunchCurrent: () => launchGeneration === gameLaunchGeneration,

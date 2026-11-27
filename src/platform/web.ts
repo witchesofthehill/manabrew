@@ -110,6 +110,7 @@ import {
 } from "@forge-wasm/seat.js";
 
 const DEBUG_TRANSPORT = false;
+const FORGE_AI_REWIND_OPTIONS = { forgeAiPolicy: "deterministic-v1", snapshotRecording: false };
 
 let wasmReady: Promise<typeof import("@/wasm/wasm")> | null = null;
 
@@ -273,6 +274,8 @@ class WorkerBridge {
   >();
   private eventBus: WebEventBus;
   private initPromise: Promise<void> | null = null;
+  private cancelInit: ((error: Error) => void) | null = null;
+  private forgeListenersInstalled = false;
 
   workerIsForgeWasm = false;
   private fallbackWorker: Worker | null = null;
@@ -616,13 +619,7 @@ class WorkerBridge {
    * Initialize the worker lazily.
    */
   async init(forgeWasm = isForgeWasmHostingEnabled()): Promise<void> {
-    if (this.worker) return;
-
-    if (this.initPromise) {
-      return this.initPromise;
-    }
-
-    this.initPromise = this.doInit(forgeWasm);
+    this.initPromise ??= this.doInit(forgeWasm);
     return this.initPromise;
   }
 
@@ -642,7 +639,8 @@ class WorkerBridge {
               type: "module",
             });
 
-        if (forgeWasm) {
+        if (forgeWasm && !this.forgeListenersInstalled) {
+          this.forgeListenersInstalled = true;
           const w = window as unknown as { __forgeLog?: string[] };
           w.__forgeLog = w.__forgeLog ?? [];
           type Decision = {
@@ -691,7 +689,7 @@ class WorkerBridge {
           console.error("[WorkerBridge] Worker error:", e);
           const error = workerError(e);
           reportClientError(error, "engine-worker");
-          reject(error);
+          this.cancelInit?.(error);
           for (const pending of this.pendingRequests.values()) pending.reject(error);
           this.pendingRequests.clear();
         };
@@ -701,6 +699,10 @@ class WorkerBridge {
             "engine-worker",
           );
 
+        const clearInit = () => {
+          unsubscribe();
+          this.cancelInit = null;
+        };
         const unsubscribe = this.eventBus.on<{
           stage?: string;
           message?: string;
@@ -708,18 +710,21 @@ class WorkerBridge {
           stack?: string;
         }>("worker:init", (payload) => {
           if (payload?.stage === "ready") {
-            unsubscribe();
+            clearInit();
             if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Worker reported ready");
             resolve();
           } else if (payload?.stage === "error") {
-            unsubscribe();
             const error = new Error(payload.message ?? "Worker init failed");
             error.name = payload.name ?? "Error";
             error.stack = payload.stack ?? "";
             reportClientError(error, "engine-worker", { operation: "initialize" });
-            reject(error);
+            this.cancelInit?.(error);
           }
         });
+        this.cancelInit = (error) => {
+          clearInit();
+          reject(error);
+        };
       } catch (error) {
         reportClientError(error, "engine-worker", { operation: "initialize" });
         reject(error);
@@ -750,6 +755,7 @@ class WorkerBridge {
         }
       }
     } else if (message.type === "event") {
+      if (message.event === "game:forced_end" && this.workerIsForgeWasm) this.terminate();
       this.eventBus.emit(message.event, message.payload);
     }
   }
@@ -859,6 +865,7 @@ class WorkerBridge {
       setTimeout(() => {
         if (this.pendingRequests.has(requestId)) {
           this.pendingRequests.delete(requestId);
+          if (startsGame && this.workerIsForgeWasm && target === this.worker) this.terminate();
           reject(new Error(`Command timed out: ${command}`));
         }
       }, timeout);
@@ -882,9 +889,11 @@ class WorkerBridge {
     this.stopLocalBots();
     // Response listener stays installed — terminate() is per-game, and a
     // second game on this (singleton) bridge still needs it.
+    const error = new Error("Game worker terminated.");
+    this.cancelInit?.(error);
     for (const [requestId, pending] of this.pendingRequests) {
       if (pending.worker !== this.fallbackWorker) {
-        pending.reject(new Error("Game worker terminated."));
+        pending.reject(error);
         this.pendingRequests.delete(requestId);
       }
     }
@@ -911,8 +920,11 @@ class WebGameApi implements IGameApi {
   }
 
   async startGame(params: StartGameParams): Promise<string> {
+    const forgeAi = params.aiController === "forge";
+    const forgeAiRewind = params.engine === "Forge" && forgeAi && params.forgeAiRewind;
+    const journalRewind = params.engine === "Forge" && (!forgeAi || forgeAiRewind === true);
     this.bridge.setLocalBotSlots(
-      params.engine === "Forge" && params.aiController !== "forge"
+      params.engine === "Forge" && !forgeAi
         ? (params.opponentDecks?.length ? params.opponentDecks : [params.deck]).map(
             (_, index) => `player-${index + 1}`,
           )
@@ -924,9 +936,10 @@ class WebGameApi implements IGameApi {
       commanderName: params.commanderName,
       opponentDecks: params.opponentDecks,
       engine: params.engine,
-      forgeAi: params.aiController === "forge",
-      decisionJournal: params.engine === "Forge" && params.aiController !== "forge",
-      journalRewind: params.engine === "Forge" && params.aiController !== "forge",
+      forgeAi,
+      decisionJournal: journalRewind,
+      journalRewind,
+      ...(forgeAiRewind && FORGE_AI_REWIND_OPTIONS),
     });
   }
 
@@ -940,6 +953,14 @@ class WebGameApi implements IGameApi {
       const forgeAi =
         params.engine === "Forge" && usePreferencesStore.getState().aiController === "forge";
       const botSeats = (params.botPlayerSlots ?? []).map(seatIndexOf);
+      const { currentRoom, forgeAiRewindRoomId } = useServerStore.getState();
+      const hasForgeBots = forgeAi && botSeats.length > 0;
+      const forgeAiRewind =
+        hasForgeBots &&
+        currentRoom != null &&
+        !currentRoom.hosted &&
+        currentRoom.room_id === forgeAiRewindRoomId;
+      const journalRewind = params.engine === "Forge" && (!hasForgeBots || forgeAiRewind);
       const limited = useMultiplayerLimitedStore.getState();
       const virtualBotNames = new Set(
         limited.matchReturn
@@ -958,15 +979,16 @@ class WebGameApi implements IGameApi {
       // Host runs the engine; the worker posts back one SAB per remote
       // seat (see the game:remote_sab handler in WorkerBridge).
       await this.bridge.invoke("start_multiplayer_game", {
-        publicSnapshots: useServerStore.getState().currentRoom?.allow_spectators === true,
+        publicSnapshots: currentRoom?.allow_spectators === true,
         decks: params.decks,
         commanderNames: params.commanderNames,
         playerNames: params.playerNames,
         enginePlayerIndex: params.enginePlayerIndex,
         botSeats,
         forgeAiSeats: forgeAi ? botSeats : [],
-        decisionJournal: params.engine === "Forge" && (!forgeAi || botSeats.length === 0),
-        journalRewind: params.engine === "Forge" && (!forgeAi || botSeats.length === 0),
+        decisionJournal: journalRewind,
+        journalRewind,
+        ...(forgeAiRewind && FORGE_AI_REWIND_OPTIONS),
         startingLife: params.startingLife,
         engine: params.engine,
       });
@@ -1027,7 +1049,7 @@ class WebGameApi implements IGameApi {
     this.isMultiplayer = false;
     this.isHost = false;
     this.myPlayerSlot = null;
-    if (this.bridge.gameBuffer) {
+    if (this.bridge.workerIsForgeWasm || this.bridge.gameBuffer) {
       this.bridge.terminate();
       return;
     }

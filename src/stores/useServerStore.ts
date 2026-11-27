@@ -85,6 +85,7 @@ interface ServerState {
   leavingRoomId: string | null;
   roomPassword: string | null;
   hostingForgeRoom: boolean;
+  forgeAiRewindRoomId: string | null;
   players: PlayerInfo[];
   gameStarted: boolean;
   gameRoomId: string;
@@ -255,6 +256,7 @@ export const useServerStore = create<ServerState>()(
       leavingRoomId: null,
       roomPassword: null,
       hostingForgeRoom: false,
+      forgeAiRewindRoomId: null,
       players: [],
       gameStarted: false,
       gameRoomId: "",
@@ -342,6 +344,7 @@ export const useServerStore = create<ServerState>()(
           leavingRoomId: null,
           roomPassword: null,
           hostingForgeRoom: false,
+          forgeAiRewindRoomId: null,
           gameStarted: false,
           gameRoomId: "",
           gameId: "",
@@ -502,6 +505,7 @@ export const useServerStore = create<ServerState>()(
             currentRoom: null,
             roomPassword: null,
             hostingForgeRoom: false,
+            forgeAiRewindRoomId: null,
             gameStarted: false,
             gameRoomId: "",
             gameId: "",
@@ -808,6 +812,7 @@ export const useServerStore = create<ServerState>()(
               set({
                 currentRoom: null,
                 leavingRoomId: null,
+                forgeAiRewindRoomId: null,
                 gameStarted: false,
                 gameRoomId: "",
                 gameId: "",
@@ -836,6 +841,7 @@ export const useServerStore = create<ServerState>()(
                 playerId: null,
                 currentRoom: null,
                 leavingRoomId: null,
+                forgeAiRewindRoomId: null,
                 gameStarted: false,
                 gameRoomId: "",
                 gameId: "",

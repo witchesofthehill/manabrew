@@ -14,6 +14,7 @@ import forge.harness.protocol.CardDto;
 import forge.harness.protocol.CardIdentity;
 import forge.harness.protocol.ClassLevelDto;
 import forge.harness.protocol.SagaChapterDto;
+import forge.harness.protocol.StationLevelDto;
 import forge.harness.protocol.ManaColor;
 import forge.harness.protocol.RoomDoor;
 import forge.harness.protocol.ZoneKind;
@@ -44,6 +45,7 @@ import forge.game.player.Player;
 import forge.game.spellability.SpellAbility;
 import forge.game.spellability.SpellAbilityStackInstance;
 import forge.game.spellability.TargetChoices;
+import forge.game.staticability.StaticAbility;
 import forge.game.trigger.Trigger;
 import forge.game.zone.ZoneType;
 import forge.item.IPaperCard;
@@ -544,6 +546,7 @@ public final class InteractiveSnapshotExtractor {
         dto.isPrototyped = null;
         dto.classLevels = Collections.emptyList();
         dto.sagaChapters = Collections.emptyList();
+        dto.stationLevels = null;
         dto.choices = Collections.emptyList();
         dto.identity = new CardIdentity("", "", "", false, null);
         dto.cosmetics = null;
@@ -810,6 +813,7 @@ public final class InteractiveSnapshotExtractor {
         }
         dto.classLevels = classLevels(card.getCurrentState());
         dto.sagaChapters = sagaChapters(card.getCurrentState());
+        dto.stationLevels = stationLevels(card.getCurrentState());
         dto.text = normalizedOracle(card.getCurrentState());
         dto.choices = choices(game, card, viewerPlayer, secretChoiceVisibility);
         dto.controllerId = "player-" + SnapshotExtractor.playerIndex(game, card.getController());
@@ -930,6 +934,7 @@ public final class InteractiveSnapshotExtractor {
         }
         dto.classLevels = classLevels(face);
         dto.sagaChapters = sagaChapters(face);
+        dto.stationLevels = stationLevels(face);
         dto.text = normalizedOracle(face);
         final List<KeywordInterface> keywords = card.getKeywords(face);
         keywords(keywords, dto);
@@ -967,6 +972,31 @@ public final class InteractiveSnapshotExtractor {
 
     private static String normalizedOracle(final CardState state) {
         return state.getOracleText().replace("\\n", "\n");
+    }
+
+    private static List<StationLevelDto> stationLevels(final CardState state) {
+        final CardTypeView type = state.getType();
+        if (!type.hasSubtype("Spacecraft") && !type.hasSubtype("Planet")) {
+            return null;
+        }
+        TreeMap<Integer, StationLevelDto> levels = null;
+        for (final StaticAbility ability : state.getStaticAbilities()) {
+            if (!ability.isIntrinsic() || !ability.hasParam("Station")) {
+                continue;
+            }
+            final int threshold;
+            try {
+                threshold = Integer.parseInt(ability.getParam("Station").trim());
+            } catch (NumberFormatException ignored) {
+                continue;
+            }
+            if (levels == null) {
+                levels = new TreeMap<>();
+            }
+            levels.put(threshold, new StationLevelDto(
+                    threshold, ability.getParam("SetPower"), ability.getParam("SetToughness")));
+        }
+        return levels == null ? null : new ArrayList<>(levels.values());
     }
 
     private static List<ClassLevelDto> classLevels(final CardState state) {

@@ -52,6 +52,8 @@ Protocol generators replace their output directories. Do not run `yarn gen:types
 
 Direct Java prompt generation needs `node scripts/gen-harness-prompts.mjs forge-harness/src/main/java`. Without the output argument it writes under `target/generated-sources`, which the harness Maven build does not compile.
 
+Web Image forwards Java stderr as `forge:log` at error level. The rewind check accepts only the exact nonfatal ID-reset and future-edition notices; keep other error logs and worker failures fatal.
+
 Card Glint is installed from its official prebuilt release tarball, including JavaScript, declarations and WASM. Consumers do not build Card Glint or need its Rust toolchain. Do not add application-side download, patch or renderer-build scripts. Restart the development web service after dependency changes so its separate node-modules volume reruns installation.
 
 `gen-harness-prompts.mjs` maps `CardCosmetics.wearSeed` to Java `Long`, `wearAmount` and rain density/artwork scalars to `Double`, and numeric coordinate tuples to `List<Double>`; integer conversion loses fractional wear and custom artwork positions. Keep generated Java derived from fresh protocol bindings. Harness input checksums include `forge-foundation` because cosmetic wire types live there, not in the protocol crate. Protocol documentation reads that shared source too.

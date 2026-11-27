@@ -1126,56 +1126,14 @@ public final class ManaBrewInteractiveSession {
         return awaitCardsFromPublishedPrompt(cards, clampedCount, clampedCount);
     }
 
-    CardCollection awaitAttackers(
-            final int playerId,
-            final Combat combat,
-            final List<Card> availableAttackers
-    ) {
-        requireAttached();
-        publishAttackersPrompt(playerId, combat, availableAttackers);
-        while (!closed && !game.isGameOver()) {
-            final JsonObject action;
-            try {
-                action = takeAction();
-            } catch (InterruptedException error) {
-                Thread.currentThread().interrupt();
-                return new CardCollection();
-            }
-            final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
-            if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
-                return new CardCollection();
-            }
-            if (!"declare_attackers".equals(actionKind)) {
-                throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
-            }
-            final CardCollection selected = new CardCollection();
-            if (action.has("assignments") && action.get("assignments").isJsonArray()) {
-                for (JsonElement element : action.getAsJsonArray("assignments")) {
-                    if (!element.isJsonObject()) {
-                        continue;
-                    }
-                    final JsonObject assignment = element.getAsJsonObject();
-                    final String attackerId = assignment.has("attackerId")
-                            ? assignment.get("attackerId").getAsString()
-                            : "";
-                    final Card selectedCard = findCardByPublishedId(availableAttackers, attackerId);
-                    if (selectedCard != null && !selected.contains(selectedCard)) {
-                        selected.add(selectedCard);
-                    }
-                }
-            }
-            return selected;
-        }
-        return new CardCollection();
-    }
-
     List<Pair<Card, GameEntity>> awaitAttackAssignments(
             final int playerId,
             final Combat combat,
-            final List<Card> availableAttackers
+            final List<Card> availableAttackers,
+            final String error
     ) {
         requireAttached();
-        publishAttackersPrompt(playerId, combat, availableAttackers);
+        publishAttackersPrompt(playerId, combat, availableAttackers, error);
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -3013,7 +2971,8 @@ public final class ManaBrewInteractiveSession {
     private void publishAttackersPrompt(
             final int playerId,
             final Combat combat,
-            final List<Card> availableAttackers
+            final List<Card> availableAttackers,
+            final String error
     ) {
         final Map<Card, GameEntity> suggested = combat.getAttackConstraints().getLegalAttackers().getLeft();
         final List<AttackerOptionDto> attackers = new java.util.ArrayList<>();
@@ -3034,7 +2993,7 @@ public final class ManaBrewInteractiveSession {
                     defenderId(defender), defender.getName(),
                     enumFromWire(defenderKind(defender), AttackTargetKind.class)));
         }
-        publishAgentPrompt("player-" + playerId, null, new ChooseAttackersInput(attackers, attackTargets));
+        publishAgentPrompt("player-" + playerId, null, new ChooseAttackersInput(attackers, attackTargets, error));
     }
 
     private void publishBlockersPrompt(

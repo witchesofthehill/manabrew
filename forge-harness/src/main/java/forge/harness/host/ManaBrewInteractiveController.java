@@ -36,6 +36,7 @@ import forge.game.ability.effects.RollDiceEffect;
 import forge.game.card.*;
 import forge.game.card.sticker.Sticker;
 import forge.game.combat.Combat;
+import forge.game.combat.CombatExplainer;
 import forge.game.combat.CombatUtil;
 import forge.game.cost.*;
 import forge.game.keyword.Keyword;
@@ -383,7 +384,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public void declareAttackers(final Player attacker, final Combat combat) {
-        combat.clearAttackers();
+        for (final Card card : CardLists.filterControlledBy(combat.getAttackers(), attacker)) {
+            combat.removeFromCombat(card);
+        }
         if (passUntilPhase != null
                 && !PriorityFastForward.reachedTarget(game, passUntilPlayer, passUntilPhase)
                 && CombatUtil.validateAttackers(combat)) {
@@ -391,17 +394,40 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         }
         final List<Card> legalAttackers = ChoiceSpace.sortNative(
                 CombatChoiceSpace.legalAttackers(attacker, combat), ParityOrder.cardComparator());
-        final List<Pair<Card, GameEntity>> assignments = session.awaitAttackAssignments(
-                SnapshotExtractor.playerIndex(game, attacker), combat, legalAttackers);
-        final CardCollection selected = new CardCollection();
-        for (final Pair<Card, GameEntity> assignment : assignments) {
-            final Card card = assignment.getLeft();
-            final GameEntity defender = assignment.getRight();
-            if (card != null && defender != null && !selected.contains(card)
-                    && CombatUtil.canAttack(card, defender)) {
-                combat.addAttacker(card, defender);
-                selected.add(card);
+        final int seat = me();
+        String error = null;
+        while (!session.isClosed() && !game.isGameOver() && !player.hasLost()) {
+            final List<Pair<Card, GameEntity>> assignments =
+                    session.awaitAttackAssignments(seat, combat, legalAttackers, error);
+            if (session.isClosed() || game.isGameOver() || player.hasLost()) {
+                return;
             }
+            final CardCollection selected = new CardCollection();
+            final List<String> reasons = new ArrayList<>();
+            for (final Pair<Card, GameEntity> assignment : assignments) {
+                final Card card = assignment.getLeft();
+                final GameEntity defender = assignment.getRight();
+                if (selected.contains(card)) {
+                    continue;
+                }
+                final String reason = CombatExplainer.whyCantAttack(card, defender);
+                if (reason != null) {
+                    reasons.add(reason);
+                } else {
+                    combat.addAttacker(card, defender);
+                    selected.add(card);
+                }
+            }
+            if (reasons.isEmpty()) {
+                reasons.addAll(CombatExplainer.explainInvalidAttack(combat, attacker));
+            }
+            if (reasons.isEmpty()) {
+                return;
+            }
+            for (final Card card : selected) {
+                combat.removeFromCombat(card);
+            }
+            error = String.join("\n", reasons);
         }
     }
 
@@ -733,7 +759,10 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public CardCollection chooseCardsToDiscardFrom(
             final Player playerDiscard, final SpellAbility sa, final CardCollection validCards, final int min, final int max,
-            final CardCollectionView visibleToChooser) {
+            final DelayedReveal delayedReveal) {
+        if (playerDiscard != player && delayedReveal != null) {
+            reveal(delayedReveal);
+        }
         return session.awaitCardChoice("choose_discard", me(), validCards, min, max);
     }
 

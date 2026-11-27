@@ -30,6 +30,19 @@ public final class JournalRewindTest {
     private static final int LAST_TURN = 12;
     private static final int MAX_DECISIONS = 5000;
     private static final int[] VIEWERS = {-1, 0, 1};
+    private static final int[] BOT_VIEWERS = {-1, 0, 1, 2};
+    private static final int BOT_TARGET_TURN = 10;
+    private static final int BOT_LAST_TURN = 15;
+    private static final String BOT_PLAYER = "player-2";
+    private static final String[][] BOT_DECK = {
+            {"Mountain", "24"},
+            {"Goblin Brigand", "24"},
+            {"Shock", "12"},
+    };
+    private static final String[][] BOT_OPPONENT_DECK = {
+            {"Forest", "36"},
+            {"Llanowar Elves", "24"},
+    };
     private static final String[][] DECK = {
             {"Plains", "24"},
             {"Luminarch Aspirant", "4"},
@@ -49,7 +62,7 @@ public final class JournalRewindTest {
 
     public static void main(final String[] args) throws Exception {
         try (Engine source = Engine.launch()) {
-            source.call("startGame", "payload", startRequest().toString());
+            source.call("startGame", "payload", startRequest(DECK).toString());
             final List<Boundary> original = play(source);
             final Boundary target = original.get(0);
             final Boundary end = original.get(original.size() - 1);
@@ -72,9 +85,10 @@ public final class JournalRewindTest {
                     + dungeons(end.views()[0]) + " -> " + dungeons(target.views()[0]) + "; "
                     + logLines(end.views()[0]).size() + " checkpoint log lines, e.g. " + logLines(end.views()[0]).subList(0, 6));
         }
+        nativeBotReplay();
     }
 
-    private static JsonObject startRequest() {
+    private static JsonObject startRequest(final String[][] humanDeck) {
         final JsonObject request = new JsonObject();
         request.addProperty("gameId", SESSION);
         request.addProperty("variant", "Constructed");
@@ -85,14 +99,7 @@ public final class JournalRewindTest {
         request.addProperty("journalRewind", true);
         final JsonArray players = new JsonArray();
         for (int seat = 0; seat < 2; seat++) {
-            final JsonArray deck = new JsonArray();
-            for (final String[] entry : DECK) {
-                for (int copy = 0; copy < Integer.parseInt(entry[1]); copy++) {
-                    final JsonObject card = new JsonObject();
-                    card.addProperty("name", entry[0]);
-                    deck.add(card);
-                }
-            }
+            final JsonArray deck = expandDeck(humanDeck);
             final JsonObject player = new JsonObject();
             player.addProperty("name", "Player " + seat);
             player.addProperty("ai", false);
@@ -101,6 +108,193 @@ public final class JournalRewindTest {
         }
         request.add("players", players);
         return request;
+    }
+
+    private static JsonArray expandDeck(final String[][] entries) {
+        final JsonArray deck = new JsonArray();
+        for (final String[] entry : entries) {
+            for (int copy = 0; copy < Integer.parseInt(entry[1]); copy++) {
+                final JsonObject card = new JsonObject();
+                card.addProperty("name", entry[0]);
+                deck.add(card);
+            }
+        }
+        return deck;
+    }
+
+    private static void nativeBotReplay() throws Exception {
+        final JsonObject request = startRequest(BOT_OPPONENT_DECK);
+        request.addProperty("startingLife", 1000);
+        request.addProperty("forgeAiPolicy", "deterministic-v1");
+        final JsonObject bot = new JsonObject();
+        bot.addProperty("name", "Forge AI");
+        bot.addProperty("ai", true);
+        bot.add("deck", expandDeck(BOT_DECK));
+        request.getAsJsonArray("players").add(bot);
+        try (Engine source = Engine.launch()) {
+            source.call("startGame", "payload", request.toString());
+            final List<Boundary> complete = playBots(source);
+            final Boundary target = complete.stream().filter(boundary -> boundary.turn() == BOT_TARGET_TURN)
+                    .findFirst().orElseThrow(() -> new AssertionError("bot fixture never reached its target turn"));
+            final Boundary end = complete.get(complete.size() - 1);
+            final List<Boundary> continuation = complete.subList(complete.indexOf(target), complete.size());
+            requireBotActivity(complete.subList(0, complete.indexOf(target)), "before rewind target");
+            requireBotActivity(continuation, "after rewind target");
+            final JsonObject rewind = requestRewind(source, target);
+            requireEqual(request.toString(), rewind.getAsJsonObject("journal").get("startRequest").getAsString(),
+                    "recorded deterministic-v1 start request");
+            requirePacketBoundary(rewind, target);
+            try (Engine restored = Engine.launch()) {
+                restore(restored, rewind);
+                replay(restored, continuation, BOT_VIEWERS);
+                resumeSource(source, end, BOT_VIEWERS);
+                final JsonObject finalAction = answer(end.prompt());
+                source.call("submitAction", "payload", finalAction.toString());
+                final JsonObject finalPrompt = nextPrompt(source, end.prompt().get("promptId").getAsLong());
+                final JsonObject[] finalViews = views(source, BOT_VIEWERS);
+                final Boundary afterEnd = new Boundary(end.sequence() + 1, finalViews[0].get("turn").getAsInt(),
+                        finalPrompt, finalViews, null);
+                replay(restored, List.of(new Boundary(end.sequence(), end.turn(), end.prompt(), end.views(), finalAction),
+                        afterEnd), BOT_VIEWERS);
+                final Boundary witnessTarget = end;
+                final JsonObject sourceWitness = requestRewind(source, witnessTarget);
+                final JsonObject restoredWitness = requestRewind(restored, witnessTarget);
+                requirePacketBoundary(sourceWitness, witnessTarget);
+                requirePacketBoundary(restoredWitness, witnessTarget);
+                for (final String field : List.of("nextSequence", "lastPromptId", "prompt", "verification", "journal")) {
+                    requireEqual(sourceWitness.get(field), restoredWitness.get(field),
+                            "continued native AI rewind " + field);
+                }
+                requireEqual(afterEnd.prompt().get("promptId"), sourceWitness.get("lastPromptId"),
+                        "continued native AI last prompt id");
+                require(!rewind.getAsJsonObject("verification").get("rng")
+                                .equals(sourceWitness.getAsJsonObject("verification").get("rng")),
+                        "bot fixture exercises no RNG after the target");
+                requireJournalWitnesses(sourceWitness, complete);
+                final JsonObject corrupt = sourceWitness.deepCopy();
+                corrupt.getAsJsonObject("verification").addProperty("rng", "corrupt");
+                try (Engine rejected = Engine.launch()) {
+                    boolean failed = false;
+                    try {
+                        restore(rejected, corrupt);
+                    } catch (AssertionError error) {
+                        require(error.getMessage().contains("state/RNG divergence"),
+                                "corrupt native AI candidate failed for an unrelated reason: " + error.getMessage());
+                        failed = true;
+                    }
+                    require(failed, "corrupt native AI RNG witness was accepted");
+                }
+                resumeSource(source, afterEnd, BOT_VIEWERS);
+                source.call("submitAction", "payload", answer(afterEnd.prompt()).toString());
+                nextPrompt(source, afterEnd.prompt().get("promptId").getAsLong());
+                System.out.println("PASS: deterministic-v1 native Forge AI replay matched " + continuation.size()
+                        + " prompts, " + continuation.size() * BOT_VIEWERS.length
+                        + " views and continuation state/RNG witnesses; corrupt candidate rejected and source continued");
+            }
+        }
+    }
+
+    private static List<Boundary> playBots(final Engine source) throws Exception {
+        final List<Boundary> boundaries = new ArrayList<>();
+        JsonObject prompt = nextPrompt(source, -1);
+        for (long sequence = 1; sequence <= MAX_DECISIONS; sequence++) {
+            require(!BOT_PLAYER.equals(prompt.get("decidingPlayerId").getAsString()),
+                    "native Forge AI unexpectedly requires an external answer");
+            final JsonObject[] views = views(source, BOT_VIEWERS);
+            final int turn = views[0].get("turn").getAsInt();
+            final JsonObject action = turn > BOT_LAST_TURN ? null : answer(prompt);
+            boundaries.add(new Boundary(sequence, turn, prompt, views, action));
+            if (action == null) {
+                return boundaries;
+            }
+            source.call("submitAction", "payload", action.toString());
+            prompt = nextPrompt(source, prompt.get("promptId").getAsLong());
+        }
+        throw new AssertionError("native Forge AI fixture did not reach turn " + (BOT_LAST_TURN + 1));
+    }
+
+    private static void requireBotActivity(final List<Boundary> boundaries, final String when) {
+        boolean cast = false;
+        boolean targeted = false;
+        boolean attacked = false;
+        boolean humanPaid = false;
+        for (final Boundary boundary : boundaries) {
+            final JsonObject input = boundary.prompt().getAsJsonObject("input");
+            humanPaid |= "payManaCost".equals(input.get("type").getAsString())
+                    && input.get("canConfirmFromPool").getAsBoolean();
+            final JsonObject view = boundary.views()[0];
+            boolean tappedMountain = false;
+            for (final JsonElement element : view.getAsJsonArray("zones")) {
+                final JsonObject zone = element.getAsJsonObject();
+                if (!"battlefield".equals(zone.get("zone").getAsString())
+                        || !BOT_PLAYER.equals(zone.get("ownerId").getAsString())) {
+                    continue;
+                }
+                for (final JsonElement value : zone.getAsJsonArray("cards")) {
+                    final JsonObject card = value.getAsJsonObject();
+                    tappedMountain |= "Mountain".equals(card.getAsJsonObject("identity").get("name").getAsString())
+                            && card.has("tapped") && card.get("tapped").getAsBoolean();
+                    if (card.has("isAttacking") && card.get("isAttacking").getAsBoolean()) {
+                        require(!BOT_PLAYER.equals(card.get("attackingPlayerId").getAsString()),
+                                "native AI attacked itself");
+                        attacked = true;
+                    }
+                }
+            }
+            for (final JsonElement element : view.getAsJsonArray("stack")) {
+                final JsonObject item = element.getAsJsonObject();
+                if (!BOT_PLAYER.equals(item.get("controllerId").getAsString())
+                        || item.get("isCasting").getAsBoolean() || !item.has("sourceCard")) {
+                    continue;
+                }
+                final String name = item.getAsJsonObject("sourceCard").getAsJsonObject("identity").get("name").getAsString();
+                final boolean creatureSpell = item.get("isPermanentSpell").getAsBoolean()
+                        && "Goblin Brigand".equals(name);
+                final boolean burnSpell = "Shock".equals(name);
+                cast |= tappedMountain && (creatureSpell || burnSpell);
+                targeted |= tappedMountain && burnSpell && !item.getAsJsonArray("targets").isEmpty();
+            }
+        }
+        require(cast, "native AI cast no paid spell " + when);
+        require(targeted, "native AI cast no targeted burn spell " + when);
+        require(attacked, "native AI declared no attackers " + when);
+        require(humanPaid, "fixture committed no human mana payment " + when);
+    }
+
+    private static void requirePacketBoundary(final JsonObject packet, final Boundary boundary) {
+        requireEqual(boundary.sequence(), packet.get("nextSequence").getAsLong(), "rewind packet sequence");
+        requireEqual(boundary.prompt(), packet.get("prompt"), "rewind packet target prompt");
+        requireEqual(boundary.sequence() - 1L, (long) packet.getAsJsonObject("journal").getAsJsonArray("entries").size(),
+                "rewind packet prefix length");
+        final JsonObject vote = packet.getAsJsonObject("restoreVote");
+        requireEqual(boundary.sequence(), vote.getAsJsonObject("checkpoint").get("checkpointId").getAsLong(),
+                "rewind vote target");
+        require("approved".equals(status(vote)), "rewind packet vote is not approved");
+        require(packet.getAsJsonObject("verification").has("rng"), "rewind target has no RNG witness");
+    }
+
+    private static void requireJournalWitnesses(final JsonObject packet, final List<Boundary> original) {
+        final JsonArray entries = packet.getAsJsonObject("journal").getAsJsonArray("entries");
+        for (int i = 0; i < entries.size(); i++) {
+            final JsonObject entry = entries.get(i).getAsJsonObject();
+            final Boundary boundary = original.get(i);
+            requireEqual(boundary.sequence(), entry.get("sequence").getAsLong(), "AI journal entry sequence");
+            require(entry.get("playerIndex").getAsInt() < 2, "AI journal recorded an external native AI answer");
+            requireEqual(boundary.prompt(), entry.get("prompt"), "AI journal entry prompt");
+            requireEqual(boundary.action(), entry.get("action"), "AI journal entry answer");
+            require(entry.getAsJsonObject("verification").has("rng"), "AI journal entry lacks an RNG witness");
+        }
+    }
+
+    private static void resumeSource(final Engine source, final Boundary end, final int[] viewers) throws Exception {
+        source.call("resumeAfterFailedRewind");
+        await("source resuming", () -> "unavailable".equals(status(restoreVote(source))) ? Boolean.TRUE : null);
+        requireEqual(end.prompt(), JsonParser.parseString(source.call("getPrompt", "playerIndex", 0)),
+                "source prompt after failed rewind");
+        final JsonObject[] resumed = views(source, viewers);
+        for (int i = 0; i < viewers.length; i++) {
+            requireEqual(end.views()[i], resumed[i], "source view after failed rewind for viewer " + viewers[i]);
+        }
     }
 
     private static List<Boundary> play(final Engine source) throws Exception {
@@ -155,6 +349,9 @@ public final class JournalRewindTest {
             final JsonObject pending = restoreVote(source);
             return "pending".equals(status(pending)) ? pending : null;
         });
+        final JsonArray expectedVoters = new JsonArray();
+        expectedVoters.add("player-1");
+        requireEqual(expectedVoters, vote.get("awaitingPlayerIds"), "restore voters must exclude native Forge AI");
         source.call("submitAction", "payload",
                 directive(1, "restoreVote", "voteId", vote.get("voteId").getAsLong(), "accept", true).toString());
         final JsonObject rewind = await("rewind request", () -> {
@@ -175,13 +372,17 @@ public final class JournalRewindTest {
     }
 
     private static void replay(final Engine restored, final List<Boundary> original) throws Exception {
+        replay(restored, original, VIEWERS);
+    }
+
+    private static void replay(final Engine restored, final List<Boundary> original, final int[] viewers) throws Exception {
         JsonObject prompt = JsonParser.parseString(restored.call("getPrompt", "playerIndex", 0)).getAsJsonObject();
         for (final Boundary boundary : original) {
             final String at = "decision " + boundary.sequence() + " (turn " + boundary.turn() + ")";
             requireEqual(boundary.prompt(), prompt, at + " prompt");
-            final JsonObject[] views = views(restored);
-            for (int i = 0; i < VIEWERS.length; i++) {
-                requireEqual(boundary.views()[i], views[i], at + " view for viewer " + VIEWERS[i]);
+            final JsonObject[] views = views(restored, viewers);
+            for (int i = 0; i < viewers.length; i++) {
+                requireEqual(boundary.views()[i], views[i], at + " view for viewer " + viewers[i]);
             }
             if (boundary.action() == null) {
                 return;
@@ -380,9 +581,13 @@ public final class JournalRewindTest {
     }
 
     private static JsonObject[] views(final Engine engine) throws Exception {
-        final JsonObject[] views = new JsonObject[VIEWERS.length];
-        for (int i = 0; i < VIEWERS.length; i++) {
-            views[i] = JsonParser.parseString(engine.call("getSnapshot", "viewer", VIEWERS[i])).getAsJsonObject();
+        return views(engine, VIEWERS);
+    }
+
+    private static JsonObject[] views(final Engine engine, final int[] viewers) throws Exception {
+        final JsonObject[] views = new JsonObject[viewers.length];
+        for (int i = 0; i < viewers.length; i++) {
+            views[i] = JsonParser.parseString(engine.call("getSnapshot", "viewer", viewers[i])).getAsJsonObject();
             views[i].remove("restoreVote");
             views[i].remove("decisionHistory");
         }

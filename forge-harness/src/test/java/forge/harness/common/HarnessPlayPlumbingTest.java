@@ -1,6 +1,7 @@
 package forge.harness.common;
 
 import forge.StaticData;
+import forge.ai.AiController;
 import forge.ai.LobbyPlayerAi;
 import forge.ai.PlayerControllerAi;
 import forge.card.mana.ManaAtom;
@@ -16,6 +17,8 @@ import forge.game.card.Card;
 import forge.game.card.CardCollection;
 import forge.game.card.CardCollectionView;
 import forge.game.card.CounterEnumType;
+import forge.game.combat.Combat;
+import forge.game.combat.CombatUtil;
 import forge.game.cost.CostPartMana;
 import forge.game.mana.ManaConversionMatrix;
 import forge.game.phase.PhaseType;
@@ -30,9 +33,11 @@ import forge.gui.GuiBase;
 import forge.item.IPaperCard;
 import forge.localinstance.properties.ForgePreferences.FPref;
 import forge.model.FModel;
+import forge.util.MyRandom;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public final class HarnessPlayPlumbingTest {
     private HarnessPlayPlumbingTest() {}
@@ -48,6 +53,10 @@ public final class HarnessPlayPlumbingTest {
         triggerFiringsDoNotShareTargets();
         stashedCardIsPaidWithManaOfAnyType();
         handCastIsPaidWithItsOwnColors();
+        priorityPassesWhenWorkRunsOut();
+        exhaustedAttackStillMeetsRequirements();
+        exhaustedBlockStillMeetsRequirements();
+        exhaustedBlockCompletesRequiredMenaceGroup();
         System.exit(0);
     }
 
@@ -142,6 +151,81 @@ public final class HarnessPlayPlumbingTest {
             throw new AssertionError(sa.getHostCard().getName() + " never reached mana payment");
         }
         return probe.matrix;
+    }
+
+    private static void priorityPassesWhenWorkRunsOut() {
+        final Game game = newGame();
+        final Player player = game.getPhaseHandler().getPlayerTurn();
+        final AiController ai = ((PlayerControllerAi) player.getController()).getAi();
+        final Card spell = add("Memnite", player, ZoneType.Hand);
+        game.getRules().setAiWorkLimit(1);
+        MyRandom.setRandom(new Random(123));
+        final List<SpellAbility> exhausted = ai.chooseSpellAbilityToPlay();
+        if (exhausted != null && !exhausted.isEmpty()) {
+            throw new AssertionError("exhausted priority chose a spell: " + exhausted);
+        }
+        game.getRules().setAiWorkLimit(20000);
+        MyRandom.setRandom(new Random(123));
+        final List<SpellAbility> chosen = ai.chooseSpellAbilityToPlay();
+        if (chosen == null || chosen.size() != 1 || chosen.get(0).getHostCard() != spell) {
+            throw new AssertionError("priority with work remaining did not choose Memnite: " + chosen);
+        }
+    }
+
+    private static void exhaustedAttackStillMeetsRequirements() {
+        final Game game = newGame();
+        game.getRules().setAiWorkLimit(1);
+        final Player attacker = game.getPhaseHandler().getPlayerTurn();
+        final Card first = add("Juggernaut", attacker, ZoneType.Battlefield);
+        final Card second = add("Juggernaut", attacker, ZoneType.Battlefield);
+        first.setSickness(false);
+        second.setSickness(false);
+        game.getPhaseHandler().devAdvanceToPhase(PhaseType.COMBAT_DECLARE_ATTACKERS, null);
+        final Combat combat = game.getCombat();
+        if (!combat.isAttacking(first) || !combat.isAttacking(second) || !CombatUtil.validateAttackers(combat)) {
+            throw new AssertionError("exhausted attack failed to declare both mandatory attackers: " + combat.getAttackers());
+        }
+    }
+
+    private static void exhaustedBlockStillMeetsRequirements() {
+        final Game game = newGame();
+        game.getRules().setAiWorkLimit(1);
+        final Player attacker = game.getPhaseHandler().getPlayerTurn();
+        final Player defender = game.getNextPlayerAfter(attacker);
+        final Card large = add("Juggernaut", attacker, ZoneType.Battlefield);
+        final Card small = add("Memnite", attacker, ZoneType.Battlefield);
+        final Card required = add("Memnite", defender, ZoneType.Battlefield);
+        add("Juggernaut", defender, ZoneType.Battlefield);
+        required.addMustBlockCard(game.getNextTimestamp(), large);
+        game.getPhaseHandler().devModeSet(PhaseType.COMBAT_DECLARE_BLOCKERS, attacker);
+        final Combat combat = new Combat(attacker);
+        combat.addAttacker(large, defender);
+        combat.addAttacker(small, defender);
+        ((PlayerControllerAi) defender.getController()).getAi().declareBlockersFor(defender, combat);
+        final String invalid = CombatUtil.validateBlocks(combat, defender);
+        if (invalid != null || !combat.getBlockers(large).contains(required) || !combat.getBlockers(small).isEmpty()) {
+            throw new AssertionError("exhausted block did not leave only the required block: " + invalid);
+        }
+    }
+
+    private static void exhaustedBlockCompletesRequiredMenaceGroup() {
+        final Game game = newGame();
+        game.getRules().setAiWorkLimit(1);
+        final Player attacker = game.getPhaseHandler().getPlayerTurn();
+        final Player defender = game.getNextPlayerAfter(attacker);
+        final Card menace = add("Maulfist Squad", attacker, ZoneType.Battlefield);
+        final Card required = add("Razorgrass Screen", defender, ZoneType.Battlefield);
+        add("Okk", defender, ZoneType.Battlefield);
+        final Card helper = add("Memnite", defender, ZoneType.Battlefield);
+        game.getPhaseHandler().devModeSet(PhaseType.COMBAT_DECLARE_BLOCKERS, attacker);
+        final Combat combat = new Combat(attacker);
+        combat.addAttacker(menace, defender);
+        ((PlayerControllerAi) defender.getController()).getAi().declareBlockersFor(defender, combat);
+        final CardCollection blockers = combat.getBlockers(menace);
+        final String invalid = CombatUtil.validateBlocks(combat, defender);
+        if (invalid != null || blockers.size() != 2 || !blockers.contains(required) || !blockers.contains(helper)) {
+            throw new AssertionError("exhausted block did not complete the required menace block: " + blockers + "; " + invalid);
+        }
     }
 
     private static final class PaymentProbe extends PlayerControllerAi {

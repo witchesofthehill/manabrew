@@ -14,7 +14,7 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1312
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1316
 msgid "{0} damage"
 msgstr "{0} blessures"
 
@@ -33,7 +33,7 @@ msgstr "Caractéristiques actuelles"
 
 #. placeholder {0}: display.stats.power
 #. placeholder {1}: display.stats.toughness
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1111
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1115
 msgid "Current P/T: {0}/{1}"
 msgstr "F/E actuelles : {0}/{1}"
 
@@ -41,7 +41,7 @@ msgstr "F/E actuelles : {0}/{1}"
 msgid "Current power and toughness"
 msgstr "Force et endurance actuelles"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1702
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1706
 msgid "Defense"
 msgstr "Défense"
 
@@ -50,19 +50,19 @@ msgstr "Défense"
 msgid "Effect text unavailable"
 msgstr "Texte de l’effet indisponible"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:626
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:641
 msgid "Face-down card"
 msgstr "Carte face cachée"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:628
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:643
 msgid "Face-down permanent"
 msgstr "Permanent face cachée"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1283
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1287
 msgid "Flip back · F"
 msgstr "Retourner au verso · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1283
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1287
 msgid "Flip front · F"
 msgstr "Retourner au recto · F"
 
@@ -84,7 +84,7 @@ msgstr "Niveau {0}"
 msgid "Locked"
 msgstr "Verrouillé"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1701
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1705
 msgid "Loyalty"
 msgstr "Loyauté"
 
@@ -104,11 +104,11 @@ msgstr "Pas en suspension"
 msgid "On an Adventure"
 msgstr "En aventure"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1105
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1109
 msgid "On an Adventure · available actions are listed on their spell half"
 msgstr "En aventure · les actions disponibles figurent sur sa moitié de sort"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1300
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1304
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
@@ -116,7 +116,7 @@ msgstr ""
 msgid "Printed alternative"
 msgstr "Alternative imprimée"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1298
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1302
 msgid "Printed face · live state belongs to the other face"
 msgstr "Face imprimée · l'état actuel correspond à l'autre face"
 
@@ -124,7 +124,7 @@ msgstr "Face imprimée · l'état actuel correspond à l'autre face"
 msgid "Printed power and toughness"
 msgstr "Force et endurance imprimées"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:654
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:669
 msgid "Prototype"
 msgstr "Prototype"
 

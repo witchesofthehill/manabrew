@@ -14,7 +14,7 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: display.stats.damage
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1312
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1316
 msgid "{0} damage"
 msgstr "피해 {0}"
 
@@ -33,7 +33,7 @@ msgstr "현재 특성"
 
 #. placeholder {0}: display.stats.power
 #. placeholder {1}: display.stats.toughness
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1111
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1115
 msgid "Current P/T: {0}/{1}"
 msgstr "현재 공격력/방어력: {0}/{1}"
 
@@ -41,7 +41,7 @@ msgstr "현재 공격력/방어력: {0}/{1}"
 msgid "Current power and toughness"
 msgstr "현재 공격력 및 방어력"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1702
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1706
 msgid "Defense"
 msgstr "방어"
 
@@ -50,19 +50,19 @@ msgstr "방어"
 msgid "Effect text unavailable"
 msgstr "효과 텍스트를 사용할 수 없음"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:626
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:641
 msgid "Face-down card"
 msgstr "뒷면인 카드"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:628
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:643
 msgid "Face-down permanent"
 msgstr "뒷면인 영구물"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1283
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1287
 msgid "Flip back · F"
 msgstr "뒷면으로 뒤집기 · F"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1283
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1287
 msgid "Flip front · F"
 msgstr "앞면으로 뒤집기 · F"
 
@@ -84,7 +84,7 @@ msgstr "레벨 {0}"
 msgid "Locked"
 msgstr "잠김"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1701
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1705
 msgid "Loyalty"
 msgstr "충성도"
 
@@ -104,11 +104,11 @@ msgstr "유예 중이 아님"
 msgid "On an Adventure"
 msgstr "모험 중"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1105
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1109
 msgid "On an Adventure · available actions are listed on their spell half"
 msgstr "모험 중 · 가능한 행동은 주문 쪽에 표시됩니다"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1300
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1304
 msgid "Original printing · generated frame unavailable"
 msgstr ""
 
@@ -116,7 +116,7 @@ msgstr ""
 msgid "Printed alternative"
 msgstr "인쇄된 대체 특성"
 
-#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1298
+#: src/pixi/cardPreview/RulesCardPreviewLayer.ts:1302
 msgid "Printed face · live state belongs to the other face"
 msgstr "인쇄된 면 · 현재 상태는 반대쪽 면에 적용됩니다"
 
@@ -124,7 +124,7 @@ msgstr "인쇄된 면 · 현재 상태는 반대쪽 면에 적용됩니다"
 msgid "Printed power and toughness"
 msgstr "인쇄된 공격력 및 방어력"
 
-#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:654
+#: src/pixi/cardPreview/rulesCardPreviewPresentation.ts:669
 msgid "Prototype"
 msgstr "프로토타입"
 

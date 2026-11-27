@@ -22,6 +22,7 @@ export interface StartGameParams {
   opponentDecks: Deck[] | null;
   engine?: EngineKind;
   aiController?: AiController;
+  forgeAiRewind?: boolean;
 }
 
 export interface StartMultiplayerGameParams {

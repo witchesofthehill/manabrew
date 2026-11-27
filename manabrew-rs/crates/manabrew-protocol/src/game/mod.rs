@@ -333,6 +333,19 @@ pub struct SagaChapterDto {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
 #[ts(export, export_to = "game/index.ts")]
+pub struct StationLevelDto {
+    pub threshold: i32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub power: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub toughness: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "game/index.ts")]
 pub struct CardDto {
     pub id: String,
     pub identity: CardIdentity,
@@ -365,6 +378,9 @@ pub struct CardDto {
     pub class_level: Option<i32>,
     pub class_levels: Vec<ClassLevelDto>,
     pub saga_chapters: Vec<SagaChapterDto>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub station_levels: Option<Vec<StationLevelDto>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub unlocked_doors: Option<Vec<RoomDoor>>,

@@ -28,6 +28,7 @@ interface TablePickerDialogProps {
   onStart: () => void;
   onCancel: () => void;
   centerContent?: ReactNode;
+  gameOptions?: ReactNode;
   startLabel?: ReactNode;
   description?: ReactNode;
   players?: readonly RoomPlayerInfo[];
@@ -41,6 +42,7 @@ export function TablePickerDialog({
   onStart,
   onCancel,
   centerContent,
+  gameOptions,
   startLabel = "Fight",
   description = "The felt you'll play this game on.",
   players = SEATS,
@@ -105,6 +107,7 @@ export function TablePickerDialog({
             })}
           </div>
         </div>
+        {gameOptions}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onCancel}>
             Back

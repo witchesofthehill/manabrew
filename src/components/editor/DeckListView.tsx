@@ -1626,6 +1626,8 @@ export interface DeckListViewProps {
   viewMode: ViewMode;
   cardSize: number;
   commanders: DeckCard[];
+  commandZone: React.ReactNode;
+  tokensSection?: React.ReactNode;
   deckFormat: string;
   mainSections: Array<
     SectionDefinition & {
@@ -1714,6 +1716,8 @@ export function DeckListView({
   cardSize,
   canCustomize,
   commanders,
+  commandZone,
+  tokensSection,
   deckFormat,
   mainSections,
   otherGroups,
@@ -1923,7 +1927,7 @@ export function DeckListView({
   const wrappedHandleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       const target = e.target as HTMLElement;
-      if (target.closest("[data-card-name]")) return;
+      if (target.closest("[data-card-name], [data-command-zone], [data-token-section]")) return;
       handleContainerMouseDown(e);
     },
     [handleContainerMouseDown],
@@ -2216,9 +2220,8 @@ export function DeckListView({
       );
     }
     if (id === STACK_SECTION_MAYBEBOARD) {
-      return (
+      const maybeboard = (
         <div
-          key={id}
           data-stack-id={id}
           ref={(el) => {
             if (el) setMaybeDropRef(el);
@@ -2274,6 +2277,12 @@ export function DeckListView({
           ) : (
             <EmptyStackBoard label={`Maybeboard`} cardWidth={cardWidth} dragHandleProps={dhProps} />
           )}
+        </div>
+      );
+      return (
+        <div key={id} className="min-w-0">
+          {maybeboard}
+          {tokensSection && <div className="mt-3">{tokensSection}</div>}
         </div>
       );
     }
@@ -2374,6 +2383,7 @@ export function DeckListView({
                 gap: GAP,
               }}
             >
+              {commandZone}
               {orderedSectionIds.map((id) => renderStackSection(id))}
             </div>
 
@@ -2435,6 +2445,7 @@ export function DeckListView({
                 className="w-full gap-4"
                 style={{ columnCount: listColumnCount, columnGap: "1rem" }}
               >
+                {commandZone}
                 {mainSections.map((s) => (
                   <div key={s.id} className="break-inside-avoid">
                     <CardSection
@@ -2483,6 +2494,7 @@ export function DeckListView({
             </>
           ) : (
             <>
+              {commandZone}
               {mainSections.map((s) => (
                 <CardSection
                   key={s.id}
@@ -2782,6 +2794,8 @@ export function DeckListView({
               )}
             </div>
           </div>
+
+          {tokensSection && <div className="mt-3">{tokensSection}</div>}
 
           {specialSections.map((section) => {
             const count = section.groups.reduce((s, g) => s + g.count, 0);

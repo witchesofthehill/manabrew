@@ -372,7 +372,7 @@ Multiplayer ownership, targeted snapshots and retained paired rooms are document
 
 ## Deck editor workspaces
 
-Build owns the deck list, filtering, and selection. Keep Build mounted when opening Review or the compact card browser so selection and scroll position survive. The three-dot menu owns deck-wide commands. View modes, Group, and Sort are direct controls; View options owns saved views and secondary layout settings. Review links back to Build when a check can identify specific cards.
+Build owns the deck list, tokens, filtering, and selection. Keep Build mounted when opening Deck stats or the compact card browser so selection and scroll position survive. The three-dot menu owns deck-wide commands. View modes, Group, and Sort are direct controls; View options owns saved views and secondary layout settings. Deck stats links back to Build when a check can identify specific cards.
 
 Edit as text in the three-dot menu replaces the command zone, main deck, sideboard, and maybeboard as one undoable edit. Empty sections are intentional. The editable export includes them; ordinary exports do not. Resolve every new entry before changing the deck. Reuse exact printing and finish matches in their old zone before taking copies from another zone so unchanged occurrences keep their IDs and appearance. Leave supplementary zones out of the replacement.
 

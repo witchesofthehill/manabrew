@@ -18,7 +18,7 @@ import {
   useDroppable,
   pointerWithin,
 } from "@dnd-kit/core";
-import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import type { CollisionDetection, DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { isFeatureEnabled } from "@/featureFlags";
 import { DROP_ZONE, DEFAULT_DECK_NAME, ROUTES } from "@/lib/constants";
@@ -72,6 +72,11 @@ const DRAG_TRAY_SIDE = "drag-tray-side";
 const DRAG_TRAY_MAYBE = "drag-tray-maybe";
 const DRAG_TRAY_TAG_PREFIX = "drag-tray-tag:";
 const DRAG_TRAY_NEW_TAG = "drag-tray-new-tag";
+const detectDeckCollision: CollisionDetection = (args) => {
+  const collisions = pointerWithin(args);
+  const command = collisions.find(({ id }) => id === DROP_ZONE.COMMAND);
+  return command ? [command] : collisions;
+};
 function DragTrayTarget({
   id,
   label,
@@ -1000,7 +1005,7 @@ export default function DeckEditor() {
     <>
       <DndContext
         sensors={sensors}
-        collisionDetection={pointerWithin}
+        collisionDetection={detectDeckCollision}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragCancel={() => setDraggedCards([])}

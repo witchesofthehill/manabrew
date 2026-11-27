@@ -3,6 +3,8 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DeckCard } from "@/protocol/deck";
 import type { EditorDeck } from "@/types/manabrew";
+import { CombosPanel } from "./CombosPanel";
+import { DeckBracketPanel } from "./DeckBracketPanel";
 import { DeckBudgetPanel } from "./DeckBudgetPanel";
 import { DeckCollectionPanel } from "./DeckCollectionPanel";
 import { DeckHealthPanel } from "./DeckHealthPanel";
@@ -12,33 +14,7 @@ import { DeckStats } from "./DeckStats";
 import { ManaProbabilityPanel } from "./ManaProbabilityPanel";
 import { ReplacementSuggestionsPanel } from "./ReplacementSuggestionsPanel";
 type InsightSection = "overview" | "mana" | "collection" | "budget" | "replacements";
-const SECTIONS: {
-  id: InsightSection;
-  label: string;
-}[] = [
-  {
-    id: "overview",
-    label: `Overview`,
-  },
-  {
-    id: "mana",
-    label: `Mana`,
-  },
-  {
-    id: "collection",
-    label: `Collection`,
-  },
-  {
-    id: "budget",
-    label: `Budget`,
-  },
-  {
-    id: "replacements",
-    label: `Replacements`,
-  },
-];
 export function DeckInsightsPanel({
-  mode = "all",
   deck,
   unsupportedNames,
   validationErrors,
@@ -51,7 +27,6 @@ export function DeckInsightsPanel({
   onCardLeave,
   onOptimizeOwnedPrintings,
 }: {
-  mode?: "all" | "analyze" | "improve";
   deck: EditorDeck;
   unsupportedNames: Set<string>;
   validationErrors: string[];
@@ -64,92 +39,61 @@ export function DeckInsightsPanel({
   onCardLeave?: () => void;
   onOptimizeOwnedPrintings?: () => void;
 }) {
-  const [openSections, setOpenSections] = useState<Record<InsightSection, boolean>>({
-    overview: true,
-    mana: true,
-    collection: true,
-    budget: true,
-    replacements: true,
-  });
-  function toggleSection(section: InsightSection) {
-    setOpenSections((current) => ({ ...current, [section]: !current[section] }));
-  }
   return (
     <section
       aria-label={`Deck insights`}
       className="min-w-0 overflow-hidden rounded-2xl bg-muted/10 px-4 sm:px-5"
     >
-      {SECTIONS.filter(({ id }) =>
-        mode === "all"
-          ? true
-          : mode === "analyze"
-            ? id === "mana" || id === "collection" || id === "budget"
-            : id === "overview" || id === "replacements",
-      ).map(({ id, label }) => (
-        <InsightSectionPanel
-          key={id}
-          id={id}
-          label={label}
-          open={openSections[id]}
-          onToggle={() => toggleSection(id)}
-        >
-          {id === "overview" && (
-            <>
-              <DeckHealthPanel
-                deck={deck}
-                unsupportedNames={unsupportedNames}
-                validationErrors={validationErrors}
-                onShowUnsupported={onShowUnsupported}
-                onOpenSearch={onOpenSearch}
-              />
-              <DeckIntentPanel deck={deck} />
-              <DeckGoalsPanel />
-            </>
-          )}
-          {id === "mana" && (
-            <>
-              <DeckStats
-                cards={deck.cards}
-                activeBucket={activeBucket}
-                onBucketClick={onBucketClick}
-              />
-              <ManaProbabilityPanel deck={deck} />
-            </>
-          )}
-          {id === "collection" && (
-            <DeckCollectionPanel
-              cardSize={cardSize}
-              onHover={onCardHover}
-              onLeave={onCardLeave}
-              onOptimizeOwnedPrintings={onOptimizeOwnedPrintings}
-            />
-          )}
-          {id === "budget" && <DeckBudgetPanel />}
-          {id === "replacements" && (
-            <ReplacementSuggestionsPanel
-              cardSize={cardSize}
-              onHover={onCardHover}
-              onLeave={onCardLeave}
-            />
-          )}
-        </InsightSectionPanel>
-      ))}
+      <InsightSectionPanel id="overview" label="Overview">
+        <DeckHealthPanel
+          deck={deck}
+          unsupportedNames={unsupportedNames}
+          validationErrors={validationErrors}
+          onShowUnsupported={onShowUnsupported}
+          onOpenSearch={onOpenSearch}
+        />
+        <DeckIntentPanel deck={deck} />
+        <DeckGoalsPanel />
+      </InsightSectionPanel>
+      <InsightSectionPanel id="mana" label="Mana">
+        <DeckStats cards={deck.cards} activeBucket={activeBucket} onBucketClick={onBucketClick} />
+        <ManaProbabilityPanel deck={deck} />
+      </InsightSectionPanel>
+      <div className="space-y-4 border-b border-border/30 py-4 empty:hidden">
+        <DeckBracketPanel />
+        <CombosPanel />
+      </div>
+      <InsightSectionPanel id="budget" label="Budget">
+        <DeckBudgetPanel />
+      </InsightSectionPanel>
+      <InsightSectionPanel id="replacements" label="Replacements">
+        <ReplacementSuggestionsPanel
+          cardSize={cardSize}
+          onHover={onCardHover}
+          onLeave={onCardLeave}
+        />
+      </InsightSectionPanel>
+      <InsightSectionPanel id="collection" label="Collection">
+        <DeckCollectionPanel
+          cardSize={cardSize}
+          onHover={onCardHover}
+          onLeave={onCardLeave}
+          onOptimizeOwnedPrintings={onOptimizeOwnedPrintings}
+        />
+      </InsightSectionPanel>
     </section>
   );
 }
 function InsightSectionPanel({
   id,
   label,
-  open,
-  onToggle,
   children,
 }: {
   id: InsightSection;
   label: string;
-  open: boolean;
-  onToggle: () => void;
   children: ReactNode;
 }) {
+  const [open, setOpen] = useState(true);
   return (
     <section
       data-editor-insight={id}
@@ -160,7 +104,7 @@ function InsightSectionPanel({
         className="flex min-h-9 touch:min-h-11 touch:min-w-11 w-full items-center gap-2 text-left text-ui-label font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-expanded={open}
         aria-controls={`deck-insight-section-${id}`}
-        onClick={onToggle}
+        onClick={() => setOpen((value) => !value)}
       >
         <ChevronDown
           className={cn(

@@ -57,8 +57,6 @@ import { useCardPreview, type CardPreviewController } from "@/hooks/useCardPrevi
 import { CardDetailModal } from "./CardDetailModal";
 import { DeckLabelsModal } from "./DeckLabelsModal";
 import { DeckValidationPanel } from "./DeckValidationPanel";
-import { DeckBracketPanel } from "./DeckBracketPanel";
-import { CombosPanel } from "./CombosPanel";
 import { useDeckAnalysis } from "@/hooks/useDeckAnalysis";
 import { useDeckRoles } from "@/hooks/useDeckRoles";
 import { isFeatureEnabled } from "@/featureFlags";
@@ -270,7 +268,7 @@ export function DeckBuilder({
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [cardSize, setCardSize] = useState(DEFAULT_CARD_SIZE);
-  const [workspace, setWorkspace] = useState<"build" | "review">("build");
+  const [workspace, setWorkspace] = useState<"build" | "stats">("build");
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
   const [sortBy, setSortBy] = useState<SortMode>("mana-value");
   const [collectionFilter, setCollectionFilter] = useState<"all" | DeckOwnershipStatus>("all");
@@ -282,7 +280,7 @@ export function DeckBuilder({
   const filterInputRef = useRef<HTMLInputElement>(null);
   const editorRootRef = useRef<HTMLDivElement>(null);
   const editorScrollRef = useRef<HTMLDivElement>(null);
-  const reviewScrollRef = useRef<HTMLElement>(null);
+  const statsScrollRef = useRef<HTMLElement>(null);
   const enrichedCardsRef = useRef(new Set<string>());
   const skipPresentationSaveRef = useRef(true);
   const presentationKey = currentDeckId ?? currentDeck.name.toLowerCase();
@@ -379,10 +377,10 @@ export function DeckBuilder({
     },
   });
   function jumpToNextEditorSection() {
-    const next = workspace === "build" ? "review" : "build";
+    const next = workspace === "build" ? "stats" : "build";
     setWorkspace(next);
     requestAnimationFrame(() =>
-      (next === "build" ? editorScrollRef : reviewScrollRef).current?.focus({
+      (next === "build" ? editorScrollRef : statsScrollRef).current?.focus({
         preventScroll: true,
       }),
     );
@@ -402,9 +400,9 @@ export function DeckBuilder({
       showUnsupportedCards();
       return;
     }
-    setWorkspace("review");
+    setWorkspace("stats");
     requestAnimationFrame(() => {
-      const panel = reviewScrollRef.current;
+      const panel = statsScrollRef.current;
       if (target === "validation") panel?.scrollTo({ top: 0 });
       else {
         panel
@@ -1649,7 +1647,7 @@ export function DeckBuilder({
   const hasDeckCards = currentDeck.cards.length > 0 || supplementaryCards.length > 0;
   const saving = isSaving || syncState === "saving";
   const canSave = hasUnsavedChanges || currentDeck.draft;
-  const reviewIssueCount = deckValidation.errors.length + unsupportedNames.size;
+  const issueCount = deckValidation.errors.length + unsupportedNames.size;
   const saveStatus = saving
     ? "Saving…"
     : hasUnsavedChanges
@@ -1663,6 +1661,71 @@ export function DeckBuilder({
             : currentDeck.draft
               ? "Draft"
               : "Saved";
+  const commandZone = (
+    <CommanderSlots
+      key={`command-zone-${editorSessionId}`}
+      cards={currentDeck.cards}
+      commanders={currentDeck.commanders ?? []}
+      format={currentDeck.format ?? "standard"}
+      cardSize={cardSize}
+      viewMode={viewMode}
+      readOnly={isReadOnly}
+      onBrowseCommanders={onOpenSearch}
+      onSetCommander={handleSetCommander}
+      onShowInfo={handleShowInfo}
+      onHover={(card, event) => {
+        const details = localizedCardDetails.get(
+          localizedCardDetailsKey(scryfallLocale, card.identity.setCode, card.identity.cardNumber),
+        );
+        preview.handleMouseEnter(
+          details ? localizedDeckCardToPreviewDto(card, details) : deckCardToPreviewDto(card),
+          event,
+          { useDelay: true },
+        );
+      }}
+      onLeave={preview.handleMouseLeave}
+      contextMenuFor={(card, label) => {
+        const name = card.identity.name;
+        const isCover =
+          currentDeck.coverCardName === name && (currentDeck.coverCardFace ?? 0) === 0;
+        const isCoverBack = currentDeck.coverCardName === name && currentDeck.coverCardFace === 1;
+        return {
+          canCustomize: !isReadOnly,
+          commanderLabel: label,
+          customTags: currentDeck.customTags ?? [],
+          appliedTags: currentDeck.cardTags?.[name.toLowerCase()] ?? [],
+          isCover,
+          isCoverBack,
+          hasBackFace: !!card.backFace,
+          onShowInfo: () => handleShowInfo(card),
+          onRemoveCommander: () => handleRemoveCommander(card),
+          onCustomize: () => handleCustomize(card),
+          onSetCover: () => {
+            executeDeckEdit(`Change deck cover`, () => setCoverCard(isCover ? undefined : name, 0));
+            if (!isCover) useScryfallStore.getState().invalidateCard(name);
+          },
+          onSetCoverBack: () => {
+            executeDeckEdit(`Change deck cover`, () =>
+              setCoverCard(isCoverBack ? undefined : name, 1),
+            );
+            if (!isCoverBack) useScryfallStore.getState().invalidateCard(name);
+          },
+          onApplyTag: (tag) => {
+            const isApplied = currentDeck.cardTags?.[name.toLowerCase()]?.includes(tag);
+            executeDeckEdit(isApplied ? `Remove ${tag}` : `Apply ${tag}`, () => {
+              if (isApplied) untagCard(name, tag);
+              else tagCard(name, tag);
+            });
+          },
+          onCreateTag: (tag) =>
+            executeDeckEdit(`Create ${tag} tag`, () => {
+              addCustomTag(tag);
+              tagCard(name, tag);
+            }),
+        };
+      }}
+    />
+  );
   return (
     <div ref={editorRootRef} className="deck-editor-root relative flex h-full w-full flex-col">
       <div className="sr-only" aria-live="polite" aria-atomic="true">
@@ -1732,27 +1795,24 @@ export function DeckBuilder({
             renderActions={(onEditPlaymat) => (
               <div className="ml-auto flex basis-full flex-wrap items-center justify-between gap-x-3 gap-y-1 @2xl:shrink-0 @2xl:basis-auto @5xl:col-start-3 @5xl:row-start-1 @5xl:justify-end">
                 <div className="flex items-center gap-1" role="group" aria-label="Deck workspace">
-                  {(["build", "review"] as const).map((tab) => (
+                  {(["build", "stats"] as const).map((tab) => (
                     <button
                       key={tab}
                       type="button"
                       aria-pressed={workspace === tab}
                       onClick={() => setWorkspace(tab)}
                       className={cn(
-                        "inline-flex min-h-8 items-center gap-1.5 border-b-2 px-2.5 text-ui-label font-semibold capitalize focus-visible:outline-2 focus-visible:outline-ring touch:min-h-11 touch:min-w-11",
+                        "inline-flex min-h-8 items-center gap-1.5 border-b-2 px-2.5 text-ui-label font-semibold whitespace-nowrap focus-visible:outline-2 focus-visible:outline-ring touch:min-h-11 touch:min-w-11",
                         workspace === tab
                           ? "border-selection-border text-foreground"
                           : "border-transparent text-muted-foreground hover:text-foreground",
                       )}
                     >
-                      {tab}
-                      {tab === "review" && reviewIssueCount > 0 && (
+                      {tab === "build" ? "Build" : "Deck stats"}
+                      {tab === "stats" && issueCount > 0 && (
                         <span className="rounded bg-warning/10 px-1.5 text-ui-meta tabular-nums text-warning">
-                          {reviewIssueCount}
-                          <span className="sr-only">
-                            {" "}
-                            {reviewIssueCount === 1 ? "issue" : "issues"}
-                          </span>
+                          {issueCount}
+                          <span className="sr-only"> {issueCount === 1 ? "issue" : "issues"}</span>
                         </span>
                       )}
                     </button>
@@ -1804,9 +1864,6 @@ export function DeckBuilder({
           >
             {!isReadOnly && (
               <div className="relative z-40 flex w-full min-w-0 flex-col gap-2.5 @xl:flex-row @xl:items-center @5xl:col-span-2 @5xl:col-start-2 @5xl:row-start-2 @5xl:grid @5xl:grid-cols-subgrid @5xl:self-end">
-                {workspace === "review" && (
-                  <h2 className="shrink-0 text-base font-semibold">Deck review</h2>
-                )}
                 <div className="flex min-w-0 items-center gap-2 @xl:ml-auto @xl:max-w-[34rem] @xl:flex-1 @5xl:col-start-2 @5xl:ml-0 @5xl:max-w-none">
                   <div className="min-w-0 flex-1">
                     <DeckQuickAdd
@@ -1994,77 +2051,6 @@ export function DeckBuilder({
               onScroll={(event) => setShowBackToTop(event.currentTarget.scrollTop > 120)}
             >
               <div data-editor-section="build">
-                <CommanderSlots
-                  key={`command-zone-${editorSessionId}`}
-                  cards={currentDeck.cards}
-                  commanders={currentDeck.commanders ?? []}
-                  format={currentDeck.format ?? "standard"}
-                  cardSize={cardSize}
-                  readOnly={isReadOnly}
-                  onBrowseCommanders={onOpenSearch}
-                  onSetCommander={handleSetCommander}
-                  onRemoveCommander={handleRemoveCommander}
-                  onHover={(card, event) => {
-                    const details = localizedCardDetails.get(
-                      localizedCardDetailsKey(
-                        scryfallLocale,
-                        card.identity.setCode,
-                        card.identity.cardNumber,
-                      ),
-                    );
-                    const previewCard = deckCardToPreviewDto(card);
-                    preview.handleMouseEnter(
-                      details ? localizedDeckCardToPreviewDto(card, details) : previewCard,
-                      event,
-                      { useDelay: true },
-                    );
-                  }}
-                  onLeave={preview.handleMouseLeave}
-                  onCustomize={handleCustomize}
-                  contextMenuFor={(card, label) => {
-                    const name = card.identity.name;
-                    const isCover =
-                      currentDeck.coverCardName === name && (currentDeck.coverCardFace ?? 0) === 0;
-                    const isCoverBack =
-                      currentDeck.coverCardName === name && currentDeck.coverCardFace === 1;
-                    return {
-                      canCustomize: !isReadOnly,
-                      commanderLabel: label,
-                      customTags: currentDeck.customTags ?? [],
-                      appliedTags: currentDeck.cardTags?.[name.toLowerCase()] ?? [],
-                      isCover,
-                      isCoverBack,
-                      hasBackFace: !!card.backFace,
-                      onShowInfo: () => handleShowInfo(card),
-                      onRemoveCommander: () => handleRemoveCommander(card),
-                      onCustomize: () => handleCustomize(card),
-                      onSetCover: () => {
-                        executeDeckEdit(`Change deck cover`, () =>
-                          setCoverCard(isCover ? undefined : name, 0),
-                        );
-                        if (!isCover) useScryfallStore.getState().invalidateCard(name);
-                      },
-                      onSetCoverBack: () => {
-                        executeDeckEdit(`Change deck cover`, () =>
-                          setCoverCard(isCoverBack ? undefined : name, 1),
-                        );
-                        if (!isCoverBack) useScryfallStore.getState().invalidateCard(name);
-                      },
-                      onApplyTag: (tag) => {
-                        const isApplied = currentDeck.cardTags?.[name.toLowerCase()]?.includes(tag);
-                        executeDeckEdit(isApplied ? `Remove ${tag}` : `Apply ${tag}`, () => {
-                          if (isApplied) untagCard(name, tag);
-                          else tagCard(name, tag);
-                        });
-                      },
-                      onCreateTag: (tag) =>
-                        executeDeckEdit(`Create ${tag} tag`, () => {
-                          addCustomTag(tag);
-                          tagCard(name, tag);
-                        }),
-                    };
-                  }}
-                />
                 {!isReadOnly && !hasDeckCards && (
                   <div className="border-b bg-muted/15 px-4 py-5">
                     <h2 className="font-serif text-xl font-bold">Start with a card or a list</h2>
@@ -2124,6 +2110,31 @@ export function DeckBuilder({
                     viewMode={viewMode}
                     cardSize={cardSize}
                     commanders={currentDeck.commanders ?? []}
+                    commandZone={commandZone}
+                    tokensSection={
+                      mergedTokens.length > 0 && (
+                        <TokenSection
+                          tokens={mergedTokens}
+                          customizedTokens={currentDeck.tokens}
+                          cardSize={cardSize}
+                          compact={viewMode === "stack"}
+                          canCustomize={!isReadOnly}
+                          onShowInfo={handleShowTokenInfo}
+                          onCustomize={(card) => setCustomization({ card, token: true })}
+                          onResetPrint={(token) =>
+                            executeDeckEdit(`Reset ${token.identity.name} token printing`, () =>
+                              resetTokenPrint(token),
+                            )
+                          }
+                          onHover={(token, e) =>
+                            preview.handleMouseEnter(deckCardToPreviewDto(token), e, {
+                              useDelay: true,
+                            })
+                          }
+                          onLeave={preview.handleMouseLeave}
+                        />
+                      )
+                    }
                     onOpenSideboardPlans={
                       isReadOnly ? undefined : () => setSideboardPlansOpen(true)
                     }
@@ -2226,12 +2237,12 @@ export function DeckBuilder({
                 </div>
               </div>
             </div>
-            {workspace === "review" && (
+            {workspace === "stats" && (
               <section
-                ref={reviewScrollRef}
+                ref={statsScrollRef}
                 tabIndex={-1}
                 data-editor-section="analysis"
-                aria-label="Review deck"
+                aria-label="Deck stats"
                 className="min-h-0 flex-1 space-y-4 overflow-y-auto border-t px-3 pb-8 pt-3 @lg:px-4"
               >
                 <div className="flex justify-end">
@@ -2244,28 +2255,6 @@ export function DeckBuilder({
                   />
                 </div>
                 <DeckValidationPanel unsupportedNames={unsupportedNames} />
-                {mergedTokens.length > 0 && (
-                  <TokenSection
-                    key={`tokens-${editorSessionId}`}
-                    tokens={mergedTokens}
-                    customizedTokens={currentDeck.tokens}
-                    cardSize={cardSize}
-                    canCustomize={!isReadOnly}
-                    onShowInfo={handleShowTokenInfo}
-                    onCustomize={(card) => setCustomization({ card, token: true })}
-                    onResetPrint={(token) =>
-                      executeDeckEdit(`Reset ${token.identity.name} token printing`, () =>
-                        resetTokenPrint(token),
-                      )
-                    }
-                    onHover={(token, e) =>
-                      preview.handleMouseEnter(deckCardToPreviewDto(token), e, {
-                        useDelay: true,
-                      })
-                    }
-                    onLeave={preview.handleMouseLeave}
-                  />
-                )}
                 <DeckInsightsPanel
                   key={`insights-${editorSessionId}`}
                   deck={currentDeck}
@@ -2289,8 +2278,6 @@ export function DeckBuilder({
                     isReadOnly ? undefined : () => setPrintingOptimizerOpen(true)
                   }
                 />
-                <CombosPanel />
-                <DeckBracketPanel />
               </section>
             )}
           </CardCollectionOwnershipScope>

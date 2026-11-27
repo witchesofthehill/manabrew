@@ -90,10 +90,11 @@ const STEPS = [
     ],
   },
   {
-    title: `Review and refine`,
-    description: `Open Review for legality, roles, goals, mana, collection coverage, budget, tokens, combos, and replacements. Select a mana-curve bar to filter Build.`,
+    title: `Read deck stats`,
+    description: `Open Deck stats to check legality, mana, collection coverage, budget, and combos. Select a mana-curve bar to filter Build.`,
     icon: BarChart3,
     tips: [
+      "Find tokens below Maybeboard in Build",
       "Hover cards to inspect them in Preview",
       "Set your preferred budget price provider",
       "Build and save sideboard plans for common matchups",
@@ -113,7 +114,7 @@ const STEPS = [
     description: `Open the command palette with Cmd/Ctrl+Shift+P to find editor actions. Undo, redo, save, search, section navigation, and bulk edits all have shortcuts.`,
     icon: Sparkles,
     tips: [
-      "Alt+3 switches between Build and Review",
+      "Alt+3 switches between Build and Deck stats",
       "Bulk actions: T tags, M/S/B moves, Delete removes",
       "Cmd/Ctrl+C and Cmd/Ctrl+V copy and paste cards; - and = adjust quantities",
       "Press ? to see every shortcut and customize them in Preferences",

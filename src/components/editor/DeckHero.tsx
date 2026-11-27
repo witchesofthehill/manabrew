@@ -1,242 +1,149 @@
-import { useRef, useState } from "react";
-import { ChevronDown, ImagePlus, Pencil } from "lucide-react";
+import { useState } from "react";
+import type { ReactNode } from "react";
+import { ChevronDown, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { FormatDropdown } from "@/components/FormatDropdown";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
-import { GAME_FORMATS, getFormat, commanderSlotBadge } from "@/lib/formats";
-import { PartnerBadge } from "@/components/deck/PartnerBadge";
+import { GAME_FORMATS, getFormat } from "@/lib/formats";
+import { cn } from "@/lib/utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { PlaymatEditorModal } from "./PlaymatEditorModal";
-import { cn } from "@/lib/utils";
-import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import type { DeckFormat } from "@/protocol/deck";
-export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => void }) {
-  const currentDeck = useDeckStore((s) => s.currentDeck);
-  const isReadOnly = useDeckStore((s) => s.isReadOnly);
-  const shortScreen = useIsShortScreen();
-  const isTouch = useIsTouch();
-  const shortTouch = shortScreen && isTouch;
-  const setDeckName = useDeckStore((s) => s.setDeckName);
-  const setDeckFormat = useDeckStore((s) => s.setDeckFormat);
-  const setPlaymat = useDeckStore((s) => s.setPlaymat);
-  const setPlaymatSettings = useDeckStore((s) => s.setPlaymatSettings);
-  const [editingName, setEditingName] = useState(false);
-  const [nameBeforeEdit, setNameBeforeEdit] = useState(currentDeck.name);
-  const [editorOpen, setEditorOpen] = useState(false);
-  const cancelNameEditRef = useRef(false);
-  const playmat = currentDeck.playmatUrl;
-  const playmatColor = currentDeck.playmatSettings?.color;
+
+const EDITABLE_FORMATS = GAME_FORMATS.filter((format) => !format.deckFormat);
+
+export function DeckHero({
+  children,
+  onNameCommit,
+  saveStatus,
+  renderActions,
+}: {
+  children: ReactNode;
+  onNameCommit: (name: string) => void;
+  saveStatus?: string;
+  renderActions: (onEditPlaymat: () => void) => ReactNode;
+}) {
+  const currentDeck = useDeckStore((state) => state.currentDeck);
+  const isReadOnly = useDeckStore((state) => state.isReadOnly);
+  const setDeckFormat = useDeckStore((state) => state.setDeckFormat);
+  const setPlaymat = useDeckStore((state) => state.setPlaymat);
+  const setPlaymatSettings = useDeckStore((state) => state.setPlaymatSettings);
+  const [draftName, setDraftName] = useState<string | null>(null);
+  const [playmatOpen, setPlaymatOpen] = useState(false);
   const coverArt = resolveCoverCard(currentDeck)?.uris?.art_crop;
-  const commanders = currentDeck.commanders ?? [];
-  const slotBadges = commanders.map((_, i) =>
-    commanderSlotBadge(commanders, currentDeck.format, i),
-  );
-  const mainCount = currentDeck.cards.length + commanders.length;
+  const formatId = currentDeck.format ?? "standard";
+  const format = getFormat(formatId);
+  const size = format?.deckRules.minDeckSize;
+  const cardCount = currentDeck.cards.length + (currentDeck.commanders?.length ?? 0);
   const sideCount = currentDeck.sideboard.length;
   const maybeCount = currentDeck.maybeboard?.length ?? 0;
-  function finishNameEdit() {
-    if (cancelNameEditRef.current) {
-      cancelNameEditRef.current = false;
-      return;
+
+  function commitName() {
+    const name = draftName?.trim();
+    setDraftName(null);
+    if (name && name !== currentDeck.name) {
+      useDeckStore.getState().setDeckName(name);
+      onNameCommit(name);
     }
-    const name = currentDeck.name.trim();
-    if (!name) {
-      setDeckName(nameBeforeEdit);
-      setEditingName(false);
-      return;
-    }
-    setDeckName(name);
-    setEditingName(false);
-    if (name !== nameBeforeEdit) onNameCommit(name);
   }
+
   return (
-    <div className={cn("relative isolate overflow-hidden border-b", shortTouch && "min-h-20")}>
+    <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2.5 bg-card px-3 pb-3 pt-2.5 @lg:px-4 @5xl:grid @5xl:grid-cols-[auto_minmax(0,1fr)_minmax(0,max-content)]">
       {coverArt && (
         <ScryfallImg
           src={coverArt}
           alt=""
-          aria-hidden
           draggable={false}
-          loading="lazy"
-          className="pointer-events-none absolute inset-0 -z-20 size-full select-none object-cover object-[center_30%]"
+          className={cn(
+            "hidden size-14 shrink-0 rounded-md border object-cover object-center @lg:block @5xl:col-start-1 @5xl:row-start-1 @5xl:h-28 @5xl:w-26 @5xl:self-start",
+            !isReadOnly && "@5xl:row-span-2",
+          )}
         />
       )}
       <div
         className={cn(
-          "absolute inset-0 -z-10",
-          coverArt
-            ? "bg-gradient-to-t from-background via-background/70 to-background/20"
-            : "bg-muted/20",
+          "min-w-0 flex-1 @5xl:row-start-1",
+          coverArt ? "@5xl:col-start-2" : "@5xl:col-span-2 @5xl:col-start-1",
         )}
-      />
-
-      {!isReadOnly && (
-        <div
-          className={cn(
-            "absolute right-3 top-3 z-10 flex items-center gap-2",
-            shortTouch && "right-2 top-1",
+      >
+        {isReadOnly ? (
+          <h1 className="truncate font-serif text-xl font-bold @lg:text-2xl @5xl:text-3xl">
+            {currentDeck.name}
+          </h1>
+        ) : draftName !== null ? (
+          <Input
+            autoFocus
+            aria-label="Deck name"
+            value={draftName}
+            onChange={(event) => setDraftName(event.target.value)}
+            onBlur={commitName}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+              if (event.key === "Escape") setDraftName(null);
+            }}
+            className="min-h-8 w-full font-serif font-bold @lg:text-xl @5xl:text-2xl"
+          />
+        ) : (
+          <h1 className="min-w-0 font-serif text-xl font-bold leading-tight @lg:text-2xl @5xl:text-3xl">
+            <button
+              type="button"
+              title="Rename deck"
+              className="-ml-1 flex min-h-8 w-fit max-w-full items-center gap-2 rounded px-1 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring touch:min-h-11 touch:min-w-11"
+              onClick={() => setDraftName(currentDeck.name)}
+            >
+              <span className="truncate">{currentDeck.name}</span>
+              <Pencil className="size-3 shrink-0 text-muted-foreground" />
+            </button>
+          </h1>
+        )}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-ui-meta text-muted-foreground">
+          {isReadOnly ? (
+            <FormatBadge formatId={formatId} />
+          ) : (
+            <FormatDropdown
+              value={formatId}
+              formats={EDITABLE_FORMATS}
+              onValueChange={(id) => setDeckFormat(id as DeckFormat)}
+            >
+              <button
+                type="button"
+                aria-label={`Change format: ${format?.name ?? formatId}`}
+                title="Change format"
+                className="-ml-1 inline-flex min-h-6 items-center gap-1 rounded px-1 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring touch:min-h-11 touch:min-w-11"
+              >
+                <FormatBadge formatId={formatId} />
+                <ChevronDown className="size-3" />
+              </button>
+            </FormatDropdown>
           )}
-        >
-          <button
-            type="button"
-            title={`Customize playmat`}
-            onClick={() => setEditorOpen(true)}
-            className={cn(
-              "touch:min-w-11 inline-flex h-8 items-center gap-2 rounded-md border bg-background/60 text-ui-label font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background/80 hover:text-foreground touch:min-h-11",
-              playmat || playmatColor ? "p-1 pr-2.5" : "px-2.5",
-              shortTouch && "px-2 pr-2",
-            )}
-          >
-            {playmat ? (
-              <img
-                src={playmat}
-                crossOrigin="anonymous"
-                alt={`Deck playmat`}
-                className="h-6 w-10 rounded object-cover"
-              />
-            ) : playmatColor ? (
-              <span
-                className="h-6 w-10 rounded border"
-                style={{ backgroundColor: playmatColor }}
-                aria-hidden
-              />
-            ) : (
-              <ImagePlus className="h-4 w-4" />
-            )}
-            <span className={cn(shortTouch && "hidden")}>
-              {playmat || playmatColor ? "Edit playmat" : "Playmat"}
+          <span className="whitespace-nowrap tabular-nums">
+            {size ? `${cardCount} / ${size}` : cardCount} cards
+          </span>
+          {sideCount > 0 && <span className="hidden @xl:inline">{sideCount} sideboard</span>}
+          {maybeCount > 0 && <span className="hidden @xl:inline">{maybeCount} maybeboard</span>}
+          {saveStatus && <span role="status">{saveStatus}</span>}
+          {(currentDeck.labels ?? []).map((label) => (
+            <span key={label.name} className="hidden @xl:inline">
+              <DeckLabelBadge label={label} size="md" />
             </span>
-          </button>
+          ))}
         </div>
-      )}
-
-      {editorOpen && (
+      </div>
+      {renderActions(() => setPlaymatOpen(true))}
+      {children}
+      {playmatOpen && (
         <PlaymatEditorModal
-          onClose={() => setEditorOpen(false)}
-          playmat={playmat}
+          onClose={() => setPlaymatOpen(false)}
+          playmat={currentDeck.playmatUrl}
           storedSettings={currentDeck.playmatSettings}
           playmatAssetId={currentDeck.playmatAssetId}
           setPlaymat={setPlaymat}
           setPlaymatSettings={setPlaymatSettings}
         />
       )}
-
-      <div
-        className={cn(
-          "relative flex flex-col gap-1.5 px-5 pb-4 pt-10",
-          shortTouch && "min-h-20 flex-row items-center gap-3 px-3 py-2 pr-16",
-        )}
-      >
-        <div className="flex flex-wrap items-center gap-1.5">
-          {isReadOnly ? (
-            <FormatBadge formatId={currentDeck.format ?? "standard"} />
-          ) : (
-            <FormatDropdown
-              value={currentDeck.format ?? "standard"}
-              formats={GAME_FORMATS.filter((format) => !format.deckFormat)}
-              onValueChange={(formatId) => setDeckFormat(formatId as DeckFormat)}
-            >
-              <button
-                type="button"
-                className="touch:min-w-11 inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-background/60 px-2 py-0.5 text-ui-label backdrop-blur-sm transition-colors hover:bg-background/80 touch:min-h-11"
-                title="Change format"
-              >
-                <FormatBadge formatId={currentDeck.format ?? "standard"} />
-                <span className="font-medium">
-                  {getFormat(currentDeck.format ?? "standard")?.name}
-                </span>
-                <ChevronDown className="h-3 w-3 text-muted-foreground" />
-              </button>
-            </FormatDropdown>
-          )}
-          {(currentDeck.labels ?? []).map((label) => (
-            <DeckLabelBadge key={label.name} label={label} size="md" />
-          ))}
-        </div>
-
-        {isReadOnly ? (
-          <h2 className={cn("text-2xl font-bold tracking-tight", shortTouch && "text-lg")}>
-            {currentDeck.name}
-          </h2>
-        ) : editingName ? (
-          <div className="flex items-center gap-1.5">
-            <Input
-              className={cn(
-                "touch:min-h-11 min-h-10 w-80 max-w-full !text-xl font-bold",
-                shortTouch && "h-11 w-56 !text-lg",
-              )}
-              value={currentDeck.name}
-              onChange={(e) => setDeckName(e.target.value)}
-              onBlur={finishNameEdit}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.currentTarget.blur();
-                if (e.key === "Escape") {
-                  cancelNameEditRef.current = true;
-                  setDeckName(nameBeforeEdit);
-                  setEditingName(false);
-                }
-              }}
-              autoFocus
-            />
-          </div>
-        ) : (
-          <button
-            type="button"
-            className={cn(
-              "touch:min-w-11 group -ml-1.5 flex min-h-9 w-fit max-w-full items-center gap-2 rounded-md px-1.5 py-0.5 transition-colors hover:bg-background/50 touch:min-h-11",
-              shortTouch && "min-w-0",
-            )}
-            title="Rename deck"
-            onClick={() => {
-              cancelNameEditRef.current = false;
-              setNameBeforeEdit(currentDeck.name);
-              setEditingName(true);
-            }}
-          >
-            <h2
-              className={cn("truncate text-2xl font-bold tracking-tight", shortTouch && "text-lg")}
-            >
-              {currentDeck.name}
-            </h2>
-            <Pencil className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 touch:opacity-100" />
-          </button>
-        )}
-
-        <div
-          className={cn(
-            "flex flex-wrap items-center gap-2 text-ui-meta text-muted-foreground",
-            shortTouch && "ml-auto flex-nowrap",
-          )}
-        >
-          {commanders.length > 0 && !shortTouch && (
-            <span className="flex min-w-0 items-center gap-1.5 font-medium text-foreground/80">
-              {commanders.map((c, index) => (
-                <span key={c.identity.id} className="flex min-w-0 items-center gap-1.5">
-                  {index > 0 && <span className="text-muted-foreground">·</span>}
-                  <span className="truncate">{c.identity.name}</span>
-                  {slotBadges[index] && <PartnerBadge label={slotBadges[index]!.label} />}
-                </span>
-              ))}
-            </span>
-          )}
-          <span className="rounded-full border bg-background/60 px-2 py-0.5 backdrop-blur-sm">
-            {mainCount} card{mainCount !== 1 ? "s" : ""}
-          </span>
-          {sideCount > 0 && (
-            <span className="rounded-full border bg-background/60 px-2 py-0.5 backdrop-blur-sm">
-              {sideCount} sideboard
-            </span>
-          )}
-          {maybeCount > 0 && (
-            <span className="rounded-full border bg-background/60 px-2 py-0.5 backdrop-blur-sm">
-              {maybeCount} maybeboard
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
+    </header>
   );
 }

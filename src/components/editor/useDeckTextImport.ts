@@ -4,7 +4,12 @@ import { scryfallCardKey } from "@/api/scryfall";
 import { DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { trackClientEvent } from "@/lib/clientAnalytics";
 import { analyticsDuration } from "@/lib/clientAnalyticsPrivacy";
-import { deckImportEntryZone, inferImportedFormat, type ParsedDeckEntry } from "@/lib/deckImport";
+import {
+  deckImportEntryZone,
+  inferImportedFormat,
+  parseDeckListTextReview,
+  type ParsedDeckEntry,
+} from "@/lib/deckImport";
 import { resolveDeckName } from "@/lib/deckName";
 import { getFormat, isCommanderEligible } from "@/lib/formats";
 import { useScryfallStore } from "@/stores/useScryfallStore";
@@ -25,6 +30,7 @@ export interface ResolvedDeckTextImport {
 export async function resolveDeckTextImport(
   entries: ParsedDeckEntry[],
   onProgress: (fraction: number) => void,
+  strict = false,
 ): Promise<ResolvedDeckTextImport> {
   onProgress(0.05);
   const scryfallMap = await useScryfallStore.getState().fetchCardCollection(
@@ -40,13 +46,16 @@ export async function resolveDeckTextImport(
       entry.collectorNumber &&
       !scryfallMap.has(scryfallCardKey(entry.name, entry.setCode, entry.collectorNumber)),
   );
-  if (exactPrintingMisses.length > 0) {
+  if (!strict && exactPrintingMisses.length > 0) {
     const fallbacks = await useScryfallStore
       .getState()
       .fetchCardCollection(exactPrintingMisses.map((entry) => ({ name: entry.name })));
     for (const [key, card] of fallbacks) scryfallMap.set(key, card);
   }
   const lookup = (entry: ParsedDeckEntry) => {
+    if (strict) {
+      return scryfallMap.get(scryfallCardKey(entry.name, entry.setCode, entry.collectorNumber));
+    }
     if (entry.setCode && entry.collectorNumber) {
       return (
         scryfallMap.get(scryfallCardKey(entry.name, entry.setCode, entry.collectorNumber)) ??
@@ -63,7 +72,7 @@ export async function resolveDeckTextImport(
   const stragglers = [
     ...new Set(
       entries
-        .filter((entry) => !entry.setCode && !entry.collectorNumber && !lookup(entry))
+        .filter((entry) => !strict && !entry.setCode && !entry.collectorNumber && !lookup(entry))
         .map((entry) => entry.name),
     ),
   ];
@@ -98,8 +107,17 @@ export async function resolveDeckTextImport(
     const exactPrintingFound =
       !entry.setCode ||
       !entry.collectorNumber ||
-      scryfallMap.has(scryfallCardKey(entry.name, entry.setCode, entry.collectorNumber));
-    if (!exactPrintingFound) substitutedPrintings.push(entry.name);
+      (scryfallMap.has(scryfallCardKey(entry.name, entry.setCode, entry.collectorNumber)) &&
+        (!strict ||
+          (sc.set.toLowerCase() === entry.setCode.toLowerCase() &&
+            sc.collector_number.toLowerCase() === entry.collectorNumber.toLowerCase())));
+    if (
+      !exactPrintingFound ||
+      (strict && entry.setCode && sc.set.toLowerCase() !== entry.setCode)
+    ) {
+      substitutedPrintings.push(entry.name);
+      if (strict) continue;
+    }
     const base = scryfallToDeckCard(sc);
     const inferredCommander = entry.commanderCandidate && isCommanderEligible(base);
     const target =
@@ -110,6 +128,12 @@ export async function resolveDeckTextImport(
         identity: { ...base.identity, id: crypto.randomUUID(), foil: entry.foil },
       });
     }
+  }
+  if (strict && (notFound.length > 0 || substitutedPrintings.length > 0)) {
+    const failed = [...new Set([...notFound, ...substitutedPrintings])];
+    throw new Error(
+      `No changes applied. Could not verify these cards or requested printings: ${failed.slice(0, 3).join(", ")}${failed.length > 3 ? ` +${failed.length - 3} more` : ""}. Check the list and try again.`,
+    );
   }
   if (
     cards.length === 0 &&
@@ -257,19 +281,23 @@ export function useDeckTextImportIntoCurrent() {
   );
 }
 function deckCardPrintingKey(name: string, setCode: string, cardNumber: string, foil?: boolean) {
-  return `${name.toLowerCase()}::${setCode.toLowerCase()}::${cardNumber}::${foil === true}`;
+  return `${name.toLowerCase()}::${setCode.toLowerCase()}::${cardNumber.toLowerCase()}::${foil === true}`;
 }
 function reuseCurrentDeckCards(deck: EditorDeck, entries: ParsedDeckEntry[]) {
-  const pool = new Map<string, DeckCard[]>();
-  for (const card of [
-    ...(deck.commanders ?? []),
-    ...deck.cards,
-    ...deck.sideboard,
-    ...(deck.maybeboard ?? []),
-  ]) {
-    const { name, setCode, cardNumber, foil } = card.identity;
-    const key = deckCardPrintingKey(name, setCode, cardNumber, foil);
-    pool.set(key, [...(pool.get(key) ?? []), card]);
+  const pool = new Map<string, { card: DeckCard; zone: string }[]>();
+  for (const [zone, cards] of [
+    ["commander", deck.commanders ?? []],
+    ["main", deck.cards],
+    ["side", deck.sideboard],
+    ["maybe", deck.maybeboard ?? []],
+  ] as const) {
+    for (const card of cards) {
+      const { name, setCode, cardNumber, foil } = card.identity;
+      const key = deckCardPrintingKey(name, setCode, cardNumber, foil);
+      const matches = pool.get(key);
+      if (matches) matches.push({ card, zone });
+      else pool.set(key, [{ card, zone }]);
+    }
   }
   const sections: Omit<ResolvedDeckTextImport, "notFound" | "substitutedPrintings"> = {
     cards: [],
@@ -278,14 +306,25 @@ function reuseCurrentDeckCards(deck: EditorDeck, entries: ParsedDeckEntry[]) {
     commanders: [],
   };
   const unresolved: ParsedDeckEntry[] = [];
-  for (const entry of entries) {
-    const matches =
-      entry.setCode && entry.collectorNumber
-        ? (pool.get(
-            deckCardPrintingKey(entry.name, entry.setCode, entry.collectorNumber, entry.foil),
-          ) ?? [])
-        : [];
-    const reused = matches.splice(0, entry.count);
+  const reusedByEntry = entries.map(() => [] as DeckCard[]);
+  for (const sameZone of [true, false]) {
+    for (const [index, entry] of entries.entries()) {
+      if (!entry.setCode || !entry.collectorNumber) continue;
+      const matches = pool.get(
+        deckCardPrintingKey(entry.name, entry.setCode, entry.collectorNumber, entry.foil),
+      );
+      if (!matches) continue;
+      const reused = reusedByEntry[index];
+      const zone = deckImportEntryZone(entry);
+      while (reused.length < entry.count) {
+        const matchIndex = matches.findIndex((match) => !sameZone || match.zone === zone);
+        if (matchIndex < 0) break;
+        reused.push(matches.splice(matchIndex, 1)[0].card);
+      }
+    }
+  }
+  for (const [index, entry] of entries.entries()) {
+    const reused = reusedByEntry[index];
     const zone = deckImportEntryZone(entry);
     const target =
       zone === "commander" && (entry.commander || reused.every((card) => isCommanderEligible(card)))
@@ -309,13 +348,39 @@ export function useDeckTextReplaceCurrent() {
       _name: string,
       _formatId: DeckFormat | undefined,
       onProgress: (fraction: number) => void,
+      _source: "text" | "clipboard" = "text",
+      text?: string,
     ): Promise<boolean> => {
       const { currentDeck, editorSessionId: startingSessionId } = useDeckStore.getState();
+      if (text !== undefined) {
+        const parsed = parseDeckListTextReview(text);
+        if (
+          parsed.unrecognizedLines.length > 0 ||
+          (text.trim().length > 0 && parsed.entries.length === 0 && !parsed.hasSections)
+        ) {
+          throw new Error("No changes applied. Fix unrecognized lines before replacing the deck.");
+        }
+        entries = parsed.entries;
+      }
+      if (
+        entries.some(
+          (entry) => !entry.name.trim() || !Number.isSafeInteger(entry.count) || entry.count <= 0,
+        )
+      ) {
+        throw new Error(
+          "No changes applied. Every card needs a name and a positive whole quantity.",
+        );
+      }
       const { sections, unresolved } = reuseCurrentDeckCards(currentDeck, entries);
       const resolved =
-        unresolved.length > 0 ? await resolveDeckTextImport(unresolved, onProgress) : null;
+        unresolved.length > 0 ? await resolveDeckTextImport(unresolved, onProgress, true) : null;
       if (useDeckStore.getState().editorSessionId !== startingSessionId) {
         return false;
+      }
+      if (useDeckStore.getState().currentDeck !== currentDeck) {
+        throw new Error(
+          "The deck changed while checking this list. Reopen Edit as text and review it again.",
+        );
       }
       if (resolved) {
         sections.cards.push(...resolved.cards);
@@ -327,21 +392,7 @@ export function useDeckTextReplaceCurrent() {
         useDeckStore.getState().replaceCurrentDeckSections(sections),
       );
       onProgress(1);
-      const notFound = resolved?.notFound ?? [];
-      const substitutedPrintings = resolved?.substitutedPrintings ?? [];
-      if (notFound.length > 0) {
-        const shown = notFound.slice(0, 3).join(", ");
-        const extra = notFound.length > 3 ? ` +${notFound.length - 3} more` : "";
-        toast.warning(`Deck updated — couldn't find: ${shown}${extra}`);
-      } else if (substitutedPrintings.length > 0) {
-        toast.warning(
-          substitutedPrintings.length === 1
-            ? `Deck updated with one default printing substitution`
-            : `Deck updated with ${substitutedPrintings.length} default printing substitutions`,
-        );
-      } else {
-        toast.success(`Deck updated`);
-      }
+      toast.success(`Deck updated`);
       return true;
     },
     [],

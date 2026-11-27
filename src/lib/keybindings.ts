@@ -52,7 +52,7 @@ export const KEYBINDINGS = defineKeybindings([
   },
   {
     id: "deck-editor-focus-filter",
-    label: `Focus the card filter`,
+    label: `Focus Filter deck`,
     category: "Deck editor",
     defaultCombo: { key: "f", mod: true },
   },
@@ -64,7 +64,7 @@ export const KEYBINDINGS = defineKeybindings([
   },
   {
     id: "deck-editor-toggle-search",
-    label: `Toggle card search`,
+    label: `Toggle Browse cards`,
     category: "Deck editor",
     defaultCombo: { key: "s", alt: true },
   },

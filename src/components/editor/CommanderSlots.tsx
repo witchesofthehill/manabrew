@@ -7,6 +7,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   canBeOathbreaker,
@@ -146,6 +147,7 @@ interface CommanderSlotsProps {
   onLeave?: () => void;
   onCustomize?: (card: DeckCard) => void;
   contextMenuFor?: (card: DeckCard, label: string) => CommandZoneCardMenuActions;
+  onBrowseCommanders?: () => void;
 }
 export function CommanderSlots({
   cards,
@@ -159,6 +161,7 @@ export function CommanderSlots({
   onLeave,
   onCustomize,
   contextMenuFor,
+  onBrowseCommanders,
 }: CommanderSlotsProps) {
   const [open, setOpen] = useDeckSectionOpen();
   const isTouch = useIsTouch();
@@ -219,7 +222,7 @@ export function CommanderSlots({
       >
         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !open && "-rotate-90")} />
         <Crown className="h-3.5 w-3.5 text-primary" />
-        <h3 className="text-ui-label font-semibold uppercase tracking-wide">Command zone</h3>
+        <h3 className="text-ui-label font-semibold">Command zone</h3>
         <span className="text-ui-meta text-muted-foreground">Set your deck identity</span>
       </button>
       {open && (
@@ -284,11 +287,26 @@ export function CommanderSlots({
                   ))
                 ) : (
                   <div className="px-2 py-3 text-ui-meta text-muted-foreground">
-                    Add an eligible card to the deck first.
+                    {onBrowseCommanders
+                      ? "No eligible cards in this deck."
+                      : "Add an eligible card to the deck first."}
                   </div>
+                )}
+                {onBrowseCommanders && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => onBrowseCommanders()}>
+                      Browse cards
+                    </DropdownMenuItem>
+                  </>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+          )}
+          {!readOnly && canAddAnother && candidates.length === 0 && onBrowseCommanders && (
+            <Button variant="outline" size="sm" onClick={() => onBrowseCommanders()}>
+              Browse cards
+            </Button>
           )}
         </div>
       )}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronDown, LayoutTemplate, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Layers, LayoutGrid, List, Plus, Trash2 } from "lucide-react";
+import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,15 +13,25 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { useDeckStore } from "@/stores/useDeckStore";
+import { GROUP_BY_OPTIONS, MAX_CARD_SIZE, SORT_OPTIONS } from "./deckBuilder.utils";
+import { setAllDeckSectionsExpanded } from "./deckSectionExpansion";
 import type { GroupByMode, SortMode, ViewMode } from "./deckBuilder.utils";
 import type { DeckOwnershipStatus } from "@/lib/collection";
 interface DeckLayoutMenuProps {
-  compact?: boolean;
+  previewCollapsed?: boolean;
+  onPreviewCollapsedChange?: (collapsed: boolean) => void;
   groupBy: GroupByMode;
   sortBy: SortMode;
   cardSize: number;
@@ -37,7 +48,8 @@ interface DeckLayoutMenuProps {
   ) => void;
 }
 export function DeckLayoutMenu({
-  compact = false,
+  previewCollapsed,
+  onPreviewCollapsedChange,
   groupBy,
   sortBy,
   cardSize,
@@ -48,6 +60,7 @@ export function DeckLayoutMenu({
 }: DeckLayoutMenuProps) {
   const metadata = useDeckStore((state) => state.currentDeck.editor);
   const setEditorMetadata = useDeckStore((state) => state.setEditorMetadata);
+  const readOnly = useDeckStore((state) => state.isReadOnly);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const layouts = useMemo(() => metadata?.layouts ?? [], [metadata?.layouts]);
@@ -61,7 +74,7 @@ export function DeckLayoutMenu({
   const activeCollectionFilterMatches =
     (activeLayout?.collectionFilter ?? "all") === collectionFilter;
   useEffect(() => {
-    if (!activeLayout || (activeLayoutMatches && activeCollectionFilterMatches)) return;
+    if (readOnly || !activeLayout || (activeLayoutMatches && activeCollectionFilterMatches)) return;
     setEditorMetadata({
       ...metadata,
       version: 1,
@@ -75,6 +88,7 @@ export function DeckLayoutMenu({
     activeCollectionFilterMatches,
     layouts,
     metadata,
+    readOnly,
     setEditorMetadata,
   ]);
   function saveLayout() {
@@ -107,13 +121,15 @@ export function DeckLayoutMenu({
   function selectLayout(id: string) {
     const layout = layouts.find((candidate) => candidate.id === id);
     if (!layout) return;
-    setEditorMetadata({
-      ...metadata,
-      version: 1,
-      tags: metadata?.tags ?? [],
-      layouts,
-      activeLayoutId: id,
-    });
+    if (!readOnly) {
+      setEditorMetadata({
+        ...metadata,
+        version: 1,
+        tags: metadata?.tags ?? [],
+        layouts,
+        activeLayoutId: id,
+      });
+    }
     onApply(
       layout.groupBy,
       layout.sortBy,
@@ -134,26 +150,111 @@ export function DeckLayoutMenu({
   }
   return (
     <>
+      <div className="flex shrink-0 rounded-md border" role="group" aria-label="Deck view">
+        {(
+          [
+            ["list", "List", List],
+            ["visual", "Grid", LayoutGrid],
+            ["stack", "Stacks", Layers],
+          ] as const
+        ).map(([mode, label, Icon]) => (
+          <Button
+            key={mode}
+            variant={viewMode === mode ? "selected" : "ghost"}
+            size="icon-sm"
+            className="h-8 w-8 shadow-none"
+            aria-label={`${label} view`}
+            aria-pressed={viewMode === mode}
+            title={`${label} view`}
+            onClick={() => onApply(groupBy, sortBy, cardSize, filter, mode, collectionFilter)}
+          >
+            <Icon className="size-4" />
+          </Button>
+        ))}
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-ui-label text-muted-foreground">Group</span>
+        <AppSelect
+          value={groupBy}
+          onValueChange={(group) =>
+            onApply(group as GroupByMode, sortBy, cardSize, filter, viewMode, collectionFilter)
+          }
+          aria-label={`Group by: ${GROUP_BY_OPTIONS.find((option) => option.value === groupBy)?.label ?? groupBy}`}
+          className="min-h-8 px-2"
+        >
+          {GROUP_BY_OPTIONS.map(({ value, label }) => (
+            <AppSelectOption key={value} value={value}>
+              {label}
+            </AppSelectOption>
+          ))}
+        </AppSelect>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-ui-label text-muted-foreground">Sort</span>
+        <AppSelect
+          value={sortBy}
+          onValueChange={(sort) =>
+            onApply(groupBy, sort as SortMode, cardSize, filter, viewMode, collectionFilter)
+          }
+          aria-label={`Sort by: ${SORT_OPTIONS.find((option) => option.value === sortBy)?.label ?? sortBy}`}
+          className="min-h-8 px-2"
+        >
+          {SORT_OPTIONS.map(({ value, label }) => (
+            <AppSelectOption key={value} value={value}>
+              {label}
+            </AppSelectOption>
+          ))}
+        </AppSelect>
+      </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="xs"
-            className="touch:min-w-11 touch:min-h-11 gap-1"
-            title={compact ? `Saved views` : undefined}
-          >
-            <LayoutTemplate className="h-3.5 w-3.5" />
-            {compact ? (
-              <span className="sr-only">Saved views</span>
-            ) : (
-              <>
-                {activeLayout?.name ?? `View`}
-                <ChevronDown className="h-3 w-3 opacity-60" />
-              </>
-            )}
+          <Button variant="ghost" size="sm" className="shrink-0 text-muted-foreground">
+            View options <ChevronDown className="size-3" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel>Deck layout</DropdownMenuLabel>
+          {viewMode !== "list" && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Card size</DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                  <DropdownMenuRadioGroup
+                    value={String(cardSize)}
+                    onValueChange={(size) =>
+                      onApply(groupBy, sortBy, Number(size), filter, viewMode, collectionFilter)
+                    }
+                  >
+                    {Array.from({ length: MAX_CARD_SIZE }, (_, index) => index + 1).map((size) => (
+                      <DropdownMenuRadioItem key={size} value={String(size)}>
+                        {size === 1
+                          ? "1 (smallest)"
+                          : size === MAX_CARD_SIZE
+                            ? `${size} (largest)`
+                            : size}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+          )}
+          <DropdownMenuItem onSelect={() => setAllDeckSectionsExpanded(true)}>
+            Expand all sections
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setAllDeckSectionsExpanded(false)}>
+            Collapse all sections
+          </DropdownMenuItem>
+          {onPreviewCollapsedChange && (
+            <DropdownMenuItem
+              className="hidden lg:flex"
+              onSelect={() => onPreviewCollapsedChange(!previewCollapsed)}
+            >
+              {previewCollapsed ? "Show card inspector" : "Hide card inspector"}
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel>Presets</DropdownMenuLabel>
           <DropdownMenuItem
             onSelect={() => onApply("type", "not-owned", cardSize, "", viewMode, "missing")}
           >
@@ -169,33 +270,38 @@ export function DeckLayoutMenu({
           >
             Mana review
           </DropdownMenuItem>
-          {layouts.map((layout) => (
-            <DropdownMenuItem
-              key={layout.id}
-              className="gap-2"
-              onSelect={() => selectLayout(layout.id)}
-            >
-              <Check
-                className={cn("h-3.5 w-3.5", metadata?.activeLayoutId !== layout.id && "opacity-0")}
-              />
-              <span className="flex-1 truncate">{layout.name}</span>
-              <button
-                type="button"
-                className="touch:min-w-11 touch:min-h-11 rounded p-1 text-muted-foreground hover:text-destructive"
-                title={`Delete ${layout.name}`}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  removeLayout(layout.id);
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </DropdownMenuItem>
-          ))}
-          <DropdownMenuItem onSelect={() => setCreateOpen(true)}>
-            <Plus className="mr-2 h-3.5 w-3.5" /> Save current view
-          </DropdownMenuItem>
+          {(layouts.length > 0 || !readOnly) && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Saved views</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={activeLayout?.id} onValueChange={selectLayout}>
+                {layouts.map((layout) => (
+                  <DropdownMenuRadioItem key={layout.id} value={layout.id}>
+                    {layout.name}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+              {!readOnly && (
+                <DropdownMenuItem onSelect={() => setCreateOpen(true)}>
+                  <Plus /> Save current view
+                </DropdownMenuItem>
+              )}
+              {!readOnly && layouts.length > 0 && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Delete a saved view</DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent>
+                      {layouts.map((layout) => (
+                        <DropdownMenuItem key={layout.id} onSelect={() => removeLayout(layout.id)}>
+                          <Trash2 /> {layout.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+              )}
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

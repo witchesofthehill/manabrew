@@ -62,12 +62,12 @@ export function suggestedDeckName(entries: ParsedDeckEntry[]): string {
     .join(" / ");
 }
 
-const SIDEBOARD_LINE_REGEX = /^(sideboard|side)\s*:?$/i;
-const MAYBEBOARD_LINE_REGEX = /^(maybeboard|maybe)\s*:?$/i;
-const COMMANDER_LINE_REGEX = /^(commander|command)s?\s*:?$/i;
-const MAIN_SECTION_LINE_REGEX = /^(mainboard|main|deck|companion)\s*:?$/i;
+const SIDEBOARD_LINE_REGEX = /^(side\s*board|side)\s*:?$/i;
+const MAYBEBOARD_LINE_REGEX = /^(maybe\s*board|maybe|considering)\s*:?$/i;
+const COMMANDER_LINE_REGEX = /^(commanders?|command(?:\s+zone)?)\s*:?$/i;
+const MAIN_SECTION_LINE_REGEX = /^(main\s*(?:board|deck)?|deck|companion)\s*:?$/i;
 const DECK_LINE_REGEX = /^(\d+)x?\s+(.+)$/i;
-const SET_SUFFIX_REGEX = /\s+\(([A-Za-z0-9]{2,6})\)(?:\s+([\w-]+))?(?:\s+(\*F\*|F))?$/i;
+const SET_SUFFIX_REGEX = /\s+\(([A-Za-z0-9]{2,6})\)(?:\s+(\S+))?(?:\s+(\*F\*|F))?$/i;
 // Archidekt text exports decorate lines with `[Category]` and `^Label,#hex^`
 // suffixes; the category is also how they mark the commander.
 const LABEL_SUFFIX_REGEX = /\s+\^[^^]*\^$/;
@@ -81,23 +81,36 @@ const COMMENT_SUFFIX_REGEX = /\s+#(.*)$/;
 const HEADERLESS_COMMANDER_MIN_MAIN = 90;
 
 export function parseDeckListText(text: string): ParsedDeckEntry[] {
+  return parseDeckListTextReview(text).entries;
+}
+
+export function parseDeckListTextReview(text: string): {
+  entries: ParsedDeckEntry[];
+  unrecognizedLines: string[];
+  hasSections: boolean;
+} {
   const lines = text.split("\n").map((l) => l.trim());
   let section: "main" | "side" | "maybe" | "commander" = "main";
+  let explicitCommandZone = false;
   let sawHeader = false;
   let block = 0;
   const blockOf: number[] = [];
   const entries: ParsedDeckEntry[] = [];
+  const unrecognizedLines: string[] = [];
   for (const rawLine of lines) {
     if (!rawLine) {
       if (blockOf.length > 0 && blockOf[blockOf.length - 1] === block) block += 1;
       // Exports separate the commander block from the deck with a blank line
       // rather than a "Deck:" heading — without this reset every card below
       // the commander would be flagged as one.
-      if (section === "commander") section = "main";
+      if (section === "commander" && !explicitCommandZone) section = "main";
       continue;
     }
     const isComment = rawLine.startsWith("//") && !DECK_LINE_REGEX.test(rawLine);
-    const line = isComment ? rawLine.replace(/^\/\/\s*/, "") : rawLine;
+    const line = (isComment ? rawLine.replace(/^\/\/\s*/, "") : rawLine).replace(
+      /^\[([^\]]+)\]\s*:?$/,
+      "$1",
+    );
     if (SIDEBOARD_LINE_REGEX.test(line)) {
       section = "side";
       sawHeader = true;
@@ -110,6 +123,7 @@ export function parseDeckListText(text: string): ParsedDeckEntry[] {
     }
     if (COMMANDER_LINE_REGEX.test(line)) {
       section = "commander";
+      explicitCommandZone = /^command\s+zone\s*:?$/i.test(line);
       sawHeader = true;
       continue;
     }
@@ -120,7 +134,10 @@ export function parseDeckListText(text: string): ParsedDeckEntry[] {
     }
     if (isComment) continue;
     const match = line.match(DECK_LINE_REGEX);
-    if (!match) continue;
+    if (!match) {
+      unrecognizedLines.push(rawLine);
+      continue;
+    }
     let rest = match[2].trim();
     const commentMatch = rest.match(COMMENT_SUFFIX_REGEX);
     const commanderHint = /^!?\s*commander/i.test(commentMatch?.[1]?.trim() ?? "");
@@ -133,24 +150,30 @@ export function parseDeckListText(text: string): ParsedDeckEntry[] {
       .map((c) => c.trim());
     if (categoryMatch) rest = rest.replace(CATEGORY_SUFFIX_REGEX, "");
     rest = rest.trim();
+    const foilSuffix = /\s+\*F\*$/i.test(rest);
+    if (foilSuffix) rest = rest.replace(/\s+\*F\*$/i, "");
     const setMatch = rest.match(SET_SUFFIX_REGEX);
     const name = rest.replace(SET_SUFFIX_REGEX, "").trim();
-    if (!name) continue;
+    const count = Number(match[1]);
+    if (!name || !Number.isSafeInteger(count) || count <= 0) {
+      unrecognizedLines.push(rawLine);
+      continue;
+    }
     const inCategory = (prefix: string) => categories.some((c) => c.startsWith(prefix));
     blockOf.push(block);
     entries.push({
-      count: parseInt(match[1], 10),
+      count,
       name,
       side: section === "side" || inCategory("sideboard"),
       maybe: section === "maybe" || inCategory("maybeboard") || inCategory("considering"),
       commander: section === "commander" || inCategory("commander") || commanderHint,
       setCode: setMatch?.[1]?.toLowerCase(),
       collectorNumber: setMatch?.[2],
-      foil: setMatch?.[3] ? true : undefined,
+      foil: foilSuffix || setMatch?.[3] ? true : undefined,
     });
   }
   markHeaderlessCommanderBlock(entries, blockOf, sawHeader);
-  return entries;
+  return { entries, unrecognizedLines, hasSections: sawHeader };
 }
 
 function markHeaderlessCommanderBlock(

@@ -160,9 +160,7 @@ export function SectionHeader({
             className={cn("h-3.5 w-3.5 transition-transform", open === false && "-rotate-90")}
           />
         )}
-        <span className="text-ui-label font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </span>
+        <span className="text-ui-label font-semibold text-muted-foreground">{label}</span>
         <span className="text-ui-meta text-muted-foreground/60">({count})</span>
       </button>
       <div className="flex-1" />

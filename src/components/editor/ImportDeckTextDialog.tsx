@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, ClipboardPaste, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
   deckImportEntryZone,
   isDetectedCommander,
   parseDeckListText,
+  parseDeckListTextReview,
   suggestedDeckName,
   type ParsedDeckEntry,
 } from "@/lib/deckImport";
@@ -33,6 +34,7 @@ interface ImportDeckTextDialogProps {
     formatId: DeckFormat | undefined,
     onProgress: (fraction: number) => void,
     source: "text" | "clipboard",
+    text?: string,
   ) => Promise<boolean | void>;
 }
 interface DeckListRow {
@@ -42,7 +44,7 @@ interface DeckListRow {
 function deckListChanges(before: ParsedDeckEntry[], after: ParsedDeckEntry[]): DeckListRow[] {
   const rows = new Map<string, DeckListRow>();
   const tally = (entry: ParsedDeckEntry, delta: number) => {
-    const key = `${deckImportEntryZone(entry)}::${entry.name.toLowerCase()}::${entry.setCode ?? ""}::${entry.collectorNumber ?? ""}::${entry.foil === true}`;
+    const key = `${deckImportEntryZone(entry)}::${entry.name.toLowerCase()}::${entry.setCode ?? ""}::${entry.collectorNumber?.toLowerCase() ?? ""}::${entry.foil === true}`;
     const row = rows.get(key);
     if (row) row.delta += delta;
     else rows.set(key, { entry, delta });
@@ -66,6 +68,7 @@ export function ImportDeckTextDialog({
   mode = "create",
   initialText = "",
 }: ImportDeckTextDialogProps) {
+  const textId = useId();
   const [text, setText] = useState(initialText);
   const [source, setSource] = useState<"text" | "clipboard">("text");
   const [customName, setCustomName] = useState<string | null>(null);
@@ -83,7 +86,8 @@ export function ImportDeckTextDialog({
     setReviewing(false);
     onOpenChange(false);
   }, [onOpenChange]);
-  const entries = useMemo(() => parseDeckListText(text), [text]);
+  const parsed = useMemo(() => parseDeckListTextReview(text), [text]);
+  const { entries, unrecognizedLines } = parsed;
   const name = customName ?? suggestedDeckName(entries);
   const mainCount = entries.reduce(
     (s, e) => (e.side || e.maybe || isDetectedCommander(e) ? s : s + e.count),
@@ -98,8 +102,11 @@ export function ImportDeckTextDialog({
     0,
   );
   const commanderCount = entries.reduce((s, e) => (isDetectedCommander(e) ? s + e.count : s), 0);
-  const valid = entries.length > 0;
   const dirty = text.trim().length > 0;
+  const valid =
+    mode === "edit"
+      ? unrecognizedLines.length === 0 && (entries.length > 0 || parsed.hasSections || !dirty)
+      : entries.length > 0;
   const initialEntries = useMemo(() => parseDeckListText(initialText), [initialText]);
   const reviewRows = useMemo(
     () =>
@@ -110,14 +117,6 @@ export function ImportDeckTextDialog({
   );
   const addedCount = reviewRows.reduce((s, row) => (row.delta > 0 ? s + row.delta : s), 0);
   const removedCount = reviewRows.reduce((s, row) => (row.delta < 0 ? s - row.delta : s), 0);
-  const unrecognizedLines = useMemo(() => {
-    const parsedNames = new Set(entries.map((entry) => entry.name.toLowerCase()));
-    return text
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => /^\d+x?\s+/i.test(line))
-      .filter((line) => ![...parsedNames].some((name) => line.toLowerCase().includes(name)));
-  }, [entries, text]);
   const pasteFromClipboard = useCallback(async () => {
     try {
       const clip = await navigator.clipboard.readText();
@@ -126,7 +125,7 @@ export function ImportDeckTextDialog({
         setSource("clipboard");
       }
     } catch {
-      toast.error(`Couldn't read the clipboard \u2014 paste manually instead`);
+      toast.error(`Couldn't read the clipboard. Paste manually instead.`);
     }
   }, []);
   const handleImportClick = useCallback(async () => {
@@ -134,14 +133,33 @@ export function ImportDeckTextDialog({
     setImporting(true);
     setProgress(0);
     try {
-      const applied = await onImport(entries, name, formatId || undefined, setProgress, source);
+      const applied = await onImport(
+        entries,
+        name,
+        formatId || undefined,
+        setProgress,
+        source,
+        text,
+      );
       if (applied !== false) close();
       else setImporting(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : `Import failed`);
       setImporting(false);
     }
-  }, [valid, importing, mode, reviewRows.length, entries, name, formatId, onImport, close, source]);
+  }, [
+    valid,
+    importing,
+    mode,
+    reviewRows.length,
+    entries,
+    name,
+    formatId,
+    onImport,
+    close,
+    source,
+    text,
+  ]);
   const copy = {
     create: {
       title: `Import a deck`,
@@ -160,7 +178,7 @@ export function ImportDeckTextDialog({
     edit: {
       title: `Edit deck as text`,
       busy: `Updating this deck\u2026`,
-      hint: `Edit the list below. Applying it replaces the command zone, main deck, sideboard, and maybeboard.`,
+      hint: `Applying this list replaces the command zone, main deck, sideboard, and maybeboard. Companion and other supplementary zones stay unchanged.`,
       review: `Review changes`,
       confirm: `Apply changes`,
     },
@@ -213,6 +231,12 @@ export function ImportDeckTextDialog({
                     : `${mainCount + sideCount + maybeCount + commanderCount} cards · ${entries.length} entries`}
                 </span>
               </div>
+              {mode === "edit" && entries.length === 0 && removedCount > 0 && (
+                <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-ui-body text-warning">
+                  This clears the command zone, main deck, sideboard, and maybeboard. Other
+                  supplementary zones stay unchanged.
+                </p>
+              )}
               {reviewRows.length === 0 ? (
                 <p className="rounded-lg border px-3 py-6 text-center text-ui-body text-muted-foreground">
                   The list matches the current deck.
@@ -274,13 +298,14 @@ export function ImportDeckTextDialog({
               {unrecognizedLines.length > 0 && (
                 <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-ui-meta text-warning">
                   {unrecognizedLines.length === 1
-                    ? `One card line was not recognized and will be skipped.`
-                    : `${unrecognizedLines.length} card lines were not recognized and will be skipped.`}
+                    ? `One line was not recognized and will be skipped.`
+                    : `${unrecognizedLines.length} lines were not recognized and will be skipped.`}
                 </div>
               )}
               <p className="text-ui-body text-muted-foreground">
-                Exact set, collector number, and foil finish are preserved when supplied.
-                Unavailable printings are reported after verification.
+                {mode === "edit"
+                  ? `Cards and requested printings must all resolve before changes are applied. Unchanged copies keep their printing, finish, and custom appearance.`
+                  : `Exact set, collector number, and foil finish are preserved when supplied. Unavailable printings are reported after verification.`}
               </p>
             </div>
             <div className="flex items-center justify-end gap-2 border-t pt-2">
@@ -292,7 +317,7 @@ export function ImportDeckTextDialog({
                 size="sm"
                 className="touch:min-w-11 touch:min-h-11 gap-1"
                 onClick={() => void handleImportClick()}
-                disabled={reviewRows.length === 0}
+                disabled={!valid || reviewRows.length === 0}
               >
                 <Download className="h-3.5 w-3.5" />
                 {copy.confirm}
@@ -359,7 +384,9 @@ export function ImportDeckTextDialog({
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="touch:min-h-11 text-ui-label font-medium">Deck list</label>
+                  <label htmlFor={textId} className="touch:min-h-11 text-ui-label font-medium">
+                    Deck list
+                  </label>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -370,6 +397,7 @@ export function ImportDeckTextDialog({
                   </Button>
                 </div>
                 <textarea
+                  id={textId}
                   autoFocus
                   value={text}
                   onPaste={() => setSource("clipboard")}
@@ -392,13 +420,28 @@ export function ImportDeckTextDialog({
                   className="flex items-center gap-2 rounded-md border border-legality-legal/40 bg-legality-legal/10 px-3 py-2 text-legality-legal"
                 >
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <span className="text-ui-label font-medium">Looks good!</span>
+                  <span className="text-ui-label font-medium">
+                    {mode === "edit" && entries.length === 0 ? `Empty list` : `Ready to review`}
+                  </span>
                   <span className="text-ui-meta text-muted-foreground">
                     {commanderCount > 0 ? `${commanderCount} commander · ` : ""}
                     {mainCount} main
-                    {sideCount > 0 ? ` · ${sideCount} sideboard` : ""}
-                    {maybeCount > 0 ? ` · ${maybeCount} maybeboard` : ""} · {entries.length} unique
+                    {mode === "edit" || sideCount > 0 ? ` · ${sideCount} sideboard` : ""}
+                    {mode === "edit" || maybeCount > 0 ? ` · ${maybeCount} maybeboard` : ""}
+                    {" · "}
+                    {entries.length} entries
                   </span>
+                </div>
+              ) : mode === "edit" && unrecognizedLines.length > 0 ? (
+                <div role="alert" className="space-y-1 text-ui-meta text-destructive">
+                  <p>
+                    Fix these lines before applying changes. Use a quantity followed by a card name.
+                  </p>
+                  <ul className="max-h-24 list-inside list-disc overflow-auto font-mono">
+                    {unrecognizedLines.map((line, index) => (
+                      <li key={`${index}-${line}`}>{line}</li>
+                    ))}
+                  </ul>
                 </div>
               ) : dirty ? (
                 <p className="text-ui-meta text-destructive">No recognizable card entries yet</p>

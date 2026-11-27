@@ -5,15 +5,7 @@ import { Input } from "@/components/ui/input";
 import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Loader2,
-  LayoutGrid,
-  List,
-  Info,
-  Plus,
-  SlidersHorizontal,
-  PanelRightClose,
-} from "lucide-react";
+import { Loader2, LayoutGrid, List, Info, Plus, SlidersHorizontal, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ScryfallCard } from "@/types/scryfall";
@@ -23,6 +15,7 @@ import { toast } from "sonner";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { CardDetailModal } from "@/components/editor/CardDetailModal";
+import { executeDeckEdit } from "@/components/editor/deckEditor.history";
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
 import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "@/components/editor/deckBuilder.utils";
 import { SetStudyToolbar } from "@/components/editor/SetStudyToolbar";
@@ -733,7 +726,7 @@ function DraggableCardGrid({
       )}
     >
       <CardThumbnail card={card} />
-      <div className="absolute inset-0 bg-overlay/60 opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 rounded-lg pointer-events-none group-hover:pointer-events-auto touch:pointer-events-auto">
+      <div className="absolute inset-0 bg-overlay/60 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 touch:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 rounded-lg pointer-events-none group-hover:pointer-events-auto touch:pointer-events-auto">
         {onAdd && (
           <Button
             variant="primary"
@@ -816,7 +809,7 @@ function DraggableCardRow({
         <Button
           size="sm"
           variant="ghost"
-          className="touch:min-w-11 touch:min-h-11 min-h-6 px-2 text-ui-label gap-1 opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity shrink-0 pointer-events-none group-hover:pointer-events-auto touch:pointer-events-auto"
+          className="touch:min-w-11 touch:min-h-11 min-h-6 px-2 text-ui-label gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 touch:opacity-100 transition-opacity shrink-0 pointer-events-none group-hover:pointer-events-auto touch:pointer-events-auto"
           onClick={(e) => {
             e.stopPropagation();
             onAdd();
@@ -829,7 +822,7 @@ function DraggableCardRow({
       <Button
         size="sm"
         variant="ghost"
-        className="touch:min-w-11 touch:min-h-11 min-h-6 px-2 text-ui-label gap-1 opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity shrink-0 pointer-events-none group-hover:pointer-events-auto touch:pointer-events-auto"
+        className="touch:min-w-11 touch:min-h-11 min-h-6 px-2 text-ui-label gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 touch:opacity-100 transition-opacity shrink-0 pointer-events-none group-hover:pointer-events-auto touch:pointer-events-auto"
         onClick={(e) => {
           e.stopPropagation();
           onMoreInfo();
@@ -867,7 +860,7 @@ export function CardSearch({
   const addToMain = useDeckStore((s) => s.addToMain);
   const locale = useScryfallStore((s) => s.locale);
   const addCard = (card: DeckCard) => {
-    addToMain(card);
+    executeDeckEdit(`Add ${card.identity.name} to main deck`, () => addToMain(card));
     toast.success(`Added ${card.identity.name}`);
   };
   const [text, setText] = useState("");
@@ -1009,24 +1002,22 @@ export function CardSearch({
             }}
           />
         )}
-        <div className="flex gap-2">
-          {onClose && (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="touch:min-w-11 touch:min-h-11 min-h-8 w-8 shrink-0"
-              title={`Close search panel`}
-              onClick={onClose}
-            >
-              <PanelRightClose className="h-4 w-4" />
+        {onClose && (
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-serif text-lg font-bold">Browse cards</h2>
+            <Button type="button" size="sm" variant="ghost" onClick={onClose}>
+              <ArrowLeft className="size-4" /> Back to deck
             </Button>
-          )}
+          </div>
+        )}
+        <div className="flex flex-wrap gap-2">
           <Input
             ref={searchInputRef}
             placeholder={`Search cards\u2026`}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            className="touch:min-h-11 flex-1"
+            aria-label={standalone ? "Search cards" : "Search for cards to add"}
+            className="min-w-28 flex-1 touch:min-h-11"
           />
           <Button
             size="sm"

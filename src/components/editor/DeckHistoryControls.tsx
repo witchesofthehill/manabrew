@@ -7,11 +7,10 @@ export function DeckHistoryControls() {
   const history = useDeckHistoryState();
 
   return (
-    <div className="flex shrink-0 overflow-hidden rounded-md border">
+    <div className="flex shrink-0 text-muted-foreground">
       <Button
-        size="icon"
+        size="icon-sm"
         variant="ghost"
-        className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 rounded-none border-r"
         disabled={!history.undoLabel}
         title={history.undoLabel ? `Undo ${history.undoLabel}` : `Nothing to undo`}
         onClick={undoDeckEdit}
@@ -19,9 +18,8 @@ export function DeckHistoryControls() {
         <Undo2 className="h-3.5 w-3.5" />
       </Button>
       <Button
-        size="icon"
+        size="icon-sm"
         variant="ghost"
-        className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 rounded-none"
         disabled={!history.redoLabel}
         title={history.redoLabel ? `Redo ${history.redoLabel}` : `Nothing to redo`}
         onClick={redoDeckEdit}

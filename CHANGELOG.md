@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- **Deck editor:** On wide panes, a larger deck cover spans the title and Quick Add rows. Quick Add and Browse cards align with the List, Grid, and Stacks toggle and visible Group and Sort controls below, with Filter deck on the left. The three-dot menu holds deck actions, View options holds saved views, and Deck stats shows deck checks and any issue count.
+- **Deck editor:** Edit as text in the three-dot menu shows empty sections, rejects unresolved cards or printings before replacing the list, and applies the reviewed change as one undoable edit.
+- **Deck editor:** The command zone shares the main deck's background and follows its List, Grid, or Stacks view.
+- **Deck editor:** Tokens are below Maybeboard in Build.
+- **Deck editor:** Bracket and Combos follow Mana in Deck stats. Collection is last.
+
 ## [3.96.5](https://github.com/witchesofthehill/manabrew/compare/v3.96.4...v3.96.5) (2026-11-26)
 
 ### Fixes

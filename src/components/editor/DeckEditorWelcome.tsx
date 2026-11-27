@@ -21,17 +21,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DECK_EDITOR_WELCOME_EVENT } from "./deckEditorWelcome.actions";
-const STORAGE_KEY = "manabrew-deck-editor-welcome-v1";
 const STEPS = [
   {
     title: `Add cards quickly`,
-    description: `Quick Add adds the first result in one click. Open Card Search for richer discovery, then use its add controls or drag results directly into your deck.`,
+    description: `Use Quick Add for cards you know. Open Browse cards to search with filters, add a result, or drag it into the deck on a wide screen.`,
     icon: Command,
-    tips: ["Option/Alt+A focuses Quick Add", "Option/Alt+S toggles Card Search"],
+    tips: ["Option/Alt+A focuses Quick Add", "Option/Alt+S toggles Browse cards"],
   },
   {
     title: `Search with Scryfall syntax`,
-    description: `Card Search accepts normal card names and Scryfall filters. Combine filters to narrow results by color, type, rules text, set, price, and more.`,
+    description: `Browse cards accepts card names and Scryfall filters. Combine filters for color, type, rules text, set, and price.`,
     icon: Search,
     tips: ["c:ur t:instant", 'o:"draw a card" mv<=2', "set:mh3 usd<5"],
   },
@@ -43,7 +42,7 @@ const STEPS = [
   },
   {
     title: `Organize your way`,
-    description: `Choose text, grid, or stack view. Sort cards, group by card properties or your own tags, and save useful combinations as custom views.`,
+    description: `Switch between List, Grid, and Stacks with the view icons. Use Group and Sort to arrange cards, and View options to save a view.`,
     icon: Layers,
     tips: [
       "Collapse sections you do not need",
@@ -52,7 +51,7 @@ const STEPS = [
   },
   {
     title: `Use every action in every view`,
-    description: `Text, grid, and stack views expose the same card actions. Adjust quantities, set commanders, change printings and foil treatment, choose the deck cover, move cards, or open full card details.`,
+    description: `Open a card’s action menu to change its quantity, printing, or foil treatment, move it, set it as commander, or choose it as the deck cover.`,
     icon: MousePointer2,
     tips: [
       "Right-click a card to open the complete action menu",
@@ -64,7 +63,7 @@ const STEPS = [
     description: `The Preview rail is the editor's shared card inspector. Hover a card anywhere in the workspace and its image and details appear there without interrupting what you are doing.`,
     icon: Eye,
     tips: [
-      "Works with deck cards, Card Search, replacements, tokens, the command zone, and collection coverage",
+      "Works with deck cards, Browse cards, replacements, tokens, and collection coverage",
       "Option/Alt+P toggles the Preview rail",
     ],
   },
@@ -86,14 +85,16 @@ const STEPS = [
     tips: [
       "Cmd/Ctrl+S saves the deck",
       "Local checkpoints let you restore an earlier working state",
+      "Choose Edit as text from the three-dot menu to replace the deck list",
       "Copy exact printings when exporting to preserve set, collector number, and foil",
     ],
   },
   {
-    title: `Review and refine`,
-    description: `Deck Analysis brings legality, roles, goals, mana, collection coverage, budget, tokens, combos, and replacements together. Every section can be collapsed when you want a quieter workspace.`,
+    title: `Read deck stats`,
+    description: `Open Deck stats to check legality, mana, collection coverage, budget, and combos. Select a mana-curve bar to filter Build.`,
     icon: BarChart3,
     tips: [
+      "Find tokens below Maybeboard in Build",
       "Hover cards to inspect them in Preview",
       "Set your preferred budget price provider",
       "Build and save sideboard plans for common matchups",
@@ -113,7 +114,7 @@ const STEPS = [
     description: `Open the command palette with Cmd/Ctrl+Shift+P to find editor actions. Undo, redo, save, search, section navigation, and bulk edits all have shortcuts.`,
     icon: Sparkles,
     tips: [
-      "Alt+3 jumps to the next editor section",
+      "Alt+3 switches between Build and Deck stats",
       "Bulk actions: T tags, M/S/B moves, Delete removes",
       "Cmd/Ctrl+C and Cmd/Ctrl+V copy and paste cards; - and = adjust quantities",
       "Press ? to see every shortcut and customize them in Preferences",
@@ -121,9 +122,7 @@ const STEPS = [
   },
 ];
 export function DeckEditorWelcome({ readOnly }: { readOnly: boolean }) {
-  const [open, setOpen] = useState(
-    () => !readOnly && localStorage.getItem(STORAGE_KEY) !== "dismissed",
-  );
+  const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const current = STEPS[step];
   const Icon = current.icon;
@@ -138,7 +137,6 @@ export function DeckEditorWelcome({ readOnly }: { readOnly: boolean }) {
     return () => window.removeEventListener(DECK_EDITOR_WELCOME_EVENT, openWelcome);
   }, [readOnly]);
   function dismiss() {
-    localStorage.setItem(STORAGE_KEY, "dismissed");
     setOpen(false);
   }
   return (
@@ -175,7 +173,7 @@ export function DeckEditorWelcome({ readOnly }: { readOnly: boolean }) {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={dismiss}>
-            Skip
+            Close
           </Button>
           <Button
             variant="primary"

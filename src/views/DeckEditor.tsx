@@ -18,7 +18,7 @@ import {
   useDroppable,
   pointerWithin,
 } from "@dnd-kit/core";
-import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import type { CollisionDetection, DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { isFeatureEnabled } from "@/featureFlags";
 import { DROP_ZONE, DEFAULT_DECK_NAME, ROUTES } from "@/lib/constants";
@@ -72,6 +72,11 @@ const DRAG_TRAY_SIDE = "drag-tray-side";
 const DRAG_TRAY_MAYBE = "drag-tray-maybe";
 const DRAG_TRAY_TAG_PREFIX = "drag-tray-tag:";
 const DRAG_TRAY_NEW_TAG = "drag-tray-new-tag";
+const detectDeckCollision: CollisionDetection = (args) => {
+  const collisions = pointerWithin(args);
+  const command = collisions.find(({ id }) => id === DROP_ZONE.COMMAND);
+  return command ? [command] : collisions;
+};
 function DragTrayTarget({
   id,
   label,
@@ -175,8 +180,14 @@ export default function DeckEditor() {
   const [newTagDropOpen, setNewTagDropOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [pendingTagCards, setPendingTagCards] = useState<string[]>([]);
-  const [showSearch, setShowSearch] = useState(false);
-  const [searchFocusSignal, setSearchFocusSignal] = useState(0);
+  const [cardBrowser, setCardBrowser] = useState<{
+    session: string;
+    open: boolean;
+    focusSignal: number;
+  } | null>(null);
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
+  const activeBrowser = cardBrowser?.session === editorSessionId ? cardBrowser : null;
+  const showSearch = !isReadOnly && (activeBrowser?.open ?? false);
   const [importDialogOpen, setImportDialogOpen] = useState(() =>
     Boolean(
       (
@@ -471,11 +482,20 @@ export default function DeckEditor() {
   useTopBarOverride({
     title: view === "editor" ? "Deck Editor" : undefined,
   });
+  function openCardSearch() {
+    if (view !== "editor" || isReadOnly) return false;
+    setCardBrowser((previous) => ({
+      session: editorSessionId,
+      open: true,
+      focusSignal: (previous?.session === editorSessionId ? previous.focusSignal : 0) + 1,
+    }));
+  }
+  function closeCardSearch() {
+    setCardBrowser((browser) => (browser ? { ...browser, open: false } : null));
+    requestAnimationFrame(() => searchTriggerRef.current?.focus({ preventScroll: true }));
+  }
   useKeybindings({
-    "card-search-focus": () => {
-      setShowSearch(true);
-      setSearchFocusSignal((n) => n + 1);
-    },
+    "card-search-focus": openCardSearch,
     "deck-editor-toggle-preview": () => togglePreview(),
     "go-back": view === "editor" ? handleBack : () => navigate(ROUTES.PLAY),
   });
@@ -985,24 +1005,24 @@ export default function DeckEditor() {
     <>
       <DndContext
         sensors={sensors}
-        collisionDetection={pointerWithin}
+        collisionDetection={detectDeckCollision}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragCancel={() => setDraggedCards([])}
       >
-        <div className="flex h-full min-h-0 min-w-0 w-full flex-col overflow-hidden xl:flex-row">
-          <div
-            className={cn(
-              "min-h-0 min-w-0 flex-1 overflow-hidden",
-              showSearch && isTouch && "hidden",
-            )}
-          >
+        <div className="flex h-full min-h-0 w-full min-w-0 overflow-hidden">
+          <div className={cn("min-h-0 min-w-0 flex-1", showSearch && "hidden xl:block")}>
             <DeckBuilder
               key={editorSessionId}
               onSelectionChange={(selectedCards) => {
                 selectedCardsRef.current = selectedCards;
               }}
-              onToggleSearch={() => setShowSearch((v) => !v)}
+              onOpenSearch={isReadOnly ? undefined : () => openCardSearch()}
+              onToggleSearch={
+                isReadOnly ? undefined : () => (showSearch ? closeCardSearch() : openCardSearch())
+              }
+              searchOpen={showSearch}
+              searchTriggerRef={searchTriggerRef}
               onReadOnlyDeckImported={(id) => {
                 restoredParamRef.current = id;
                 setStateView("editor");
@@ -1011,7 +1031,7 @@ export default function DeckEditor() {
               setPreviewSlot={setPreviewSlot}
               previewController={previewController}
               onDeckDeleted={() => {
-                setShowSearch(false);
+                setCardBrowser(null);
                 setStateView("list");
                 navigate(ROUTES.DECK_EDITOR, { replace: true, state: null });
               }}
@@ -1028,20 +1048,22 @@ export default function DeckEditor() {
               }
             />
           </div>
-          {showSearch && (
-            <div
+          {activeBrowser && !isReadOnly && (
+            <aside
+              aria-label="Browse cards"
               className={cn(
-                "min-h-0 min-w-0 flex-1 overflow-hidden border-t xl:border-l xl:border-t-0",
-                isTouch && "border-0",
+                "min-h-0 w-full min-w-0 shrink-0 overflow-hidden xl:w-[40%] xl:border-l",
+                !showSearch && "hidden",
               )}
             >
               <CardSearch
-                onClose={() => setShowSearch(false)}
+                key={editorSessionId}
+                onClose={closeCardSearch}
                 previewSlot={previewSlot}
                 previewController={previewController}
-                focusSignal={searchFocusSignal}
+                focusSignal={activeBrowser.focusSignal}
               />
-            </div>
+            </aside>
           )}
         </div>
 

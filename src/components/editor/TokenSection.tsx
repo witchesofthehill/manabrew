@@ -1,11 +1,10 @@
 import { type MouseEvent } from "react";
-import { ChevronDown, Palette, X } from "lucide-react";
+import { Palette, X } from "lucide-react";
 import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "./deckBuilder.utils";
-import { CardThumbnail } from "./deckEditor.primitives";
+import { CardThumbnail, SectionHeader } from "./deckEditor.primitives";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import type { DeckCard } from "@/protocol/deck";
 import { tokenIdentityKey } from "@/stores/useScryfallStore";
-import { cn } from "@/lib/utils";
 import { useDeckSectionOpen } from "./deckSectionExpansion";
 import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
 import { CardContextMenu, CardMenuButton } from "@/components/editor/DeckListView";
@@ -15,6 +14,7 @@ export interface TokenSectionProps {
   cardSize: number;
   canCustomize: boolean;
   showHeader?: boolean;
+  compact?: boolean;
   onShowInfo?: (token: DeckCard) => void;
   onInspect?: (token: DeckCard, anchor: HTMLElement | DOMRect) => void;
   onDismiss?: () => void;
@@ -29,6 +29,7 @@ export function TokenSection({
   cardSize,
   canCustomize,
   showHeader = true,
+  compact = false,
   onShowInfo,
   onInspect,
   onDismiss,
@@ -41,20 +42,14 @@ export function TokenSection({
   if (tokens.length === 0) return null;
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
   return (
-    <section className={EDITOR_PANEL_CLASS}>
+    <section data-token-section className={compact ? undefined : EDITOR_PANEL_CLASS}>
       {showHeader && (
-        <button
-          type="button"
-          className="touch:min-w-11 touch:min-h-11 mb-4 flex items-center gap-2.5 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-expanded={open}
-          onClick={() => setOpen((value) => !value)}
-        >
-          <ChevronDown className={cn("h-4 w-4 transition-transform", !open && "-rotate-90")} />
-          <h3 className="text-ui-body font-semibold">Tokens</h3>
-          <span className="text-ui-meta text-muted-foreground/70">
-            {tokens.length} token{tokens.length !== 1 ? "s" : ""} produced by this deck
-          </span>
-        </button>
+        <SectionHeader
+          label="Tokens"
+          count={tokens.length}
+          open={open}
+          onToggle={() => setOpen((value) => !value)}
+        />
       )}
       {(!showHeader || open) && (
         <div className="flex flex-wrap gap-3">

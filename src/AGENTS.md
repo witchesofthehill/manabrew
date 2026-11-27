@@ -89,6 +89,8 @@ Settings choice buttons must preserve the shared `selected` variant; converting 
 
   If Node's experimental `localStorage` shadows jsdom storage and store tests fail on `setItem`, run them with `NODE_OPTIONS=--no-experimental-webstorage`.
 
+  If a focused deck text import test fails before running with `Cannot access 'visitId' before initialization`, isolate `lib/clientAnalytics.ts` in the test harness. The Vitest HMR path in `clientAnalyticsFunnel.ts` can call `renewClientVisitId` before that module finishes initializing.
+
 ## Dev reference routes
 
 `/card-mock` (`views/CardMockGallery.tsx`) is the development-only card lab. Its Board & theme workspace keeps the local playground beside independently scrolling color controls; Card rendering embeds `components/dev/CardRenderingLab.tsx` for printing comparisons. `?tab=rendering&fixture=<id>` links directly to a comparison. Draft colors use `setThemePreview`; only Save writes preferences. Leaving the lab restores the saved theme. `components/dev/themeEditor/` owns editor controls and the Board workspace's app-element preview strip.
@@ -367,6 +369,12 @@ Sealed `suggestedDeck` is an opt-in build from the human pool; `aiDecks` are opp
 AI deck construction retains the normal 22-spell target, uses available pool lands and fills the remaining slots to 40 with generated basics. Short one-round pools must still produce legal-sized decks. Preserve every acquired occurrence exactly once across Main and Sideboard, including unselected pool lands.
 
 Multiplayer ownership, targeted snapshots and retained paired rooms are documented in `docs/agents/RELAY.md`.
+
+## Deck editor workspaces
+
+Build owns the deck list, tokens, filtering, and selection. Keep Build mounted when opening Deck stats or the compact card browser so selection and scroll position survive. The three-dot menu owns deck-wide commands. View modes, Group, and Sort are direct controls; View options owns saved views and secondary layout settings. Deck stats links back to Build when a check can identify specific cards.
+
+Edit as text in the three-dot menu replaces the command zone, main deck, sideboard, and maybeboard as one undoable edit. Empty sections are intentional. The editable export includes them; ordinary exports do not. Resolve every new entry before changing the deck. Reuse exact printing and finish matches in their old zone before taking copies from another zone so unchanged occurrences keep their IDs and appearance. Leave supplementary zones out of the replacement.
 
 ## Deck analysis — combos & bracket
 

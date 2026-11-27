@@ -1,3 +1,4 @@
+import { formatRequiresCommander } from "@/lib/formats";
 import type { DeckCard } from "@/protocol/deck";
 
 function groupCards(cards: DeckCard[]) {
@@ -63,9 +64,35 @@ export function exportWithPrintings(deck: {
     ["Schemes", deck.schemes ?? []],
     ["Planes", deck.planes ?? []],
   ] as const;
+  return exportPrintingSections(sections);
+}
+
+export function exportEditableDeckList(deck: {
+  format?: string;
+  cards: DeckCard[];
+  sideboard: DeckCard[];
+  maybeboard?: DeckCard[];
+  commanders?: DeckCard[];
+}): string {
+  const sections: [string, DeckCard[]][] = [];
+  if (formatRequiresCommander(deck.format) || (deck.commanders?.length ?? 0) > 0) {
+    sections.push(["Command zone", deck.commanders ?? []]);
+  }
+  sections.push(
+    ["Main deck", deck.cards],
+    ["Sideboard", deck.sideboard],
+    ["Maybeboard", deck.maybeboard ?? []],
+  );
+  return exportPrintingSections(sections, true);
+}
+
+function exportPrintingSections(
+  sections: readonly (readonly [string, DeckCard[]])[],
+  includeEmpty = false,
+): string {
   const lines: string[] = [];
   for (const [label, cards] of sections) {
-    if (cards.length === 0) continue;
+    if (!includeEmpty && cards.length === 0) continue;
     if (lines.length > 0) lines.push("");
     lines.push(label);
     const groups = new Map<string, { card: DeckCard; count: number }>();

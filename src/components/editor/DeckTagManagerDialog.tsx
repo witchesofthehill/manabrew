@@ -102,23 +102,44 @@ export function DeckTagManagerDialog({
 }) {
   const storedTags = useDeckStore((state) => state.currentDeck.customTags);
   const tags = storedTags ?? EMPTY_TAGS;
+  const [name, setName] = useState("");
+  const addCustomTag = useDeckStore((state) => state.addCustomTag);
+  const tag = name.trim();
+  const duplicate = tags.some((candidate) => candidate.toLowerCase() === tag.toLowerCase());
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Manage deck tags</DialogTitle>
           <DialogDescription>
-            Rename and order the roles used to organize this deck.
+            Create, rename, reorder, or remove the tags used to organize this deck.
           </DialogDescription>
         </DialogHeader>
+        <form
+          className="flex gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!tag || duplicate) return;
+            executeDeckEdit(`Create ${tag} tag`, () => addCustomTag(tag));
+            setName("");
+          }}
+        >
+          <Input
+            aria-label="New tag name"
+            placeholder="New tag…"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+          <Button type="submit" variant="primary" disabled={!tag || duplicate}>
+            Add tag
+          </Button>
+        </form>
         <div className="max-h-80 space-y-2 overflow-y-auto">
           {tags.map((tag, index) => (
             <TagRow key={tag} tag={tag} first={index === 0} last={index === tags.length - 1} />
           ))}
           {tags.length === 0 && (
-            <p className="py-8 text-center text-ui-body text-muted-foreground">
-              Select cards and press T to create the first tag.
-            </p>
+            <p className="py-8 text-center text-ui-body text-muted-foreground">No tags yet.</p>
           )}
         </div>
       </DialogContent>

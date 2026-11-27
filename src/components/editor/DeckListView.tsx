@@ -114,21 +114,82 @@ function openCardContextMenu(event: React.MouseEvent<HTMLButtonElement>) {
     }),
   );
 }
-export function CardMenuButton({ className }: { className?: string }) {
+export function CardMenuButton({
+  className,
+  alwaysVisible = false,
+}: {
+  className?: string;
+  alwaysVisible?: boolean;
+}) {
   return (
     <button
       type="button"
       className={cn(
         "touch:min-w-11 touch:min-h-11 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 touch:opacity-100",
+        alwaysVisible && "opacity-100",
         className,
       )}
       title={`Card actions`}
       aria-label={`Card actions`}
+      aria-haspopup="menu"
       onPointerDown={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
       onClick={openCardContextMenu}
     >
       <Ellipsis className="h-4 w-4" />
     </button>
+  );
+}
+function CardQuantityControls({
+  name,
+  count,
+  onAddOne,
+  onRemoveOne,
+}: {
+  name: string;
+  count: number;
+  onAddOne?: () => void;
+  onRemoveOne?: () => void;
+}) {
+  return (
+    <div
+      className="flex shrink-0 items-center gap-0.5"
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      {onRemoveOne && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 max-sm:hidden touch:min-h-11 touch:min-w-11"
+          aria-label={`Remove one ${name}`}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemoveOne();
+          }}
+        >
+          <Minus className="h-3.5 w-3.5" />
+        </Button>
+      )}
+      <span className="min-w-5 text-center text-ui-meta tabular-nums text-muted-foreground">
+        {count}
+      </span>
+      {onAddOne && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 max-sm:hidden touch:min-h-11 touch:min-w-11"
+          aria-label={`Add one ${name}`}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onAddOne();
+          }}
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+      )}
+    </div>
   );
 }
 function CardCustomizeButton({
@@ -698,6 +759,7 @@ function DraggableStackCard({
       onMouseLeave={onCardLeave}
       onClick={(e) => handleCardClick(e, name, onSelect, onShowInfo)}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (event.key === " ") {
           event.preventDefault();
           onSelect?.(name, event.shiftKey);
@@ -724,7 +786,7 @@ function DraggableStackCard({
       />
       {unsupported && (
         <div
-          className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 p-0.5 text-background shadow"
+          className="absolute top-1 right-8 z-30 rounded-full bg-warning/90 p-0.5 text-background shadow touch:right-12"
           title={`Unsupported by the Manabrew and Forge engines`}
         >
           <AlertTriangle className="h-3 w-3" />
@@ -742,15 +804,12 @@ function DraggableStackCard({
         onSelect={onSelect}
         inMenu={!!contextActions}
       />
-      {(contextActions
-        ? contextActions.canCustomize && contextActions.onCustomize
-        : onCustomize) && (
-        <CardCustomizeButton
-          inMenu={!!contextActions}
-          onCustomize={contextActions?.onCustomize ?? (() => onCustomize?.(group.card))}
-        />
+      {!contextActions && onCustomize && (
+        <CardCustomizeButton inMenu={false} onCustomize={() => onCustomize(group.card)} />
       )}
-      {contextActions && <CardMenuButton className="absolute bottom-1 right-1 z-40" />}
+      {contextActions && (
+        <CardMenuButton alwaysVisible className="absolute top-0 right-0 z-40 bg-background/95" />
+      )}
     </div>
   );
   if (!contextActions || !contextLocation) return content;
@@ -774,23 +833,24 @@ function EmptyStackBoard({
   label,
   cardWidth,
   dragHandleProps,
+  extraContent,
 }: {
   label: string;
   cardWidth: number;
   dragHandleProps: DragHandleProps;
+  extraContent?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col" style={{ width: cardWidth }}>
-      <div className="flex items-center gap-1 mb-2">
+      <div className="mb-2 flex flex-wrap items-center gap-1">
         <div
           className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors"
           onMouseDown={dragHandleProps.onMouseDown}
         >
           <GripVertical className="h-3.5 w-3.5" />
         </div>
-        <span className="text-ui-label font-semibold text-muted-foreground uppercase tracking-wide">
-          {label}
-        </span>
+        <span className="text-ui-label font-semibold text-muted-foreground">{label}</span>
+        {extraContent}
       </div>
       <div className="border-2 border-dashed border-border/40 rounded-lg py-4 flex items-center justify-center">
         <p className="text-ui-meta text-muted-foreground/40">Drop here</p>
@@ -816,6 +876,7 @@ interface StackColumnProps {
     actions: CardContextActions;
   } | null;
   sourceTag?: string;
+  extraContent?: React.ReactNode;
 }
 function StackColumn({
   label,
@@ -832,11 +893,12 @@ function StackColumn({
   dragHandleProps,
   contextMenuFor,
   sourceTag,
+  extraContent,
 }: StackColumnProps) {
   const [open, setOpen] = useDeckSectionOpen();
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const cardHeight = Math.round(cardWidth * 1.4);
-  const peek = Math.round(cardHeight * 0.22);
+  const peek = Math.max(44, Math.round(cardHeight * 0.22));
   const count = groups.reduce((s, g) => s + g.count, 0);
   // When a card is hovered, cards below it slide down to reveal the full card
   const spreadAmount = cardHeight - peek;
@@ -853,7 +915,7 @@ function StackColumn({
       : 0;
   return (
     <div className="shrink-0 flex flex-col" style={{ width: cardWidth }}>
-      <div className="flex items-center gap-1 mb-2 truncate">
+      <div className="mb-2 flex flex-wrap items-center gap-1">
         {dragHandleProps && (
           <div
             className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors"
@@ -864,7 +926,7 @@ function StackColumn({
         )}
         <button
           type="button"
-          className="touch:min-w-11 touch:min-h-11 flex min-w-0 items-center gap-1 text-ui-label font-semibold uppercase tracking-wide text-muted-foreground"
+          className="touch:min-w-11 touch:min-h-11 flex min-w-0 items-center gap-1 text-ui-label font-semibold text-muted-foreground"
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
         >
@@ -875,6 +937,7 @@ function StackColumn({
             {label} <span className="font-normal opacity-60">({count})</span>
           </span>
         </button>
+        {extraContent}
       </div>
       {open && (
         <div
@@ -989,6 +1052,7 @@ function CardVisual({
       aria-pressed={isSelected}
       onClick={(e) => handleCardClick(e, name, onSelect, onShowInfo)}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (event.key === " ") {
           event.preventDefault();
           onSelect?.(name, event.shiftKey);
@@ -1035,7 +1099,9 @@ function CardVisual({
         onSelect={onSelect}
         inMenu={!!contextActions}
       />
-      {contextActions && <CardMenuButton className="absolute bottom-1 right-1 z-40" />}
+      {contextActions && (
+        <CardMenuButton alwaysVisible className="absolute bottom-1 right-1 z-40 bg-background/95" />
+      )}
     </div>
   );
   if (!contextActions || !contextLocation) return visualContent;
@@ -1087,7 +1153,7 @@ const DraggableMiniRow = forwardRef<
       data-card-id={card.identity.id}
     >
       {children}
-      <CardMenuButton />
+      <CardMenuButton alwaysVisible />
     </div>
   );
 });
@@ -1097,6 +1163,8 @@ interface CardRowProps {
   isSelected?: boolean;
   onSelect?: (cardName: string, addToSelection: boolean) => void;
   onShowInfo?: () => void;
+  onAddOne: () => void;
+  onRemoveOne: () => void;
   contextActions?: CardContextActions;
   sourceTag?: string;
 }
@@ -1106,6 +1174,8 @@ function CardRow({
   isSelected,
   onSelect,
   onShowInfo,
+  onAddOne,
+  onRemoveOne,
   contextActions,
   sourceTag,
 }: CardRowProps) {
@@ -1153,6 +1223,7 @@ function CardRow({
       }}
       onContextMenu={(e) => handleCardContextClick(e, name, onSelect)}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (event.key === " ") {
           event.preventDefault();
           onSelect?.(name, event.shiftKey);
@@ -1163,23 +1234,30 @@ function CardRow({
       }}
     >
       <CollectionOwnershipTooltip card={group.card} surface="text" />
-      <div
+      <button
+        type="button"
         className={cn(
           "w-4 h-4 touch:min-h-11 touch:min-w-11 rounded border flex items-center justify-center shrink-0 transition-colors cursor-pointer hover:border-selection-border",
           isSelected
             ? "bg-selection border-selection-border text-selection-foreground"
             : "border-muted-foreground/40",
         )}
+        aria-label={isSelected ? `Deselect ${displayName}` : `Select ${displayName}`}
+        aria-pressed={isSelected}
+        onPointerDown={(event) => event.stopPropagation()}
         onClick={(e) => {
           e.stopPropagation();
           onSelect?.(name, e.shiftKey);
         }}
       >
         {isSelected && <span className="text-ui-caption font-bold">✓</span>}
-      </div>
-      <span className="text-ui-meta font-mono min-w-5 text-right text-muted-foreground shrink-0">
-        {group.count}
-      </span>
+      </button>
+      <CardQuantityControls
+        name={displayName}
+        count={group.count}
+        onAddOne={onAddOne}
+        onRemoveOne={onRemoveOne}
+      />
       {unsupported && (
         <AlertTriangle
           className="h-3 w-3 text-warning shrink-0"
@@ -1213,12 +1291,19 @@ function CardRow({
           {group.card.power}/{group.card.toughness}
         </span>
       )}
-      {contextActions && <CardMenuButton />}
+      {contextActions && <CardMenuButton alwaysVisible />}
     </div>
   );
   if (!contextActions) return rowContent;
   return (
-    <CardContextMenu card={group.card} count={group.count} location="main" {...contextActions}>
+    <CardContextMenu
+      card={group.card}
+      count={group.count}
+      location="main"
+      {...contextActions}
+      selected={isSelected}
+      onToggleSelection={onSelect ? () => onSelect(name, false) : undefined}
+    >
       {rowContent}
     </CardContextMenu>
   );
@@ -1387,6 +1472,8 @@ function CardSection({
                     isSelected={selectedCards?.has(name.toLowerCase())}
                     onSelect={onSelectCard}
                     onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
+                    onAddOne={() => onAddOne(g)}
+                    onRemoveOne={() => onRemoveOne(name)}
                     contextActions={contextActionsFor(g)}
                   />
                 </div>
@@ -1514,7 +1601,7 @@ function DroppableStackTag({
               </div>
             )}
             <Tag className="h-3 w-3 text-primary/60 shrink-0" />
-            <span className="text-ui-label font-semibold text-muted-foreground uppercase tracking-wide truncate">
+            <span className="text-ui-label font-semibold text-muted-foreground truncate">
               {tag}
             </span>
             <Button
@@ -1539,6 +1626,8 @@ export interface DeckListViewProps {
   viewMode: ViewMode;
   cardSize: number;
   commanders: DeckCard[];
+  commandZone: React.ReactNode;
+  tokensSection?: React.ReactNode;
   deckFormat: string;
   mainSections: Array<
     SectionDefinition & {
@@ -1620,12 +1709,15 @@ export interface DeckListViewProps {
   onLeave?: () => void;
   localizedCardDetails?: ReadonlyMap<string, LocalizedCardDetails | null>;
   locale?: ScryfallLanguage;
+  onOpenSideboardPlans?: () => void;
 }
 export function DeckListView({
   viewMode,
   cardSize,
   canCustomize,
   commanders,
+  commandZone,
+  tokensSection,
   deckFormat,
   mainSections,
   otherGroups,
@@ -1681,6 +1773,7 @@ export function DeckListView({
   onLeave,
   localizedCardDetails = new Map(),
   locale = "en",
+  onOpenSideboardPlans,
 }: DeckListViewProps) {
   const [sideboardOpen, setSideboardOpen] = useDeckSectionOpen();
   const [maybeboardOpen, setMaybeboardOpen] = useDeckSectionOpen();
@@ -1698,6 +1791,16 @@ export function DeckListView({
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
   const sideboardCount = sideboardGroups.reduce((s, g) => s + g.count, 0);
   const maybeboardCount = maybeboardGroups.reduce((s, g) => s + g.count, 0);
+  const sideboardPlansAction = onOpenSideboardPlans ? (
+    <Button
+      variant="outline"
+      size="sm"
+      className="h-7 shrink-0 text-ui-meta"
+      onClick={onOpenSideboardPlans}
+    >
+      Sideboard plans
+    </Button>
+  ) : undefined;
   const containerRef = useRef<HTMLDivElement>(null);
   const cardsById = useMemo(() => {
     const m = new Map<string, DeckCard>();
@@ -1824,12 +1927,13 @@ export function DeckListView({
   const wrappedHandleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       const target = e.target as HTMLElement;
-      if (target.closest("[data-card-name]")) return;
+      if (target.closest("[data-card-name], [data-command-zone], [data-token-section]")) return;
       handleContainerMouseDown(e);
     },
     [handleContainerMouseDown],
   );
   const handleCardKeyboardNavigation = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest("button, input, [role='menu']")) return;
     if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
     const current = (event.target as HTMLElement).closest<HTMLElement>("[data-card-name]");
     if (!current || !containerRef.current) return;
@@ -2067,6 +2171,7 @@ export function DeckListView({
               sectionId="sideboard"
               groups={sideboardGroups}
               cardWidth={cardWidth}
+              extraContent={sideboardPlansAction}
               onAddOne={(g) =>
                 onAddToSide({
                   ...g.card,
@@ -2076,6 +2181,8 @@ export function DeckListView({
               onRemoveOne={onRemoveFromSide}
               onCustomize={onCustomize}
               onShowInfo={onShowInfo}
+              selectedCards={selectedCards}
+              onSelectCard={onSelectCard}
               dragHandleProps={dhProps}
               contextMenuFor={(g) => ({
                 location: "side",
@@ -2102,15 +2209,19 @@ export function DeckListView({
               })}
             />
           ) : (
-            <EmptyStackBoard label={`Sideboard`} cardWidth={cardWidth} dragHandleProps={dhProps} />
+            <EmptyStackBoard
+              label={`Sideboard`}
+              cardWidth={cardWidth}
+              dragHandleProps={dhProps}
+              extraContent={sideboardPlansAction}
+            />
           )}
         </div>
       );
     }
     if (id === STACK_SECTION_MAYBEBOARD) {
-      return (
+      const maybeboard = (
         <div
-          key={id}
           data-stack-id={id}
           ref={(el) => {
             if (el) setMaybeDropRef(el);
@@ -2136,6 +2247,8 @@ export function DeckListView({
               onRemoveOne={onRemoveFromMaybe}
               onCustomize={onCustomize}
               onShowInfo={onShowInfo}
+              selectedCards={selectedCards}
+              onSelectCard={onSelectCard}
               dragHandleProps={dhProps}
               contextMenuFor={(g) => ({
                 location: "maybe",
@@ -2164,6 +2277,12 @@ export function DeckListView({
           ) : (
             <EmptyStackBoard label={`Maybeboard`} cardWidth={cardWidth} dragHandleProps={dhProps} />
           )}
+        </div>
+      );
+      return (
+        <div key={id} className="min-w-0">
+          {maybeboard}
+          {tokensSection && <div className="mt-3">{tokensSection}</div>}
         </div>
       );
     }
@@ -2264,6 +2383,7 @@ export function DeckListView({
                 gap: GAP,
               }}
             >
+              {commandZone}
               {orderedSectionIds.map((id) => renderStackSection(id))}
             </div>
 
@@ -2325,6 +2445,7 @@ export function DeckListView({
                 className="w-full gap-4"
                 style={{ columnCount: listColumnCount, columnGap: "1rem" }}
               >
+                {commandZone}
                 {mainSections.map((s) => (
                   <div key={s.id} className="break-inside-avoid">
                     <CardSection
@@ -2373,6 +2494,7 @@ export function DeckListView({
             </>
           ) : (
             <>
+              {commandZone}
               {mainSections.map((s) => (
                 <CardSection
                   key={s.id}
@@ -2430,6 +2552,7 @@ export function DeckListView({
                 count={sideboardCount}
                 open={sideboardOpen}
                 onToggle={() => setSideboardOpen((value) => !value)}
+                extraContent={sideboardPlansAction}
               />
               {!sideboardOpen ? null : sideboardGroups.length === 0 ? (
                 <div className="py-3 text-center">
@@ -2444,6 +2567,10 @@ export function DeckListView({
                       count={g.count}
                       location="side"
                       canCustomize={canCustomize}
+                      selected={selectedCards?.has(g.card.identity.name.toLowerCase())}
+                      onToggleSelection={
+                        onSelectCard ? () => onSelectCard(g.card.identity.name, false) : undefined
+                      }
                       onAddOne={() =>
                         onAddToSide({
                           ...g.card,
@@ -2468,9 +2595,17 @@ export function DeckListView({
                         card={g.card}
                         className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
                       >
-                        <span className="text-ui-meta font-mono min-w-5 text-right text-muted-foreground shrink-0">
-                          {g.count}
-                        </span>
+                        <CardQuantityControls
+                          name={g.card.identity.name}
+                          count={g.count}
+                          onAddOne={() =>
+                            onAddToSide({
+                              ...g.card,
+                              identity: { ...g.card.identity, id: crypto.randomUUID() },
+                            })
+                          }
+                          onRemoveOne={() => onRemoveFromSide(g.card.identity.name)}
+                        />
                         <span className="text-ui-label flex-1 truncate">
                           <LocalizedCardName card={g.card} />
                         </span>
@@ -2496,6 +2631,8 @@ export function DeckListView({
                         }
                         onRemoveOne={() => onRemoveFromSide(g.card.identity.name)}
                         onCustomize={() => onCustomize(g.card)}
+                        isSelected={selectedCards?.has(g.card.identity.name.toLowerCase())}
+                        onSelect={onSelectCard}
                         contextLocation="side"
                         contextActions={{
                           canCustomize,
@@ -2559,6 +2696,10 @@ export function DeckListView({
                       count={g.count}
                       location="maybe"
                       canCustomize={canCustomize}
+                      selected={selectedCards?.has(g.card.identity.name.toLowerCase())}
+                      onToggleSelection={
+                        onSelectCard ? () => onSelectCard(g.card.identity.name, false) : undefined
+                      }
                       onAddOne={() =>
                         onAddToMaybe({
                           ...g.card,
@@ -2583,9 +2724,17 @@ export function DeckListView({
                         card={g.card}
                         className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
                       >
-                        <span className="text-ui-meta font-mono min-w-5 text-right text-muted-foreground shrink-0">
-                          {g.count}
-                        </span>
+                        <CardQuantityControls
+                          name={g.card.identity.name}
+                          count={g.count}
+                          onAddOne={() =>
+                            onAddToMaybe({
+                              ...g.card,
+                              identity: { ...g.card.identity, id: crypto.randomUUID() },
+                            })
+                          }
+                          onRemoveOne={() => onRemoveFromMaybe(g.card.identity.name)}
+                        />
                         <span className="text-ui-label flex-1 truncate text-muted-foreground">
                           <LocalizedCardName card={g.card} />
                         </span>
@@ -2615,6 +2764,8 @@ export function DeckListView({
                         }
                         onRemoveOne={() => onRemoveFromMaybe(g.card.identity.name)}
                         onCustomize={() => onCustomize(g.card)}
+                        isSelected={selectedCards?.has(g.card.identity.name.toLowerCase())}
+                        onSelect={onSelectCard}
                         contextLocation="maybe"
                         contextActions={{
                           canCustomize,
@@ -2643,6 +2794,8 @@ export function DeckListView({
               )}
             </div>
           </div>
+
+          {tokensSection && <div className="mt-3">{tokensSection}</div>}
 
           {specialSections.map((section) => {
             const count = section.groups.reduce((s, g) => s + g.count, 0);
@@ -2702,7 +2855,7 @@ export function DeckListView({
                             >
                               <X className="h-3 w-3" />
                             </Button>
-                            <CardMenuButton />
+                            <CardMenuButton alwaysVisible />
                           </div>
                         </CardContextMenu>
                       ))}

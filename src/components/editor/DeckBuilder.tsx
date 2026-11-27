@@ -10,43 +10,9 @@ import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { Button } from "@/components/ui/button";
 import { CardCustomizerModal } from "./CardCustomizerModal";
 import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  X,
-  Save,
-  Trash2,
-  Search,
-  LayoutGrid,
-  List,
-  Layers,
-  Plus,
-  Loader2,
-  ChevronDown,
-  FileBox,
-  ClipboardCopy,
-  Share2,
-  Palette,
-  Bookmark,
-  Group,
-  EllipsisVertical,
-  History,
-  LibraryBig,
-  ListPlus,
-  Command as CommandIcon,
-  Images,
-  FoldVertical,
-  UnfoldVertical,
-  ArrowUp,
-  Sparkles,
-  BookOpen,
-  FilePenLine,
-} from "lucide-react";
+import { X, Save, Search, Plus, Loader2, Bookmark, LibraryBig, ArrowUp } from "lucide-react";
 import { useState, useRef, useEffect, useCallback, useMemo, useDeferredValue } from "react";
+import type { RefObject } from "react";
 import { toast } from "sonner";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { DeckCard, DeckCardIdentity } from "@/protocol/deck";
@@ -91,8 +57,6 @@ import { useCardPreview, type CardPreviewController } from "@/hooks/useCardPrevi
 import { CardDetailModal } from "./CardDetailModal";
 import { DeckLabelsModal } from "./DeckLabelsModal";
 import { DeckValidationPanel } from "./DeckValidationPanel";
-import { DeckBracketPanel } from "./DeckBracketPanel";
-import { CombosPanel } from "./CombosPanel";
 import { useDeckAnalysis } from "@/hooks/useDeckAnalysis";
 import { useDeckRoles } from "@/hooks/useDeckRoles";
 import { isFeatureEnabled } from "@/featureFlags";
@@ -102,8 +66,6 @@ import {
   type ViewMode,
   type GroupByMode,
   type SortMode,
-  GROUP_BY_OPTIONS,
-  SORT_OPTIONS,
   CMC_BUCKET_LABELS,
   cmcBucketIndex,
   groupCards,
@@ -111,9 +73,8 @@ import {
   computeGroupedStackColumns,
   sortCardGroups,
   DEFAULT_CARD_SIZE,
-  MAX_CARD_SIZE,
 } from "./deckBuilder.utils";
-import { exportToArena, exportWithPrintings } from "./deckExport";
+import { exportEditableDeckList, exportToArena, exportWithPrintings } from "./deckExport";
 import { TokenSection } from "./TokenSection";
 import { useDerivedTokens, mergeDerivedAndCustomized } from "@/hooks/useDerivedTokens";
 import {
@@ -135,7 +96,7 @@ import {
 } from "./deckEditor.history";
 import { DeckHistoryControls } from "./DeckHistoryControls";
 import { DeckLayoutMenu } from "./DeckLayoutMenu";
-import { setAllDeckSectionsExpanded, useDeckSectionOpen } from "./deckSectionExpansion";
+import { setAllDeckSectionsExpanded } from "./deckSectionExpansion";
 import { DeckCommandPalette } from "./DeckCommandPalette";
 import type { DeckEditorCommand } from "./deckEditor.commands";
 import { DeckTagDialog } from "./DeckTagDialog";
@@ -172,6 +133,7 @@ import { DeckSaveConflictDialog } from "./DeckSaveConflictDialog";
 import { DeckStatusSummary } from "./DeckStatusSummary";
 import { PrintingOptimizerDialog } from "./PrintingOptimizerDialog";
 import { PreviewCardInfo } from "./PreviewCardInfo";
+import { DeckActionsMenu } from "./DeckActionsMenu";
 function enrichmentKey(
   locale: ScryfallLanguage,
   name: string,
@@ -184,6 +146,9 @@ function enrichmentKey(
 type DeckSyncState = "saved" | "saving" | "local" | "synced" | "failed";
 export function DeckBuilder({
   onToggleSearch,
+  onOpenSearch,
+  searchOpen,
+  searchTriggerRef,
   setPreviewSlot,
   previewCollapsed,
   onPreviewCollapsedChange,
@@ -195,6 +160,9 @@ export function DeckBuilder({
   onDeckDeleted,
 }: {
   onToggleSearch?: () => void;
+  onOpenSearch?: () => void;
+  searchOpen?: boolean;
+  searchTriggerRef?: RefObject<HTMLButtonElement | null>;
   setPreviewSlot?: (el: HTMLDivElement | null) => void;
   previewCollapsed?: boolean;
   onPreviewCollapsedChange?: (collapsed: boolean) => void;
@@ -296,12 +264,11 @@ export function DeckBuilder({
   const [deckFilter, setDeckFilter] = useState("");
   const deferredDeckFilter = useDeferredValue(deckFilter);
   const [cmcFilter, setCmcFilter] = useState<number | null>(null);
-  const [newTagInput, setNewTagInput] = useState("");
   const [announcement, setAnnouncement] = useState({ id: 0, message: "" });
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [cardSize, setCardSize] = useState(DEFAULT_CARD_SIZE);
-  const [analysisOpen, setAnalysisOpen] = useDeckSectionOpen();
+  const [workspace, setWorkspace] = useState<"build" | "stats">("build");
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
   const [sortBy, setSortBy] = useState<SortMode>("mana-value");
   const [collectionFilter, setCollectionFilter] = useState<"all" | DeckOwnershipStatus>("all");
@@ -311,7 +278,9 @@ export function DeckBuilder({
   });
   const [confirmClear, setConfirmClear] = useState(false);
   const filterInputRef = useRef<HTMLInputElement>(null);
+  const editorRootRef = useRef<HTMLDivElement>(null);
   const editorScrollRef = useRef<HTMLDivElement>(null);
+  const statsScrollRef = useRef<HTMLElement>(null);
   const enrichedCardsRef = useRef(new Set<string>());
   const skipPresentationSaveRef = useRef(true);
   const presentationKey = currentDeckId ?? currentDeck.name.toLowerCase();
@@ -328,7 +297,6 @@ export function DeckBuilder({
           groupBy: GroupByMode;
           sortBy: SortMode;
           collectionFilter: "all" | DeckOwnershipStatus;
-          analysisOpen: boolean;
         }>
       >;
       const saved = all[presentationKey];
@@ -337,7 +305,6 @@ export function DeckBuilder({
       setGroupBy(saved?.groupBy ?? "type");
       setSortBy(saved?.sortBy ?? "mana-value");
       setCollectionFilter(saved?.collectionFilter ?? "all");
-      setAnalysisOpen(saved?.analysisOpen ?? true);
     } catch {
       localStorage.removeItem(STORAGE_KEYS.DECK_EDITOR_PRESENTATION);
       setViewMode("list");
@@ -345,9 +312,8 @@ export function DeckBuilder({
       setGroupBy("type");
       setSortBy("mana-value");
       setCollectionFilter("all");
-      setAnalysisOpen(true);
     }
-  }, [editorSessionId, presentationKey, setAnalysisOpen]);
+  }, [editorSessionId, presentationKey]);
   useEffect(() => {
     if (skipPresentationSaveRef.current) {
       skipPresentationSaveRef.current = false;
@@ -362,16 +328,19 @@ export function DeckBuilder({
       groupBy,
       sortBy,
       collectionFilter,
-      analysisOpen,
     };
     localStorage.setItem(STORAGE_KEYS.DECK_EDITOR_PRESENTATION, JSON.stringify(all));
-  }, [analysisOpen, cardSize, collectionFilter, groupBy, presentationKey, sortBy, viewMode]);
+  }, [cardSize, collectionFilter, groupBy, presentationKey, sortBy, viewMode]);
   useKeybindings({
     "deck-editor-focus-filter": () => {
-      filterInputRef.current?.focus();
-      filterInputRef.current?.select();
+      if (!editorRootRef.current?.getClientRects().length) return false;
+      setWorkspace("build");
+      requestAnimationFrame(() => {
+        filterInputRef.current?.focus();
+        filterInputRef.current?.select();
+      });
     },
-    "deck-editor-toggle-search": () => onToggleSearch?.(),
+    "deck-editor-toggle-search": () => (onToggleSearch ? onToggleSearch() : false),
     "deck-editor-save": () => void handleSave(),
     "deck-editor-export": () => handleExport(),
     "deck-editor-undo": undoDeckEdit,
@@ -408,23 +377,38 @@ export function DeckBuilder({
     },
   });
   function jumpToNextEditorSection() {
-    const sections =
-      editorScrollRef.current?.querySelectorAll<HTMLElement>("[data-editor-section]");
-    if (!sections?.length) return;
-    const top = editorScrollRef.current!.getBoundingClientRect().top;
-    const next = [...sections].find((section) => section.getBoundingClientRect().top > top + 48);
-    (next ?? sections[0]).scrollIntoView({ behavior: "smooth", block: "start" });
+    const next = workspace === "build" ? "stats" : "build";
+    setWorkspace(next);
+    requestAnimationFrame(() =>
+      (next === "build" ? editorScrollRef : statsScrollRef).current?.focus({
+        preventScroll: true,
+      }),
+    );
   }
-  function navigateToDeckStatus(target: "validation" | "collection" | "budget") {
-    if (target !== "validation") setAnalysisOpen(true);
-    window.setTimeout(() => {
-      const selector =
-        target === "validation"
-          ? "[data-editor-validation], [data-editor-section='build']"
-          : `[data-editor-insight='${target}']`;
-      editorScrollRef.current
-        ?.querySelector<HTMLElement>(selector)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  function showUnsupportedCards() {
+    setCmcFilter(null);
+    setCollectionFilter("all");
+    setDeckFilter("is:unsupported");
+    setWorkspace("build");
+    requestAnimationFrame(() => {
+      editorScrollRef.current?.scrollTo({ top: 0 });
+      editorScrollRef.current?.focus({ preventScroll: true });
+    });
+  }
+  function navigateToDeckStatus(target: "validation" | "unsupported" | "collection" | "budget") {
+    if (target === "unsupported") {
+      showUnsupportedCards();
+      return;
+    }
+    setWorkspace("stats");
+    requestAnimationFrame(() => {
+      const panel = statsScrollRef.current;
+      if (target === "validation") panel?.scrollTo({ top: 0 });
+      else {
+        panel
+          ?.querySelector<HTMLElement>(`[data-editor-insight='${target}']`)
+          ?.scrollIntoView({ block: "start" });
+      }
     });
   }
   const supplementaryCards = useMemo(
@@ -464,11 +448,10 @@ export function DeckBuilder({
     setSyncState("saved");
     setSaveConflict(null);
     conflictDeckRef.current = null;
-    setAnalysisOpen(true);
     setUnsavedState(snapshot, snapshot);
     resetDeckHistory();
     return resetDeckHistory;
-  }, [editorSessionId, setAnalysisOpen]);
+  }, [editorSessionId]);
   // Warn on navigation/tab close with unsaved changes
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -790,7 +773,6 @@ export function DeckBuilder({
         : { legal: false, errors: [] as string[] },
     [currentDeck, deckCommanderName, deckFormat, cardPool],
   );
-  const isDeckLegal = deckValidation.legal;
   const matchesFilters = useCallback(
     (c: DeckCard, section: "main" | "sideboard" | "maybeboard" | "special" = "main") => {
       const tags = currentDeck.cardTags?.[c.identity.name.toLowerCase()] ?? [];
@@ -1107,14 +1089,7 @@ export function DeckBuilder({
       .catch(() => toast.error(`Could not write to the clipboard`));
   }
   function openEditList() {
-    setEditListText(
-      exportWithPrintings({
-        commanders: currentDeck.commanders,
-        cards: currentDeck.cards,
-        sideboard: currentDeck.sideboard,
-        maybeboard: currentDeck.maybeboard,
-      }),
-    );
+    setEditListText(exportEditableDeckList(currentDeck));
   }
   async function handleSave(deckOverride?: EditorDeck, quiet = false) {
     if (saveInFlightRef.current) return;
@@ -1543,7 +1518,7 @@ export function DeckBuilder({
     ),
     {
       id: "toggle-search",
-      label: `Toggle card search panel`,
+      label: "Toggle Browse cards",
       keywords: ["find", "scryfall"],
       disabled: !onToggleSearch,
       run: () => onToggleSearch?.(),
@@ -1669,8 +1644,90 @@ export function DeckBuilder({
       run: () => setPrintingOptimizerOpen(true),
     },
   ];
+  const hasDeckCards = currentDeck.cards.length > 0 || supplementaryCards.length > 0;
+  const saving = isSaving || syncState === "saving";
+  const canSave = hasUnsavedChanges || currentDeck.draft;
+  const issueCount = deckValidation.errors.length + unsupportedNames.size;
+  const saveStatus = saving
+    ? "Saving…"
+    : hasUnsavedChanges
+      ? "Unsaved changes"
+      : syncState === "local"
+        ? "Saved locally"
+        : syncState === "synced"
+          ? "Synced"
+          : syncState === "failed"
+            ? "Sync failed"
+            : currentDeck.draft
+              ? "Draft"
+              : "Saved";
+  const commandZone = (
+    <CommanderSlots
+      key={`command-zone-${editorSessionId}`}
+      cards={currentDeck.cards}
+      commanders={currentDeck.commanders ?? []}
+      format={currentDeck.format ?? "standard"}
+      cardSize={cardSize}
+      viewMode={viewMode}
+      readOnly={isReadOnly}
+      onBrowseCommanders={onOpenSearch}
+      onSetCommander={handleSetCommander}
+      onShowInfo={handleShowInfo}
+      onHover={(card, event) => {
+        const details = localizedCardDetails.get(
+          localizedCardDetailsKey(scryfallLocale, card.identity.setCode, card.identity.cardNumber),
+        );
+        preview.handleMouseEnter(
+          details ? localizedDeckCardToPreviewDto(card, details) : deckCardToPreviewDto(card),
+          event,
+          { useDelay: true },
+        );
+      }}
+      onLeave={preview.handleMouseLeave}
+      contextMenuFor={(card, label) => {
+        const name = card.identity.name;
+        const isCover =
+          currentDeck.coverCardName === name && (currentDeck.coverCardFace ?? 0) === 0;
+        const isCoverBack = currentDeck.coverCardName === name && currentDeck.coverCardFace === 1;
+        return {
+          canCustomize: !isReadOnly,
+          commanderLabel: label,
+          customTags: currentDeck.customTags ?? [],
+          appliedTags: currentDeck.cardTags?.[name.toLowerCase()] ?? [],
+          isCover,
+          isCoverBack,
+          hasBackFace: !!card.backFace,
+          onShowInfo: () => handleShowInfo(card),
+          onRemoveCommander: () => handleRemoveCommander(card),
+          onCustomize: () => handleCustomize(card),
+          onSetCover: () => {
+            executeDeckEdit(`Change deck cover`, () => setCoverCard(isCover ? undefined : name, 0));
+            if (!isCover) useScryfallStore.getState().invalidateCard(name);
+          },
+          onSetCoverBack: () => {
+            executeDeckEdit(`Change deck cover`, () =>
+              setCoverCard(isCoverBack ? undefined : name, 1),
+            );
+            if (!isCoverBack) useScryfallStore.getState().invalidateCard(name);
+          },
+          onApplyTag: (tag) => {
+            const isApplied = currentDeck.cardTags?.[name.toLowerCase()]?.includes(tag);
+            executeDeckEdit(isApplied ? `Remove ${tag}` : `Apply ${tag}`, () => {
+              if (isApplied) untagCard(name, tag);
+              else tagCard(name, tag);
+            });
+          },
+          onCreateTag: (tag) =>
+            executeDeckEdit(`Create ${tag} tag`, () => {
+              addCustomTag(tag);
+              tagCard(name, tag);
+            }),
+        };
+      }}
+    />
+  );
   return (
-    <div className="deck-editor-root flex flex-col h-full w-full relative">
+    <div ref={editorRootRef} className="deck-editor-root relative flex h-full w-full flex-col">
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {selectedCards.size > 0
           ? `${selectedCards.size} card${selectedCards.size === 1 ? "" : "s"} selected`
@@ -1729,531 +1786,294 @@ export function DeckBuilder({
         </div>
       )}
       <div className="flex flex-1 min-h-0">
-        <div
-          ref={editorScrollRef}
-          tabIndex={-1}
-          aria-label={`Deck editor workspace`}
-          className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden"
-          onScroll={(event) => setShowBackToTop(event.currentTarget.scrollTop > 120)}
-        >
+        <div className="@container relative flex min-h-0 min-w-0 flex-1 flex-col">
           <DeckHero
             onNameCommit={(name) =>
               void handleSave({ ...useDeckStore.getState().currentDeck, name })
             }
-          />
-
-          <div
-            className={cn(
-              "sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md max-sm:flex-nowrap max-sm:overflow-x-auto",
-              shortTouch &&
-                "flex-nowrap overflow-x-auto py-1.5 pr-8 no-scrollbar touch-scroll-fade",
-            )}
-          >
-            {!isReadOnly && <DeckHistoryControls />}
-            {!shortTouch && (
-              <DeckStatusSummary
-                legalityErrors={deckValidation.errors.length}
-                unsupportedCards={unsupportedNames.size}
-                collectionGaps={collectionGapCount}
-                budgetTracked={currentDeck.editor?.budgetAmount !== undefined}
-                onNavigate={navigateToDeckStatus}
-              />
-            )}
-            <div className="relative shrink-0 w-32">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-              <Input
-                ref={filterInputRef}
-                className="min-h-6 pl-6 pr-11 text-ui-input touch:min-h-11"
-                placeholder="Filter…"
-                title="Filter by name or use tag:, type:, color:, section:, mv>=, is:owned, is:missing, is:partial, is:foil, is:combo, and - to negate"
-                value={deckFilter}
-                onChange={(e) => setDeckFilter(e.target.value)}
-              />
-              {deckFilter && (
-                <button
-                  type="button"
-                  className="touch:min-w-11 touch:min-h-11 inline-flex items-center justify-center absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setDeckFilter("")}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </div>
-            {cmcFilter !== null && (
-              <button
-                type="button"
-                className="touch:min-w-11 touch:min-h-11 flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-ui-label font-medium text-primary transition-colors hover:bg-primary/25"
-                title={`Clear mana value filter`}
-                onClick={() => setCmcFilter(null)}
-              >
-                {CMC_BUCKET_LABELS[cmcFilter]} mana
-                <X className="h-3 w-3" />
-              </button>
-            )}
-            {collectionFilter !== "all" && (
-              <button
-                type="button"
-                className="touch:min-w-11 touch:min-h-11 flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-ui-label font-medium capitalize text-primary transition-colors hover:bg-primary/25"
-                title={`Clear collection filter`}
-                onClick={() => setCollectionFilter("all")}
-              >
-                Collection: {collectionFilter.replace("-", " ")}
-                <X className="h-3 w-3" />
-              </button>
-            )}
-            {!shortTouch && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="touch:min-w-11 touch:min-h-11 flex items-center gap-1 text-ui-label text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors">
-                    <Group className="h-3 w-3" />
-                    <span>{GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label}</span>
-                    <ChevronDown className="h-2.5 w-2.5 opacity-60" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  {GROUP_BY_OPTIONS.map((opt) => (
-                    <DropdownMenuItem
-                      key={opt.value}
-                      onSelect={() => setGroupBy(opt.value)}
-                      className={cn(groupBy === opt.value && "bg-muted font-medium")}
+            saveStatus={isReadOnly ? undefined : saveStatus}
+            renderActions={(onEditPlaymat) => (
+              <div className="ml-auto flex basis-full flex-wrap items-center justify-between gap-x-3 gap-y-1 @2xl:shrink-0 @2xl:basis-auto @5xl:col-start-3 @5xl:row-start-1 @5xl:justify-end">
+                <div className="flex items-center gap-1" role="group" aria-label="Deck workspace">
+                  {(["build", "stats"] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      aria-pressed={workspace === tab}
+                      onClick={() => setWorkspace(tab)}
+                      className={cn(
+                        "inline-flex min-h-8 items-center gap-1.5 border-b-2 px-2.5 text-ui-label font-semibold whitespace-nowrap focus-visible:outline-2 focus-visible:outline-ring touch:min-h-11 touch:min-w-11",
+                        workspace === tab
+                          ? "border-selection-border text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground",
+                      )}
                     >
-                      {opt.label}
-                    </DropdownMenuItem>
+                      {tab === "build" ? "Build" : "Deck stats"}
+                      {tab === "stats" && issueCount > 0 && (
+                        <span className="rounded bg-warning/10 px-1.5 text-ui-meta tabular-nums text-warning">
+                          {issueCount}
+                          <span className="sr-only"> {issueCount === 1 ? "issue" : "issues"}</span>
+                        </span>
+                      )}
+                    </button>
                   ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            {!shortTouch && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="touch:min-w-11 touch:min-h-11 flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-ui-label text-muted-foreground transition-colors hover:text-foreground">
-                    <span>
-                      Sort: {SORT_OPTIONS.find((option) => option.value === sortBy)?.label}
-                    </span>
-                    <ChevronDown className="h-2.5 w-2.5 opacity-60" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  {SORT_OPTIONS.map((option) => (
-                    <DropdownMenuItem
-                      key={option.value}
-                      onSelect={() => setSortBy(option.value)}
-                      className={cn(sortBy === option.value && "bg-muted font-medium")}
+                </div>
+                {!isReadOnly && (
+                  <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                    {workspace === "build" && <DeckHistoryControls />}
+                    <Button
+                      type="button"
+                      variant={canSave && !saving ? "primary" : "ghost"}
+                      size="sm"
+                      disabled={saving || !canSave}
+                      onClick={() => void handleSave()}
                     >
-                      {option.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            <DeckLayoutMenu
-              compact
-              groupBy={groupBy}
-              sortBy={sortBy}
-              cardSize={cardSize}
-              filter={deckFilter}
-              viewMode={viewMode}
-              collectionFilter={collectionFilter}
-              onApply={(
-                nextGroupBy,
-                nextSortBy,
-                nextCardSize,
-                nextFilter,
-                nextViewMode,
-                nextCollectionFilter,
-              ) => {
-                setGroupBy(nextGroupBy);
-                setSortBy(nextSortBy);
-                setCardSize(nextCardSize);
-                setDeckFilter(nextFilter);
-                setViewMode(nextViewMode);
-                setCollectionFilter(nextCollectionFilter);
-              }}
-            />
-            {!shortTouch && (
-              <div className="flex rounded-md border overflow-hidden shrink-0">
-                {(
-                  [
-                    ["list", List],
-                    ["visual", LayoutGrid],
-                    ["stack", Layers],
-                  ] as const
-                ).map(([mode, Icon]) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    title={mode.charAt(0).toUpperCase() + mode.slice(1)}
-                    onClick={() => setViewMode(mode)}
-                    className={cn(
-                      "touch:min-w-11 touch:min-h-11 p-1 transition-colors border-r last:border-r-0",
-                      viewMode === mode
-                        ? "bg-selection text-selection-foreground"
-                        : "hover:bg-muted text-muted-foreground",
-                    )}
-                  >
-                    <Icon className="h-3 w-3" />
-                  </button>
-                ))}
-              </div>
-            )}
-            {!shortTouch && viewMode !== "list" && (
-              <input
-                type="range"
-                min={1}
-                max={MAX_CARD_SIZE}
-                step={1}
-                value={cardSize}
-                onChange={(e) => setCardSize(Number(e.target.value))}
-                className="touch:min-h-11 w-32 h-1 cursor-pointer accent-primary shrink-0"
-                title={`Card size: ${cardSize}`}
-              />
-            )}
-            <div className="flex-1 min-w-40">
-              <DeckQuickAdd
-                customTags={currentDeck.customTags ?? []}
-                getCount={(name) =>
-                  currentDeck.cards.filter((card) => card.identity.name === frontFaceName(name))
-                    .length
-                }
-                onAdd={(sc, request) => {
-                  if (!chooseImageUrisForCard(sc, { frontOnly: true })) {
-                    toast.error(`This printing has no card image. Choose another printing.`);
-                    return false;
-                  }
-                  const card = scryfallToDeckCard(sc);
-                  const format = getFormat(currentDeck.format ?? "standard");
-                  const existingCount = currentDeck.cards.filter(
-                    (candidate) => candidate.identity.name === card.identity.name,
-                  ).length;
-                  const copyLimit =
-                    request.destination === "main" &&
-                    !allowIllegalDecks &&
-                    !canHaveAnyNumberOf(card)
-                      ? (copyLimitFromText(card.text) ?? format?.deckRules.maxCopies)
-                      : undefined;
-                  const quantity = copyLimit
-                    ? Math.min(request.quantity, Math.max(0, copyLimit - existingCount))
-                    : request.quantity;
-                  if (quantity === 0) {
-                    const formatName = format?.name ?? currentDeck.format ?? `this format`;
-                    toast.error(
-                      `Max ${copyLimit ?? 0} copies of "${sc.name}" allowed in ${formatName}`,
-                    );
-                    return false;
-                  }
-                  executeDeckEdit(`Add ${quantity} ${sc.name} to ${request.destination}`, () => {
-                    for (let index = 0; index < quantity; index += 1) {
-                      if (request.destination === "side") addToSide(card);
-                      else if (request.destination === "maybe") addToMaybe(card);
-                      else addToMain(card);
-                    }
-                    for (const tag of request.tags) {
-                      addCustomTag(tag);
-                      tagCard(card.identity.name, tag);
-                    }
-                  });
-                  if (quantity < request.quantity) {
-                    const formatName = format?.name ?? currentDeck.format ?? `this format`;
-                    toast.warning(
-                      `Added ${quantity} of ${request.quantity} ${sc.name}; ${formatName} allows ${copyLimit ?? 0}`,
-                    );
-                  } else {
-                    const destination =
-                      request.destination === "side"
-                        ? `sideboard`
-                        : request.destination === "maybe"
-                          ? `maybeboard`
-                          : `main deck`;
-                    toast.success(`Added ${quantity} ${sc.name} to ${destination}`);
-                  }
-                  return true;
-                }}
-              />
-            </div>
-            {!shortTouch && !isReadOnly && (
-              <span className="shrink-0 text-ui-meta text-muted-foreground" aria-live="polite">
-                {isSaving || syncState === "saving"
-                  ? `Saving\u2026`
-                  : hasUnsavedChanges
-                    ? `Unsaved`
-                    : syncState === "local"
-                      ? `Saved locally`
-                      : syncState === "synced"
-                        ? `Synced`
-                        : syncState === "failed"
-                          ? `Sync failed`
-                          : `Saved`}
-              </span>
-            )}
-
-            {!shortTouch && !isReadOnly && (
-              <DeckChangeSummary currentDeck={currentDeck} savedDeck={lastSavedDeck} />
-            )}
-
-            {!isReadOnly && (
-              <Button
-                size="sm"
-                variant={
-                  isDeckLegal
-                    ? hasUnsavedChanges || currentDeck.draft
-                      ? "primary"
-                      : "secondary"
-                    : "outline"
-                }
-                disabled={isSaving || (!hasUnsavedChanges && !currentDeck.draft)}
-                className={cn(
-                  "touch:min-w-11 touch:min-h-11 min-h-7 shrink-0 gap-1 text-ui-label",
-                  !isDeckLegal && "border-warning/50 text-warning hover:bg-warning/10",
-                )}
-                title={
-                  hasUnsupportedCards
-                    ? unsupportedNames.size === 1
-                      ? `One card is unsupported by the Manabrew and Forge engines`
-                      : `${unsupportedNames.size} cards are unsupported by the Manabrew and Forge engines`
-                    : !isDeckLegal
-                      ? `${deckValidation.errors[0] ?? `Deck is not legal in this format`} — saves with a warning`
-                      : hasUnsavedChanges
-                        ? `Save deck (unsaved changes)`
-                        : currentDeck.draft
-                          ? `Save draft as a full deck`
-                          : `Deck saved`
-                }
-                onClick={() => void handleSave()}
-              >
-                {isSaving ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Save className="h-3.5 w-3.5" />
-                )}
-                {isSaving ? `Saving` : `Save`}
-              </Button>
-            )}
-
-            {!isReadOnly && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="touch:min-w-11 touch:min-h-11 min-h-7 w-7 shrink-0"
-                    disabled={isReadOnly}
-                    aria-label="Deck actions"
-                  >
-                    <EllipsisVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onSelect={() => setCommandPaletteOpen(true)}>
-                    <CommandIcon className="mr-2 h-3.5 w-3.5" /> Command palette
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={openDeckEditorWelcome}>
-                    <BookOpen className="mr-2 h-3.5 w-3.5" /> Deck editor guide
-                  </DropdownMenuItem>
-                  {onToggleSearch && (
-                    <DropdownMenuItem onSelect={onToggleSearch}>
-                      <Search className="mr-2 h-3.5 w-3.5" /> Card search
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onSelect={() => setAllDeckSectionsExpanded(false)}>
-                    <FoldVertical className="mr-2 h-3.5 w-3.5" /> Collapse all sections
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setAllDeckSectionsExpanded(true)}>
-                    <UnfoldVertical className="mr-2 h-3.5 w-3.5" /> Expand all sections
-                  </DropdownMenuItem>
-                  <div className="my-1 border-t" />
-                  <DropdownMenuItem onSelect={() => setImportOpen(true)}>
-                    <ListPlus className="mr-2 h-3.5 w-3.5" /> Import list
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={openEditList}>
-                    <FilePenLine className="mr-2 h-3.5 w-3.5" /> Edit as text
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={handleExport}
-                    disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
-                  >
-                    <ClipboardCopy className="h-3.5 w-3.5 mr-2" /> Export to clipboard
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={handleExactExport}>
-                    <Images className="mr-2 h-3.5 w-3.5" /> Export exact printings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setBatchPrintingSelectionOnly(false);
-                      setBatchPrintingOpen(true);
-                    }}
-                  >
-                    <Images className="mr-2 h-3.5 w-3.5" /> Change deck printings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setPrintingOptimizerOpen(true)}>
-                    <Sparkles className="mr-2 h-3.5 w-3.5" /> Optimize deck printings
-                  </DropdownMenuItem>
-                  {publishEnabled && (
-                    <DropdownMenuItem
-                      onSelect={() => setPublishOpen(true)}
-                      disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
-                    >
-                      <Share2 className="h-3.5 w-3.5 mr-2" /> Publish to Community
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onSelect={handleSaveDraft}>
-                    <FileBox className="h-3.5 w-3.5 mr-2" /> Save as draft
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setCheckpointsOpen(true)}>
-                    <History className="mr-2 h-3.5 w-3.5" /> Local checkpoints
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setSideboardPlansOpen(true)}>
-                    <ListPlus className="mr-2 h-3.5 w-3.5" /> Sideboard plans
-                  </DropdownMenuItem>
-                  <div className="border-t my-1" />
-                  <DropdownMenuItem onSelect={() => setLabelsOpen(true)}>
-                    <Palette className="h-3.5 w-3.5 mr-2" /> Deck labels
-                    {(currentDeck.labels?.length ?? 0) > 0 && (
-                      <span className="ml-auto text-ui-meta text-muted-foreground">
-                        {currentDeck.labels!.length}
-                      </span>
-                    )}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <Bookmark className="h-3.5 w-3.5 mr-2" /> Tags
-                    {(currentDeck.customTags?.length ?? 0) > 0 && (
-                      <span className="ml-auto text-ui-meta text-muted-foreground">
-                        {currentDeck.customTags!.length}
-                      </span>
-                    )}
-                  </DropdownMenuItem>
-                  {(currentDeck.customTags ?? []).length > 0 && (
-                    <>
-                      {(currentDeck.customTags ?? []).map((tag) => (
-                        <DropdownMenuItem
-                          key={tag}
-                          className="text-ui-label pl-8 justify-between"
-                          onSelect={(e) => e.preventDefault()}
-                        >
-                          <span>{tag}</span>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="touch:min-w-11 touch:min-h-11 min-h-5 w-5 text-destructive shrink-0"
-                            onClick={() => {
-                              executeDeckEdit(`Remove ${tag} tag`, () => removeCustomTag(tag));
-                              toast.success(`Tag "${tag}" removed`);
-                            }}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuItem>
-                      ))}
-                    </>
-                  )}
-                  <div className="px-2 py-1.5">
-                    <Input
-                      className="touch:min-h-11 min-h-7 text-ui-input"
-                      placeholder="New tag…"
-                      value={newTagInput}
-                      onChange={(e) => setNewTagInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        e.stopPropagation();
-                        if (e.key === "Enter" && newTagInput.trim()) {
-                          executeDeckEdit(`Create ${newTagInput.trim()} tag`, () =>
-                            addCustomTag(newTagInput.trim()),
-                          );
-                          toast.success(`Tag "${newTagInput.trim()}" added`);
-                          setNewTagInput("");
-                        }
+                      {saving ? (
+                        <Loader2 className="size-3.5 motion-safe:animate-spin" />
+                      ) : (
+                        <Save className="hidden size-3.5 @sm:block" />
+                      )}
+                      Save
+                    </Button>
+                    <DeckActionsMenu
+                      hasCards={hasDeckCards}
+                      canPublish={currentDeck.cards.length > 0 || !!currentDeck.commanders?.length}
+                      onEditText={openEditList}
+                      onImport={() => setImportOpen(true)}
+                      onExport={handleExport}
+                      onExactExport={handleExactExport}
+                      onDraft={handleSaveDraft}
+                      onCheckpoints={() => setCheckpointsOpen(true)}
+                      onLabels={() => setLabelsOpen(true)}
+                      onTags={() => setTagManagerOpen(true)}
+                      onPlaymat={onEditPlaymat}
+                      onPrintings={() => {
+                        setBatchPrintingSelectionOnly(false);
+                        setBatchPrintingOpen(true);
                       }}
-                      onClick={(e) => e.stopPropagation()}
+                      onOptimizePrintings={() => setPrintingOptimizerOpen(true)}
+                      onPublish={publishEnabled ? () => setPublishOpen(true) : undefined}
+                      onCommands={() => setCommandPaletteOpen(true)}
+                      onGuide={openDeckEditorWelcome}
+                      onDelete={() => setConfirmClear(true)}
                     />
                   </div>
-                  <div className="border-t my-1" />
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onSelect={() => setConfirmClear(true)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete deck
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                )}
+              </div>
             )}
-          </div>
+          >
+            {!isReadOnly && (
+              <div className="relative z-40 flex w-full min-w-0 flex-col gap-2.5 @xl:flex-row @xl:items-center @5xl:col-span-2 @5xl:col-start-2 @5xl:row-start-2 @5xl:grid @5xl:grid-cols-subgrid @5xl:self-end">
+                <div className="flex min-w-0 items-center gap-2 @xl:ml-auto @xl:max-w-[34rem] @xl:flex-1 @5xl:col-start-2 @5xl:ml-0 @5xl:max-w-none">
+                  <div className="min-w-0 flex-1">
+                    <DeckQuickAdd
+                      customTags={currentDeck.customTags ?? []}
+                      getCount={(name) =>
+                        currentDeck.cards.filter(
+                          (card) => card.identity.name === frontFaceName(name),
+                        ).length
+                      }
+                      onAdd={(sc, request) => {
+                        if (!chooseImageUrisForCard(sc, { frontOnly: true })) {
+                          toast.error(`This printing has no card image. Choose another printing.`);
+                          return false;
+                        }
+                        const card = scryfallToDeckCard(sc);
+                        const format = getFormat(currentDeck.format ?? "standard");
+                        const existingCount = currentDeck.cards.filter(
+                          (candidate) => candidate.identity.name === card.identity.name,
+                        ).length;
+                        const copyLimit =
+                          request.destination === "main" &&
+                          !allowIllegalDecks &&
+                          !canHaveAnyNumberOf(card)
+                            ? (copyLimitFromText(card.text) ?? format?.deckRules.maxCopies)
+                            : undefined;
+                        const quantity = copyLimit
+                          ? Math.min(request.quantity, Math.max(0, copyLimit - existingCount))
+                          : request.quantity;
+                        if (quantity === 0) {
+                          const formatName = format?.name ?? currentDeck.format ?? `this format`;
+                          toast.error(
+                            `Max ${copyLimit ?? 0} copies of "${sc.name}" allowed in ${formatName}`,
+                          );
+                          return false;
+                        }
+                        executeDeckEdit(
+                          `Add ${quantity} ${sc.name} to ${request.destination}`,
+                          () => {
+                            for (let index = 0; index < quantity; index += 1) {
+                              if (request.destination === "side") addToSide(card);
+                              else if (request.destination === "maybe") addToMaybe(card);
+                              else addToMain(card);
+                            }
+                            for (const tag of request.tags) {
+                              addCustomTag(tag);
+                              tagCard(card.identity.name, tag);
+                            }
+                          },
+                        );
+                        if (quantity < request.quantity) {
+                          const formatName = format?.name ?? currentDeck.format ?? `this format`;
+                          toast.warning(
+                            `Added ${quantity} of ${request.quantity} ${sc.name}; ${formatName} allows ${copyLimit ?? 0}`,
+                          );
+                        } else {
+                          const destination =
+                            request.destination === "side"
+                              ? `sideboard`
+                              : request.destination === "maybe"
+                                ? `maybeboard`
+                                : `main deck`;
+                          toast.success(`Added ${quantity} ${sc.name} to ${destination}`);
+                        }
+                        return true;
+                      }}
+                    />
+                  </div>
+                  {onToggleSearch && (
+                    <Button
+                      ref={searchTriggerRef}
+                      type="button"
+                      variant={searchOpen ? "selected" : "ghost"}
+                      size="sm"
+                      className={cn("shrink-0", !searchOpen && "text-muted-foreground")}
+                      aria-expanded={searchOpen}
+                      onClick={onToggleSearch}
+                    >
+                      <LibraryBig className="size-4" />
+                      Browse cards
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+            <div
+              hidden={workspace !== "build"}
+              className="grid w-full min-w-0 gap-2 @5xl:col-span-full @5xl:grid-cols-subgrid"
+            >
+              <div className="flex flex-wrap items-center gap-2 @5xl:col-span-full @5xl:grid @5xl:grid-cols-subgrid">
+                <div className="relative min-w-0 max-w-64 flex-[1_1_12rem] @5xl:col-span-2">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    ref={filterInputRef}
+                    className="min-h-8 border-transparent bg-muted pl-8 pr-9 shadow-none touch:pr-11"
+                    aria-label="Filter deck"
+                    placeholder="Filter deck…"
+                    title="Filter by name or use tag:, type:, color:, section:, mv>=, is:owned, is:missing, is:partial, is:foil, is:combo, and - to negate"
+                    value={deckFilter}
+                    onChange={(event) => setDeckFilter(event.target.value)}
+                  />
+                  {deckFilter && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      title="Clear deck filter"
+                      className="absolute right-0 top-1/2 -translate-y-1/2"
+                      onClick={() => setDeckFilter("")}
+                    >
+                      <X className="size-3.5" />
+                    </Button>
+                  )}
+                </div>
+                <div className="flex max-w-full flex-wrap items-center gap-1.5 @2xl:ml-auto @5xl:col-start-3 @5xl:ml-0">
+                  <DeckLayoutMenu
+                    groupBy={groupBy}
+                    sortBy={sortBy}
+                    cardSize={cardSize}
+                    filter={deckFilter}
+                    viewMode={viewMode}
+                    collectionFilter={collectionFilter}
+                    previewCollapsed={previewCollapsed}
+                    onPreviewCollapsedChange={onPreviewCollapsedChange}
+                    onApply={(
+                      nextGroupBy,
+                      nextSortBy,
+                      nextCardSize,
+                      nextFilter,
+                      nextViewMode,
+                      nextCollectionFilter,
+                    ) => {
+                      setGroupBy(nextGroupBy);
+                      setSortBy(nextSortBy);
+                      setCardSize(nextCardSize);
+                      setDeckFilter(nextFilter);
+                      setViewMode(nextViewMode);
+                      setCollectionFilter(nextCollectionFilter);
+                    }}
+                  />
+                  {!isReadOnly && (
+                    <DeckChangeSummary currentDeck={currentDeck} savedDeck={lastSavedDeck} />
+                  )}
+                </div>
+              </div>
+              {(cmcFilter !== null || collectionFilter !== "all") && (
+                <div className="flex flex-wrap gap-1.5 @5xl:col-span-full">
+                  {cmcFilter !== null && (
+                    <Button
+                      type="button"
+                      variant="selected"
+                      size="sm"
+                      title="Clear mana value filter"
+                      onClick={() => setCmcFilter(null)}
+                    >
+                      {CMC_BUCKET_LABELS[cmcFilter]} mana <X className="size-3" />
+                    </Button>
+                  )}
+                  {collectionFilter !== "all" && (
+                    <Button
+                      type="button"
+                      variant="selected"
+                      size="sm"
+                      title="Clear collection filter"
+                      onClick={() => setCollectionFilter("all")}
+                    >
+                      Collection: {collectionFilter.replace("-", " ")} <X className="size-3" />
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </DeckHero>
 
           <CardCollectionOwnershipScope
             disabled={isReadOnly}
             quantities={collectionQuantities}
             deckOwnership={ownershipByName}
           >
-            <div className={cn(isReadOnly && "opacity-60 bg-muted/15")}>
-              <div data-editor-section="build" className="scroll-mt-12">
-                <DeckValidationPanel unsupportedNames={unsupportedNames} />
-                <CommanderSlots
-                  key={`command-zone-${editorSessionId}`}
-                  cards={currentDeck.cards}
-                  commanders={currentDeck.commanders ?? []}
-                  format={currentDeck.format ?? "standard"}
-                  cardSize={cardSize}
-                  readOnly={isReadOnly}
-                  onSetCommander={handleSetCommander}
-                  onRemoveCommander={handleRemoveCommander}
-                  onHover={(card, event) => {
-                    const details = localizedCardDetails.get(
-                      localizedCardDetailsKey(
-                        scryfallLocale,
-                        card.identity.setCode,
-                        card.identity.cardNumber,
-                      ),
-                    );
-                    const previewCard = deckCardToPreviewDto(card);
-                    preview.handleMouseEnter(
-                      details ? localizedDeckCardToPreviewDto(card, details) : previewCard,
-                      event,
-                      { useDelay: true },
-                    );
-                  }}
-                  onLeave={preview.handleMouseLeave}
-                  onCustomize={handleCustomize}
-                  contextMenuFor={(card, label) => {
-                    const name = card.identity.name;
-                    const isCover =
-                      currentDeck.coverCardName === name && (currentDeck.coverCardFace ?? 0) === 0;
-                    const isCoverBack =
-                      currentDeck.coverCardName === name && currentDeck.coverCardFace === 1;
-                    return {
-                      canCustomize: !isReadOnly,
-                      commanderLabel: label,
-                      customTags: currentDeck.customTags ?? [],
-                      appliedTags: currentDeck.cardTags?.[name.toLowerCase()] ?? [],
-                      isCover,
-                      isCoverBack,
-                      hasBackFace: !!card.backFace,
-                      onShowInfo: () => handleShowInfo(card),
-                      onRemoveCommander: () => handleRemoveCommander(card),
-                      onCustomize: () => handleCustomize(card),
-                      onSetCover: () => {
-                        executeDeckEdit(`Change deck cover`, () =>
-                          setCoverCard(isCover ? undefined : name, 0),
-                        );
-                        if (!isCover) useScryfallStore.getState().invalidateCard(name);
-                      },
-                      onSetCoverBack: () => {
-                        executeDeckEdit(`Change deck cover`, () =>
-                          setCoverCard(isCoverBack ? undefined : name, 1),
-                        );
-                        if (!isCoverBack) useScryfallStore.getState().invalidateCard(name);
-                      },
-                      onApplyTag: (tag) => {
-                        const isApplied = currentDeck.cardTags?.[name.toLowerCase()]?.includes(tag);
-                        executeDeckEdit(isApplied ? `Remove ${tag}` : `Apply ${tag}`, () => {
-                          if (isApplied) untagCard(name, tag);
-                          else tagCard(name, tag);
-                        });
-                      },
-                      onCreateTag: (tag) =>
-                        executeDeckEdit(`Create ${tag} tag`, () => {
-                          addCustomTag(tag);
-                          tagCard(name, tag);
-                        }),
-                    };
-                  }}
-                />
+            <div
+              ref={editorScrollRef}
+              tabIndex={-1}
+              aria-label="Build deck"
+              hidden={workspace !== "build"}
+              className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto border-t"
+              onScroll={(event) => setShowBackToTop(event.currentTarget.scrollTop > 120)}
+            >
+              <div data-editor-section="build">
+                {!isReadOnly && !hasDeckCards && (
+                  <div className="border-b bg-muted/15 px-4 py-5">
+                    <h2 className="font-serif text-xl font-bold">Start with a card or a list</h2>
+                    <p className="mb-3 text-ui-body text-muted-foreground">
+                      Add a card you know or paste a list with any deck sections.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {onOpenSearch && (
+                        <Button type="button" variant="outline" size="sm" onClick={onOpenSearch}>
+                          Browse cards
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setImportOpen(true)}
+                      >
+                        Paste a list
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 {currentDeck.companion && (
                   <section className="mx-4 mb-4 rounded-lg border p-3">
                     <h3 className="mb-2 text-ui-label font-semibold">Companion</h3>
@@ -2290,6 +2110,34 @@ export function DeckBuilder({
                     viewMode={viewMode}
                     cardSize={cardSize}
                     commanders={currentDeck.commanders ?? []}
+                    commandZone={commandZone}
+                    tokensSection={
+                      mergedTokens.length > 0 && (
+                        <TokenSection
+                          tokens={mergedTokens}
+                          customizedTokens={currentDeck.tokens}
+                          cardSize={cardSize}
+                          compact={viewMode === "stack"}
+                          canCustomize={!isReadOnly}
+                          onShowInfo={handleShowTokenInfo}
+                          onCustomize={(card) => setCustomization({ card, token: true })}
+                          onResetPrint={(token) =>
+                            executeDeckEdit(`Reset ${token.identity.name} token printing`, () =>
+                              resetTokenPrint(token),
+                            )
+                          }
+                          onHover={(token, e) =>
+                            preview.handleMouseEnter(deckCardToPreviewDto(token), e, {
+                              useDelay: true,
+                            })
+                          }
+                          onLeave={preview.handleMouseLeave}
+                        />
+                      )
+                    }
+                    onOpenSideboardPlans={
+                      isReadOnly ? undefined : () => setSideboardPlansOpen(true)
+                    }
                     deckFormat={currentDeck.format ?? "standard"}
                     mainSections={sectionGroups}
                     otherGroups={otherGroups}
@@ -2388,73 +2236,50 @@ export function DeckBuilder({
                   />
                 </div>
               </div>
-
-              <div data-editor-section="analysis" className="scroll-mt-12 px-4 pb-10 pt-4">
-                <button
-                  type="button"
-                  className="touch:min-w-11 touch:min-h-11 mb-4 flex w-full items-center gap-3 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-expanded={analysisOpen}
-                  onClick={() => setAnalysisOpen((value) => !value)}
-                >
-                  <ChevronDown
-                    className={cn(
-                      "h-4 w-4 text-muted-foreground transition-transform",
-                      !analysisOpen && "-rotate-90",
-                    )}
-                  />
-                  <span className="text-ui-label font-semibold uppercase tracking-wider text-muted-foreground">
-                    Deck Analysis
-                  </span>
-                  <div className="h-px flex-1 bg-border/60" />
-                </button>
-                {analysisOpen && (
-                  <div className="space-y-5">
-                    {mergedTokens.length > 0 && (
-                      <TokenSection
-                        key={`tokens-${editorSessionId}`}
-                        tokens={mergedTokens}
-                        customizedTokens={currentDeck.tokens}
-                        cardSize={cardSize}
-                        canCustomize={!isReadOnly}
-                        onShowInfo={handleShowTokenInfo}
-                        onCustomize={(card) => setCustomization({ card, token: true })}
-                        onResetPrint={(token) =>
-                          executeDeckEdit(`Reset ${token.identity.name} token printing`, () =>
-                            resetTokenPrint(token),
-                          )
-                        }
-                        onHover={(token, e) =>
-                          preview.handleMouseEnter(deckCardToPreviewDto(token), e, {
-                            useDelay: true,
-                          })
-                        }
-                        onLeave={preview.handleMouseLeave}
-                      />
-                    )}
-                    <DeckInsightsPanel
-                      key={`insights-${editorSessionId}`}
-                      deck={currentDeck}
-                      unsupportedNames={unsupportedNames}
-                      validationErrors={deckValidation.errors}
-                      activeBucket={cmcFilter}
-                      onBucketClick={setCmcFilter}
-                      onShowUnsupported={() => setDeckFilter("is:unsupported")}
-                      onOpenSearch={onToggleSearch}
-                      cardSize={cardSize}
-                      onCardHover={(card, event) =>
-                        preview.handleMouseEnter(deckCardToPreviewDto(card), event, {
-                          useDelay: true,
-                        })
-                      }
-                      onCardLeave={preview.handleMouseLeave}
-                      onOptimizeOwnedPrintings={() => setPrintingOptimizerOpen(true)}
-                    />
-                    <CombosPanel />
-                    <DeckBracketPanel />
-                  </div>
-                )}
-              </div>
             </div>
+            {workspace === "stats" && (
+              <section
+                ref={statsScrollRef}
+                tabIndex={-1}
+                data-editor-section="analysis"
+                aria-label="Deck stats"
+                className="min-h-0 flex-1 space-y-4 overflow-y-auto border-t px-3 pb-8 pt-3 @lg:px-4"
+              >
+                <div className="flex justify-end">
+                  <DeckStatusSummary
+                    legalityErrors={deckValidation.errors.length}
+                    unsupportedCards={unsupportedNames.size}
+                    collectionGaps={collectionGapCount}
+                    budgetTracked={currentDeck.editor?.budgetAmount !== undefined}
+                    onNavigate={navigateToDeckStatus}
+                  />
+                </div>
+                <DeckValidationPanel unsupportedNames={unsupportedNames} />
+                <DeckInsightsPanel
+                  key={`insights-${editorSessionId}`}
+                  deck={currentDeck}
+                  unsupportedNames={unsupportedNames}
+                  validationErrors={deckValidation.errors}
+                  activeBucket={cmcFilter}
+                  onBucketClick={(bucket) => {
+                    setCmcFilter(bucket);
+                    setWorkspace("build");
+                  }}
+                  onShowUnsupported={showUnsupportedCards}
+                  onOpenSearch={onOpenSearch}
+                  cardSize={cardSize}
+                  onCardHover={(card, event) =>
+                    preview.handleMouseEnter(deckCardToPreviewDto(card), event, {
+                      useDelay: true,
+                    })
+                  }
+                  onCardLeave={preview.handleMouseLeave}
+                  onOptimizeOwnedPrintings={
+                    isReadOnly ? undefined : () => setPrintingOptimizerOpen(true)
+                  }
+                />
+              </section>
+            )}
           </CardCollectionOwnershipScope>
         </div>
 
@@ -2485,7 +2310,7 @@ export function DeckBuilder({
         )}
       </div>
 
-      {showBackToTop && (
+      {showBackToTop && workspace === "build" && (
         <Button
           type="button"
           variant="secondary"
@@ -2503,7 +2328,7 @@ export function DeckBuilder({
       )}
 
       <fieldset disabled={isReadOnly} className="contents">
-        {selectedCards.size > 0 && (
+        {workspace === "build" && selectedCards.size > 0 && (
           <DeckSelectionTray
             count={selectedCards.size}
             tags={currentDeck.customTags ?? []}
@@ -2597,7 +2422,12 @@ export function DeckBuilder({
             }}
             mode="edit"
             initialText={editListText}
-            onImport={replaceCurrentDeckList}
+            onImport={(...args) => {
+              if (exportEditableDeckList(useDeckStore.getState().currentDeck) !== editListText) {
+                throw new Error("The deck list changed. Reopen Edit as text to review it again.");
+              }
+              return replaceCurrentDeckList(...args);
+            }}
           />
         )}
         <DeckCommandPalette

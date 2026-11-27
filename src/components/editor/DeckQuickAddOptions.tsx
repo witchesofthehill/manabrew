@@ -18,6 +18,7 @@ interface DeckQuickAddOptionsProps {
   destination: DeckQuickAddRequest["destination"];
   tags: string[];
   customTags: string[];
+  mainCount: number;
   onQuantityChange: (quantity: number) => void;
   onDestinationChange: (destination: DeckQuickAddRequest["destination"]) => void;
   onTagsChange: (tags: string[]) => void;
@@ -30,6 +31,7 @@ export function DeckQuickAddOptions({
   destination,
   tags,
   customTags,
+  mainCount,
   onQuantityChange,
   onDestinationChange,
   onTagsChange,
@@ -37,6 +39,9 @@ export function DeckQuickAddOptions({
   onClose,
 }: DeckQuickAddOptionsProps) {
   const displayName = scryfallDisplayName(card);
+  const destinationLabel = { main: "main deck", side: "sideboard", maybe: "maybeboard" }[
+    destination
+  ];
   const availableTags = [...tags, ...customTags].filter(
     (tag, index, all) =>
       all.findIndex((candidate) => candidate.toLowerCase() === tag.toLowerCase()) === index,
@@ -50,7 +55,7 @@ export function DeckQuickAddOptions({
     );
   }
   return (
-    <div className="absolute right-0 top-full z-50 mt-1 w-96 max-w-[calc(100vw-2rem)] rounded-md border bg-popover p-2 text-popover-foreground shadow-lg">
+    <div className="p-2">
       <div className="mb-2 flex items-center gap-2">
         {chooseImageUrisForCard(card, { frontOnly: true }) && (
           <GeneratedCardImage
@@ -59,8 +64,8 @@ export function DeckQuickAddOptions({
           />
         )}
         <div className="min-w-0 flex-1">
-          <div className="truncate text-ui-label font-medium">{displayName}</div>
-          <div className="text-ui-meta text-muted-foreground">Configure addition</div>
+          <div className="break-words text-ui-label font-medium">{displayName}</div>
+          <div className="text-ui-meta text-muted-foreground">{mainCount} in main deck</div>
         </div>
         <Button
           type="button"
@@ -73,7 +78,7 @@ export function DeckQuickAddOptions({
         </Button>
       </div>
       <div className="flex flex-wrap items-center gap-1">
-        <label className="touch:min-h-11 flex min-h-7 shrink-0 items-center rounded border bg-muted/40 px-1 text-ui-label text-muted-foreground">
+        <label className="flex min-h-7 shrink-0 items-center rounded border bg-muted/40 px-1 text-ui-label text-muted-foreground focus-within:ring-2 focus-within:ring-ring touch:min-h-11">
           <input
             autoFocus
             type="number"
@@ -86,7 +91,10 @@ export function DeckQuickAddOptions({
               onQuantityChange(Math.max(1, Math.min(99, Number(event.target.value) || 1)))
             }
             onKeyDown={(event) => {
-              if (event.key === "Enter") onAdd();
+              if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                onAdd();
+              }
             }}
           />
           ×
@@ -99,9 +107,9 @@ export function DeckQuickAddOptions({
             onDestinationChange(value as DeckQuickAddRequest["destination"])
           }
         >
-          <AppSelectOption value="main">Main</AppSelectOption>
-          <AppSelectOption value="side">Side</AppSelectOption>
-          <AppSelectOption value="maybe">Maybe</AppSelectOption>
+          <AppSelectOption value="main">Main deck</AppSelectOption>
+          <AppSelectOption value="side">Sideboard</AppSelectOption>
+          <AppSelectOption value="maybe">Maybeboard</AppSelectOption>
         </AppSelect>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -116,7 +124,7 @@ export function DeckQuickAddOptions({
               {tags.length > 0 ? tags.length : `Tag`}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-44">
+          <DropdownMenuContent align="start" className="min-w-44">
             {availableTags.length > 0 ? (
               availableTags.map((tag) => (
                 <DropdownMenuCheckboxItem
@@ -137,11 +145,11 @@ export function DeckQuickAddOptions({
           variant="primary"
           type="button"
           size="sm"
-          className="touch:min-w-11 touch:min-h-11 min-h-7 shrink-0 gap-1 px-2"
+          className="h-auto min-h-7 min-w-0 max-w-full gap-1 whitespace-normal px-2 py-1 touch:min-h-11"
           onClick={onAdd}
         >
           <Plus className="h-3 w-3" />
-          Add {quantity}
+          Add {quantity} to {destinationLabel}
         </Button>
       </div>
     </div>

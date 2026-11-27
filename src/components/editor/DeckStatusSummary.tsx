@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, CircleDollarSign, LibraryBig, Wrench } from "lucide-react";
+import { AlertTriangle, ChevronDown, CircleDollarSign, LibraryBig, Wrench } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +13,7 @@ interface DeckStatusSummaryProps {
   unsupportedCards: number;
   collectionGaps: number;
   budgetTracked: boolean;
-  onNavigate: (target: "validation" | "collection" | "budget") => void;
+  onNavigate: (target: "validation" | "unsupported" | "collection" | "budget") => void;
 }
 export function DeckStatusSummary({
   legalityErrors,
@@ -22,24 +22,11 @@ export function DeckStatusSummary({
   budgetTracked,
   onNavigate,
 }: DeckStatusSummaryProps) {
-  const issueCount = legalityErrors + unsupportedCards;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={cn(
-            "min-h-7 h-auto touch:min-h-11 touch:min-w-11 shrink-0 gap-1.5 whitespace-normal text-ui-label",
-            issueCount > 0 ? "text-warning" : "text-legality-legal",
-          )}
-        >
-          {issueCount > 0 ? (
-            <AlertTriangle className="h-3.5 w-3.5" />
-          ) : (
-            <CheckCircle2 className="h-3.5 w-3.5" />
-          )}
-          {issueCount > 0 ? `${issueCount} to review` : `Deck healthy`}
+        <Button variant="ghost" size="sm" className="shrink-0 text-muted-foreground">
+          Deck checks <ChevronDown className="size-3" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 max-w-[calc(100vw-2rem)]">
@@ -53,9 +40,9 @@ export function DeckStatusSummary({
         <StatusItem
           icon={<Wrench className="h-3.5 w-3.5" />}
           label={`Engine support`}
-          value={unsupportedCards > 0 ? `${unsupportedCards} unsupported` : "Supported"}
+          value={unsupportedCards > 0 ? `${unsupportedCards} unsupported` : "None flagged"}
           warning={unsupportedCards > 0}
-          onSelect={() => onNavigate("validation")}
+          onSelect={() => onNavigate(unsupportedCards > 0 ? "unsupported" : "validation")}
         />
         <StatusItem
           icon={<LibraryBig className="h-3.5 w-3.5" />}

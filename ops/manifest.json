@@ -17,7 +17,7 @@
     "manabrew-hub": "0.23.5",
     "manabrew-lan-discovery": "0.2.1",
     "manabrew-protocol": "6.5.3",
-    "manabrew-relay-protocol": "6.7.0",
+    "manabrew-relay-protocol": "7.0.0",
     "manabrew-server": "0.49.1",
     "manabrew_game_runtime": "0.4.22",
     "parity": "0.8.0",

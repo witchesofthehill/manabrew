@@ -38,7 +38,9 @@ Sending `{ type: "pay", auto }` will let the engine auto-tap resources to match 
 
 Sending `{ type: "pay" }` when the remaining cost is 0 will confirm the payment. 
 
-Sending `{ type: "cancel" }` will abort the payment, and with it, the cast or activation.
+Send `{ type: "cancel" }` only when `cancellable` is `true`. It aborts the payment
+and the associated cast or activation. Otherwise the engine rejects it with
+`cancelNotAllowed` and leaves the payment pending.
 
 ## Example
 
@@ -52,6 +54,8 @@ Sending `{ type: "cancel" }` will abort the payment, and with it, the cast or ac
     "cardName": "Cryptic Command",
     "manaCost": "{1}{U}{U}{U}",
     "canConfirmFromPool": false,
+    "cancellable": true,
+    "presentation": { "title": "Pay mana" },
     "actions": [
       {
         "id": "tap:perm-9:0",

@@ -40,13 +40,17 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
       {editing ? (
         <Input
           autoFocus
+          data-deck-tag-rename
           value={name}
           className="touch:min-h-11 min-h-8 flex-1"
           onChange={(event) => setName(event.target.value)}
           onBlur={finishRename}
           onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing) return;
             if (event.key === "Enter") event.currentTarget.blur();
             if (event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
               setName(tag);
               setEditing(false);
             }
@@ -104,7 +108,19 @@ export function DeckTagManagerDialog({
   const tags = storedTags ?? EMPTY_TAGS;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent
+        className="max-w-md"
+        onEscapeKeyDown={(event) => {
+          if (
+            event.isComposing ||
+            event.repeat ||
+            (event.target instanceof HTMLElement &&
+              event.target.hasAttribute("data-deck-tag-rename"))
+          ) {
+            event.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Manage deck tags</DialogTitle>
           <DialogDescription>

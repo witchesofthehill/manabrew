@@ -2032,9 +2032,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         // (mirrors InputPayManaOfCostPayment's constructor).
         boolean mandatory = false;
         if (sa.getPayCosts() != null && sa.getPayCosts().isMandatory()) {
-            final List<Mana> refund = new ArrayList<>();
-            mandatory = pool.payManaCostFromPool(new ManaCostBeingPaid(unpaid), sa, true, refund);
-            pool.refundMana(refund);
+            mandatory = poolCanCover(pool, unpaid, sa);
         }
         int guard = 0;
         while (guard++ < 512) {
@@ -2147,7 +2145,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     if (!canConfirm) {
                         break;
                     }
-                    pool.payManaCostFromPool(unpaid, sa, false, sa.getPayingMana());
+                    AutoPay.payManaCostFromPool(pool, unpaid, sa, false, sa.getPayingMana());
                     if (unpaid.isPaid()) {
                         sa.getPayingManaAbilities().addAll(sessionManaAbilities);
                         return true;
@@ -2173,7 +2171,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     private boolean poolCanCover(final ManaPool pool, final ManaCostBeingPaid unpaid, final SpellAbility sa) {
         final ManaCostBeingPaid probe = new ManaCostBeingPaid(unpaid.toManaCost());
         final List<Mana> spent = new ArrayList<>();
-        final boolean paid = pool.payManaCostFromPool(probe, sa, true, spent);
+        final boolean paid = AutoPay.payManaCostFromPool(pool, probe, sa, true, spent);
         if (!paid) {
             pool.refundMana(spent);
         }

@@ -35,6 +35,8 @@ RPCs read immutable seat views published on the game thread before prompts, revi
 
 ### The action-space payability probe
 
+`AutoPay.payManaCostFromPool` repeats Forge's pool-payment pass while it consumes mana. Paying a `{2/color}` shard with off-color mana adds a generic shard that Forge's initial shard list does not visit. Use the helper for both confirmation probes and payment, including auto-tap's floating-pool check. Successful test payments already refund the accumulated spent list; failed probes must refund it once.
+
 Forge does **no** mana-payability prediction for humans: `Card.getAllPossibleAbilities` filters on `sa.canPlay(true)`, `CostPartMana.canPay()` is permissive, and the GUI simply offers unaffordable actions and lets the mana input be cancelled. The harness needs a real action space for the protocol, so it predicts — but `ComputerUtilMana` lives in **forge-ai** and is conservative by construction, which is where every divergence comes from.
 
 `ActionSpace.probeManaCost` is a mirror of `ComputerUtilMana.calculateManaCost` in test mode minus one line: `sa.setMaxWaterbend(null)`, which the core applies whenever `payer.getController().isAI()` is false to stop native Forge prompting a human mid-prediction. Neither harness controller overrides `isAI()`, and the core guard cannot see `probingPayability`, which already makes every chooser answer silently. Zeroing it makes the following `CostAdjustment.adjust(manaCost, …, test=true, …)` skip `adjustCostByWaterbend` entirely, so a cost payable by tapping artifacts and creatures tests as unpayable and the action never reaches the client. Keeping the value lets that single pass account for waterbend, convoke, improvise, delve, offering and emerge at once.

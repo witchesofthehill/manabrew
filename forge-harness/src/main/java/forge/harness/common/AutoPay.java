@@ -57,7 +57,7 @@ public final class AutoPay {
         final List<Mana> manaSpentToPay = saBeingPaid.getPayingMana();
         final List<String> steps = new ArrayList<>();
 
-        if (pool.payManaCostFromPool(unpaid, saBeingPaid, false, manaSpentToPay)) {
+        if (payManaCostFromPool(pool, unpaid, saBeingPaid, false, manaSpentToPay)) {
             CostPayment.handleOfferings(saBeingPaid, false, true);
             steps.add("Pay");
             return new PayManaCostResult(true, steps);
@@ -85,7 +85,7 @@ public final class AutoPay {
             payer.getGame().getStack().addAndUnfreeze(chosen.spellAbility);
 
             pool.payManaFromAbility(saBeingPaid, unpaid, chosen.spellAbility);
-            pool.payManaCostFromPool(unpaid, saBeingPaid, false, manaSpentToPay);
+            payManaCostFromPool(pool, unpaid, saBeingPaid, false, manaSpentToPay);
         }
 
         if (!unpaid.isPaid()) {
@@ -137,6 +137,19 @@ public final class AutoPay {
         return payManaCostWithTrace(toPay, saBeingPaid, effect).paid;
     }
 
+    public static boolean payManaCostFromPool(
+            final ManaPool pool, final ManaCostBeingPaid unpaid, final SpellAbility sa,
+            final boolean test, final List<Mana> spent) {
+        int previousSpent;
+        do {
+            previousSpent = spent.size();
+            if (pool.payManaCostFromPool(unpaid, sa, test, spent)) {
+                return true;
+            }
+        } while (spent.size() > previousSpent);
+        return false;
+    }
+
     public void floatManaForCost(
             final ManaCost toPay, final SpellAbility saBeingPaid, final boolean effect,
             final List<SpellAbility> activated) {
@@ -147,7 +160,7 @@ public final class AutoPay {
         while (guard++ < 128) {
             final ManaCostBeingPaid unpaid = new ManaCostBeingPaid(toPay);
             final List<Mana> probe = new ArrayList<>();
-            if (pool.payManaCostFromPool(unpaid, saBeingPaid, true, probe)) {
+            if (payManaCostFromPool(pool, unpaid, saBeingPaid, true, probe)) {
                 break;
             }
             pool.refundMana(probe);

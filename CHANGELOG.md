@@ -1,5 +1,25 @@
 # Changelog
 
+## [3.96.4](https://github.com/witchesofthehill/manabrew/compare/v3.96.3...v3.96.4) (2026-11-26)
+
+### Fixes
+
+* **ironsmith:** update ironsmith-wasm to 1.0.4 ([#1301](https://github.com/witchesofthehill/manabrew/issues/1301)) ([9243dfd](https://github.com/witchesofthehill/manabrew/commit/9243dfdc4b2fff7bc113dd76c91fa44b6252e8b3))
+
+## [3.96.3](https://github.com/witchesofthehill/manabrew/compare/v3.96.2...v3.96.3) (2026-11-26)
+
+### Fixes
+
+* **ironsmith:** stop Commander games freezing, start seats together, stop the guest hand blinking ([#1300](https://github.com/witchesofthehill/manabrew/issues/1300)) ([6eb573a](https://github.com/witchesofthehill/manabrew/commit/6eb573accc2db0ddfe322e868aaa68f9b5ff91ff))
+
+## [3.96.2](https://github.com/witchesofthehill/manabrew/compare/v3.96.1...v3.96.2) (2026-11-25)
+
+### Fixes
+
+* **telemetry:** file offline games that are left or force-ended ([#1288](https://github.com/witchesofthehill/manabrew/issues/1288)) ([9e338a9](https://github.com/witchesofthehill/manabrew/commit/9e338a9be2a11a49443cfe60a35afec4015ad850))
+
+## [3.96.1](https://github.com/witchesofthehill/manabrew/compare/v3.96.0...v3.96.1) (2026-11-25)
+
 ## [3.96.0](https://github.com/witchesofthehill/manabrew/compare/v3.95.0...v3.96.0) (2026-11-25)
 
 ### Features

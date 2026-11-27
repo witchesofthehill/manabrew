@@ -166,6 +166,8 @@ One Escape press performs one eligible action after focused controls have handle
 
 Global Escape handlers register through `src/lib/escapeKey.ts`, using the existing modal stack for scope. `Modal` owns dialog dismissal and its exit transition; `Modal.CloseShortcut` retains remappable closing shortcuts. Previews retain the configurable `preview-dismiss` shortcut as well as Escape. Hidden and closing previews yield ownership.
 
+Pixi board preview shortcuts yield to focused text controls and active virtual text inputs.
+
 Escape uses an active engine-supported Cancel action for cancellable targeting and mana payment. Hiding an engine modal is not cancellation: its pending decision and reopen control remain intact. Required choices, including sacrifice, must not submit an invented cancellation response.
 
 Browser fullscreen controls share `useBrowserFullscreen`. After entering fullscreen, supported web browsers are asked to lock only Escape. Unsupported or denied keyboard locking leaves ordinary browser fullscreen behavior intact; never force re-entry. The fullscreen toggle remains an explicit exit path. Native fullscreen and companion focus mode are separate.

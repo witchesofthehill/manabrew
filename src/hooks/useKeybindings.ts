@@ -5,15 +5,10 @@ import {
   comboFromEvent,
   combosMatch,
   hasActiveVirtualTextInput,
+  isEditableTarget,
 } from "@/lib/keybindings";
 import { topModal } from "@/lib/modalStack";
 import { registerEscapeHandler } from "@/lib/escapeKey";
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
-}
 
 const NATIVE_CONTROL_KEYS: Record<string, true> = {
   " ": true,

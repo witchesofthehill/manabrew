@@ -107,6 +107,8 @@ Use `Modal.Close` for buttons and `Modal.CloseShortcut` for remappable keybindin
 
 Keep app-wide mute and volume controls in the cog menu's separate `SoundSettingsModal`, using the shared `SoundControls`. `GameSettingsModal` owns board and prompt preferences, not audio.
 
+`lib/escapeKey.ts` arbitrates Escape across previews, DOM modals, Pixi prompts and editor selection after local controls. Follow the Escape ownership contract in `docs/STYLE_GUIDELINES.md`; register global dismissal there rather than adding independent window listeners.
+
 The Modal backdrop follows root `--visual-viewport-*` bounds and safe-area padding. Its body and, under extreme height constraints, the enclosing header/footer column scroll. Keep primary actions reachable without scaling labels. React controls use semantic UI text roles; Pixi keeps its authored desktop sizes and applies `getUiFontFloor` and `getUiControlFloor` as touch-only minimums, with measured geometry and inverse parent-scale compensation for card-attached controls. Card printing remains proportional.
 
 Embedded rules cards receive their stable layout scale through `CardSprite.setHandRulesScale`; it includes ancestor scale before the inner preview transform. Update it with layout targets, not raster polling or animated hand interpolation: changing it rebuilds rules-action geometry. Native card fitting is unchanged.

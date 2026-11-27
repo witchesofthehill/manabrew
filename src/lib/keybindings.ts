@@ -25,6 +25,12 @@ export function hasActiveVirtualTextInput(): boolean {
   return virtualTextInputOwners.size > 0;
 }
 
+export function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
+}
+
 function defineKeybindings<const T extends readonly KeybindingDef[]>(
   definitions: T,
 ): readonly (T[number] & KeybindingDef)[] {

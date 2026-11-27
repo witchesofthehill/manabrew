@@ -113,6 +113,7 @@ export interface PromptActionSpec {
     description?: string;
     manaPool: Record<string, number>;
     canConfirmFromPool: boolean;
+    cancellable: boolean;
     delveCount?: number;
     delveAvailable?: boolean;
     onOpenDelve?: () => void;

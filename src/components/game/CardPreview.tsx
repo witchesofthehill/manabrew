@@ -1,6 +1,7 @@
 import { CardFoilOverlay } from "@/components/game/CardFoilOverlay";
 import { isEtchedOnlyPrinting } from "@/lib/cardFinish";
 import { topModal } from "@/lib/modalStack";
+import { registerEscapeHandler } from "@/lib/escapeKey";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Loader2, RotateCw } from "lucide-react";
 import type { CardDto } from "@/protocol/game";
@@ -361,24 +362,28 @@ export function CardPreview({
     phase === "open" && !suppressed
       ? {
           ...(onFlip && hasFlippableFaces ? { "flip-card": () => onFlip() } : {}),
+          ...(onDismiss ? { "preview-dismiss": onDismiss } : {}),
           ...(!onToggleView ? { "toggle-card-view": toggleView } : {}),
         }
       : {},
     portalTarget ? rootRef : undefined,
   );
   useEffect(() => {
+    if (!onDismiss || phase !== "open" || suppressed) return;
+    return registerEscapeHandler({
+      priority: "preview",
+      scope: () => portalTarget,
+      handle: () => {
+        onDismiss();
+        return true;
+      },
+    });
+  }, [onDismiss, phase, portalTarget, suppressed]);
+  useEffect(() => {
     if (!onDismiss) return;
     function handleKey(e: KeyboardEvent) {
       const modal = topModal();
       if (e.defaultPrevented || e.isComposing || (modal && modal !== portalTarget)) return;
-      if (e.key === "Escape") {
-        if (modal) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-        }
-        onDismiss!();
-        return;
-      }
       if (!hasActions) return;
       const num = parseInt(e.key);
       const action = actions?.find(

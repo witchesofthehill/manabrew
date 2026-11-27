@@ -188,6 +188,7 @@ fn main() {
             card_name: String::new(),
             mana_cost: String::new(),
             can_confirm_from_pool: false,
+            cancellable: true,
             actions: vec![],
         }),
         ChooseBoolean(choose_boolean::ChooseBooleanInput {

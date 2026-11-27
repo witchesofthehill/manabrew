@@ -1,8 +1,9 @@
 // @refresh reset
 import { topModal } from "@/lib/modalStack";
+import { registerEscapeHandler } from "@/lib/escapeKey";
 import type { PreviewFlipOptions } from "@/lib/cardPreview";
 import { CARD_PREVIEW_EVENT_HANDLERS, isCardPreviewTarget } from "@/lib/cardPreviewEvents";
-import { hasActiveVirtualTextInput } from "@/lib/keybindings";
+import { hasActiveVirtualTextInput, isEditableTarget } from "@/lib/keybindings";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Application, Graphics } from "pixi.js";
@@ -1037,6 +1038,24 @@ export function BoardOverlayCanvasSurface({
   const hoveredStackCard = stackSpec?.cards.find((card) => card.id === hoveredStackObjectId);
   const rulesPreviewOpen = previewSpec?.phase === "open" && !previewSpec.suppressed;
   const commandPreviewOpen = commandPreviewSpec?.phase === "open" && !commandPreviewSpec.suppressed;
+  useEffect(() => {
+    if (!rulesPreviewOpen && !commandPreviewOpen) return;
+    return registerEscapeHandler({
+      priority: "preview",
+      scope: () => canvasRef.current,
+      handle: (event) => {
+        if (
+          hasActiveVirtualTextInput() ||
+          isEditableTarget(event.target) ||
+          promptRef.current?.blocksBoard ||
+          !cbRef.current.onDismissPreview
+        )
+          return false;
+        cbRef.current.onDismissPreview();
+        return true;
+      },
+    });
+  }, [rulesPreviewOpen, commandPreviewOpen]);
   const rulesKeyboardTarget = useCallback(() => {
     if (promptRef.current?.blocksBoard) return null;
     const currentPreview = previewSpecRef.current;
@@ -1114,19 +1133,10 @@ export function BoardOverlayCanvasSurface({
         hasActiveVirtualTextInput()
       )
         return;
+      if (isEditableTarget(event.target)) return;
       const preview = rulesKeyboardTarget();
       if (!preview) return;
       if (event.altKey || event.ctrlKey || event.metaKey) return;
-      const target = event.target;
-      if (
-        target instanceof HTMLElement &&
-        (target.isContentEditable ||
-          target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "SELECT")
-      ) {
-        return;
-      }
       const shortcut = Number.parseInt(event.key, 10);
       if (shortcut < 1 || shortcut > 9) return;
       if (preview.activateShortcut(shortcut)) {

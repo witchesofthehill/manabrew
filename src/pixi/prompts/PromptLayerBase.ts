@@ -394,6 +394,7 @@ function samePayManaInfo(
     left.description === right.description &&
     sameRecord(left.manaPool, right.manaPool) &&
     left.canConfirmFromPool === right.canConfirmFromPool &&
+    left.cancellable === right.cancellable &&
     left.delveCount === right.delveCount &&
     left.delveAvailable === right.delveAvailable &&
     !!left.onOpenDelve === !!right.onOpenDelve &&

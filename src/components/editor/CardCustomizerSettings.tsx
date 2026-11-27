@@ -78,8 +78,8 @@ export function CardCustomizerSettings({
       )}
       {tokenSupported && token && (
         <p className="text-ui-body text-muted-foreground">
-          Token appearance is supported by Forge, the Rust engine, and manual games. Ironsmith
-          cannot yet match these token definitions.
+          Token appearance is supported by Forge and manual games. Ironsmith cannot yet match these
+          token definitions.
         </p>
       )}
       {children}

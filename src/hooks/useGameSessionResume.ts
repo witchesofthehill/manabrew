@@ -29,9 +29,10 @@ export function useGameSessionResume() {
   const gameRoomId = useServerStore((s) => s.gameRoomId);
   const session = activeGameSessionAtPageLoad();
   const limitedMatchReturn = useMultiplayerLimitedStore((state) => state.matchReturn);
-  const recoveringLimitedHost = Boolean(
-    session?.isHost && limitedMatchReturn?.roomId === session.roomId,
-  );
+  const limitedRoomEngine = useMultiplayerLimitedStore((state) => state.originalRoom?.engine);
+  const hasLimitedReturn = session != null && limitedMatchReturn?.roomId === session.roomId;
+  const recoveringLegacyLimited = hasLimitedReturn && limitedRoomEngine === "Manabrew";
+  const recoveringLimitedMatch = recoveringLegacyLimited || (hasLimitedReturn && session.isHost);
   const settled = useRef(false);
   const resyncRequested = useRef(false);
   const respawnedBots = useRef(new Set<string>());
@@ -40,7 +41,7 @@ export function useGameSessionResume() {
     rlog("mount: session marker =", session);
   }, [session]);
   useEffect(() => {
-    if (!session || recoveringLimitedHost || !isActiveGameSessionAtPageLoadCurrent()) return;
+    if (!session || recoveringLimitedMatch || !isActiveGameSessionAtPageLoadCurrent()) return;
     let cancelled = false;
     void (async () => {
       if (getPlatform().type === "tauri" && (session.ownsForgeHost || session.relayHost)) {
@@ -98,7 +99,7 @@ export function useGameSessionResume() {
     return () => {
       cancelled = true;
     };
-  }, [session, navigate, recoveringLimitedHost]);
+  }, [session, navigate, recoveringLimitedMatch]);
   useEffect(() => {
     if (!session) return;
     rlog(
@@ -120,7 +121,7 @@ export function useGameSessionResume() {
     }
   }, [session, connected, currentRoom, gameStarted]);
   useEffect(() => {
-    if (!session || recoveringLimitedHost || settled.current || !connected || !currentRoom) return;
+    if (!session || recoveringLimitedMatch || settled.current || !connected || !currentRoom) return;
     if (isActiveGameSessionAbandonmentPending()) return;
     if (!isActiveGameSessionAtPageLoadCurrent()) return;
     if (useGameStore.getState().isGameActive) return;
@@ -152,9 +153,9 @@ export function useGameSessionResume() {
     rlog(`resync-effect: reseated as '${me}', requesting resync`);
     resyncRequested.current = true;
     void getPlatform().server?.requestResync();
-  }, [session, connected, currentRoom, username, navigate, recoveringLimitedHost]);
+  }, [session, connected, currentRoom, username, navigate, recoveringLimitedMatch]);
   useEffect(() => {
-    if (!session) return;
+    if (!session || recoveringLegacyLimited) return;
     if (isActiveGameSessionAbandonmentPending()) return;
     if (!isActiveGameSessionAtPageLoadCurrent()) return;
     if (!connected || !currentRoom || currentRoom.status !== "InGame") return;
@@ -179,9 +180,9 @@ export function useGameSessionResume() {
         console.warn(`[resume] failed to respawn bot '${bot.username}':`, error);
       });
     }
-  }, [session, connected, currentRoom, username]);
+  }, [session, connected, currentRoom, username, recoveringLegacyLimited]);
   useEffect(() => {
-    if (!session || settled.current || !gameStarted) return;
+    if (!session || recoveringLegacyLimited || settled.current || !gameStarted) return;
     if (isActiveGameSessionAbandonmentPending()) return;
     if (!isActiveGameSessionAtPageLoadCurrent()) return;
     if (gameRoomId !== session.roomId) return;
@@ -212,9 +213,9 @@ export function useGameSessionResume() {
     }
     rlog("gameStarted-effect: navigating to /play");
     navigate("/play", { state: launch.state });
-  }, [session, gameStarted, gameRoomId, currentRoom, navigate]);
+  }, [session, gameStarted, gameRoomId, currentRoom, navigate, recoveringLegacyLimited]);
   useEffect(() => {
-    if (!session || recoveringLimitedHost || settled.current || !connected) return;
+    if (!session || recoveringLimitedMatch || settled.current || !connected) return;
     if (isActiveGameSessionAbandonmentPending()) return;
     if (!isActiveGameSessionAtPageLoadCurrent()) return;
     rlog(`fallback-timer: armed, will check in ${NO_GAME_FOUND_AFTER_MS}ms`);
@@ -245,5 +246,5 @@ export function useGameSessionResume() {
       navigate("/lobby", { replace: true });
     }, NO_GAME_FOUND_AFTER_MS);
     return () => clearTimeout(timer);
-  }, [session, connected, navigate, recoveringLimitedHost]);
+  }, [session, connected, navigate, recoveringLimitedMatch]);
 }

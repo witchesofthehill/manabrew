@@ -216,6 +216,8 @@ pub fn resume_room_sync(
             let restored_players = resumed_slots(&spec, player_id, &username, Some(&room))?;
             room.players = restored_players;
             room.status = RoomStatus::InGame;
+            room.game_started = true;
+            room.table_bracket = None;
             room.replay = Some(GameReplayCache::new(
                 spec.game_id.clone(),
                 spec.player_order.clone(),
@@ -303,6 +305,7 @@ pub fn resume_room_sync(
     room.allow_spectators = spec.allow_spectators.unwrap_or(false);
     room.resume_token = spec.resume_token;
     room.status = RoomStatus::InGame;
+    room.game_started = true;
     room.players = restored_players;
     room.replay = Some(GameReplayCache::new(
         spec.game_id,
@@ -868,6 +871,8 @@ fn launch_game(room: &mut Room) -> StartedGame {
     let player_decks = room.player_decks();
     let game_id = uuid::Uuid::new_v4().to_string();
     room.status = RoomStatus::InGame;
+    room.game_started = true;
+    room.table_bracket = None;
     room.rematch = None;
     room.humanless_since = None;
     room.replay = Some(GameReplayCache::new(

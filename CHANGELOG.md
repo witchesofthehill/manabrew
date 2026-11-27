@@ -1,5 +1,49 @@
 # Changelog
 
+## [3.96.5](https://github.com/witchesofthehill/manabrew/compare/v3.96.4...v3.96.5) (2026-11-26)
+
+### Fixes
+
+* **forge:** finish hybrid mana payments from the pool ([#1302](https://github.com/witchesofthehill/manabrew/issues/1302)) ([88068ee](https://github.com/witchesofthehill/manabrew/commit/88068eed68072d3c8fc5138cee3fc49db7153764))
+
+## [3.96.4](https://github.com/witchesofthehill/manabrew/compare/v3.96.3...v3.96.4) (2026-11-26)
+
+### Fixes
+
+* **ironsmith:** update ironsmith-wasm to 1.0.4 ([#1301](https://github.com/witchesofthehill/manabrew/issues/1301)) ([9243dfd](https://github.com/witchesofthehill/manabrew/commit/9243dfdc4b2fff7bc113dd76c91fa44b6252e8b3))
+
+## [3.96.3](https://github.com/witchesofthehill/manabrew/compare/v3.96.2...v3.96.3) (2026-11-26)
+
+### Fixes
+
+* **ironsmith:** stop Commander games freezing, start seats together, stop the guest hand blinking ([#1300](https://github.com/witchesofthehill/manabrew/issues/1300)) ([6eb573a](https://github.com/witchesofthehill/manabrew/commit/6eb573accc2db0ddfe322e868aaa68f9b5ff91ff))
+
+## [3.96.2](https://github.com/witchesofthehill/manabrew/compare/v3.96.1...v3.96.2) (2026-11-25)
+
+### Fixes
+
+* **telemetry:** file offline games that are left or force-ended ([#1288](https://github.com/witchesofthehill/manabrew/issues/1288)) ([9e338a9](https://github.com/witchesofthehill/manabrew/commit/9e338a9be2a11a49443cfe60a35afec4015ad850))
+
+## [3.96.1](https://github.com/witchesofthehill/manabrew/compare/v3.96.0...v3.96.1) (2026-11-25)
+
+## [3.96.0](https://github.com/witchesofthehill/manabrew/compare/v3.95.0...v3.96.0) (2026-11-25)
+
+### Features
+
+* **matchmaking:** group Find a game decks by bracket ([#1287](https://github.com/witchesofthehill/manabrew/issues/1287)) ([ad8c052](https://github.com/witchesofthehill/manabrew/commit/ad8c052712c7709275b44d0960c89e78ee3cf461))
+
+## [3.95.0](https://github.com/witchesofthehill/manabrew/compare/v3.94.0...v3.95.0) (2026-11-25)
+
+### Features
+
+* **matchmaking:** choose Manabot fill before searching ([#1284](https://github.com/witchesofthehill/manabrew/issues/1284)) ([73781b5](https://github.com/witchesofthehill/manabrew/commit/73781b5d064d8e66022cf20c84803978dda58dd5))
+
+## [3.94.0](https://github.com/witchesofthehill/manabrew/compare/v3.93.0...v3.94.0) (2026-11-25)
+
+### Features
+
+* **ui:** retire manabrew engine gameplay ([#1276](https://github.com/witchesofthehill/manabrew/issues/1276)) ([1b12fa0](https://github.com/witchesofthehill/manabrew/commit/1b12fa006f65d20e19aee7da25d8ab344a907925))
+
 ## [3.93.0](https://github.com/witchesofthehill/manabrew/compare/v3.92.1...v3.93.0) (2026-11-24)
 
 ### Features

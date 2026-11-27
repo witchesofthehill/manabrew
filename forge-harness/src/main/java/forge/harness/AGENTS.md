@@ -1,8 +1,6 @@
 # forge-harness — package boundaries
 
-> **Parity is DEPRECATED and NOT FUNCTIONING.** Do not run `yarn parity`, the parity harness (`manabrew-rs/crates/parity`), the parity debugger, or `DeterministicController`. Do not limit or shape a change to keep parity behavior; ignore any instruction here that exists only to keep parity runs passing.
-
-Java side of the cross-engine work. One CLI entry, three internal packages with one-directional dependencies.
+The interactive Forge host is active. The `forge.harness.parity` package and `DeterministicController` belong to the deprecated Rust/Java comparison tools. Work on those only when explicitly asked; keep routine fixes on the interactive host path.
 
 ```
 forge.harness            Main            CLI launcher / dispatcher (one-shot, --server, --interactive-server)
@@ -36,6 +34,8 @@ RPCs read immutable seat views published on the game thread before prompts, revi
 `ComputerUtilMana.canPayManaCost` pays `{B/P}`-style pips greedily with real sources and never backtracks, so a cost like `{4}{B/P}{B/P}{B/P}` with 4 Swamps tests as unpayable even though paying the pips with life would work (issue #378). The interactive host passes `lifePaymentFallback=true` into `ActionSpace.getPossibleActions` and `HarnessPlayPlumbing`, which retries via `ActionSpace.canPayManaCostWithLifeFallback`: it searches every phyrexian / `PayLifeInsteadOf:B` shard state and re-runs Forge's mana check, excluding reserved sacrifices from the mana sources. `PayLifeInsteadOf:B` eligibility mirrors Forge's human input through `ManaCostBeingPaid.hasAnyKind`, so color-restricted X is not life-payable. Human legality never consults the AI-only `AIPhyrexianPayment` preference. `DeterministicController` passes `false` **on purpose**: the Rust engine's action space (`can_pay_spell_mana_cost_for_action_space`) has the same greedy no-backtracking behavior, and parity requires mirroring it. Widening the parity path without the matching `manabrew-engine` change breaks `yarn parity phyrexian_mana`. The `pay_mana_cost` prompt advertises the option as a `PaymentAction::PayLife` entry (set from the controller's `canPayLife`), answered by echoing its id through `PayManaCostOutput::Act`; each payment chooses a specific life-payable shard that preserves a valid remaining payment plan when possible.
 
 ### The action-space payability probe
+
+`AutoPay.payManaCostFromPool` repeats Forge's pool-payment pass while it consumes mana. Paying a `{2/color}` shard with off-color mana adds a generic shard that Forge's initial shard list does not visit. Use the helper for both confirmation probes and payment, including auto-tap's floating-pool check. Successful test payments already refund the accumulated spent list; failed probes must refund it once.
 
 Forge does **no** mana-payability prediction for humans: `Card.getAllPossibleAbilities` filters on `sa.canPlay(true)`, `CostPartMana.canPay()` is permissive, and the GUI simply offers unaffordable actions and lets the mana input be cancelled. The harness needs a real action space for the protocol, so it predicts — but `ComputerUtilMana` lives in **forge-ai** and is conservative by construction, which is where every divergence comes from.
 

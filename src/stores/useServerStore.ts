@@ -32,6 +32,7 @@ import { stripUsernameTag } from "@/lib/username";
 import {
   CHAT_ERROR_CODES,
   DUPLICATE_USERNAME_ERROR_FRAGMENT,
+  MANABREW_ENGINE_UNAVAILABLE,
   SERVER_ERROR_CODE,
   USER_FACING_ERROR_MESSAGES,
 } from "@/types/server";
@@ -40,8 +41,6 @@ import type {
   PlayerInfo,
   GameFormat,
   EngineKind,
-  DraftConfig,
-  SealedConfig,
   PlayerDeckInfo,
   AuthResultPayload,
   RoomListPayload,
@@ -113,9 +112,7 @@ interface ServerState {
     roomName: string,
     maxPlayers: number,
     format: GameFormat,
-    engine?: EngineKind,
-    draftConfig?: DraftConfig,
-    sealedConfig?: SealedConfig,
+    engine: Exclude<EngineKind, "Manabrew">,
     reconnectTimeoutS?: number,
     password?: string,
     tableStyle?: BoardBackgroundId,
@@ -373,8 +370,6 @@ export const useServerStore = create<ServerState>()(
         maxPlayers,
         format,
         engine,
-        draftConfig,
-        sealedConfig,
         reconnectTimeoutS,
         password,
         tableStyle,
@@ -389,8 +384,6 @@ export const useServerStore = create<ServerState>()(
           maxPlayers,
           format,
           engine,
-          draftConfig,
-          sealedConfig,
           reconnectTimeoutS,
           password,
           tableStyle,
@@ -589,6 +582,9 @@ export const useServerStore = create<ServerState>()(
         await platform.server.setMaxPlayers({ maxPlayers });
       },
       async startGame(format) {
+        if (get().currentRoom?.engine === "Manabrew") {
+          throw new Error(MANABREW_ENGINE_UNAVAILABLE);
+        }
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.startGame(format ? { format } : undefined);

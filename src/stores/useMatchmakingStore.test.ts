@@ -74,6 +74,21 @@ beforeEach(async () => {
 });
 
 describe("Commander matchmaking lifecycle", () => {
+  it("allows Manabot fill right after queueing when the player chose it", async () => {
+    fixture.prepare.mockResolvedValueOnce([deck("A")]);
+    await useMatchmakingStore.getState().enter([4, 3], [deck("A").deck], true);
+    expect(fixture.server.enterQueue).toHaveBeenCalledOnce();
+    expect(fixture.server.acceptBotFill).toHaveBeenCalledOnce();
+    expect(fixture.server.enterQueue.mock.invocationCallOrder[0]).toBeLessThan(
+      fixture.server.acceptBotFill.mock.invocationCallOrder[0],
+    );
+    expect(useMatchmakingStore.getState().botFill).toBe(true);
+  });
+  it("does not allow Manabot fill unless the player chose it", async () => {
+    await enter();
+    expect(fixture.server.acceptBotFill).not.toHaveBeenCalled();
+    expect(useMatchmakingStore.getState().botFill).toBe(false);
+  });
   it("plays the match-found sound when a match is ready during solo play", async () => {
     fixture.busy = true;
     await enter();

@@ -2813,6 +2813,8 @@ fn handle_client_message(
             };
             let info = state.rooms.get_mut(&room_id).and_then(|mut room| {
                 let eligible = room.is_controller(player_id)
+                    && room.hosted
+                    && room.official
                     && room.password.is_none()
                     && room.draft_config.is_none()
                     && room.sealed_config.is_none()

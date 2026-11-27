@@ -1,3 +1,4 @@
+import { MANABREW_ENGINE_UNAVAILABLE } from "@/types/server";
 import type { EngineKind, GameFormat, PlayerDeckInfo, RoomInfo } from "@/types/server";
 
 // Router state survives page reloads, but a game launch must not: the engine
@@ -43,9 +44,13 @@ export function buildEngineGameRouteState(
   playerDecks: PlayerDeckInfo[],
   startingLife: number,
 ): { state: EngineGameRouteState; error?: never } | { state?: never; error: string } {
+  if (!room) return { error: "Could not find the room for this game." };
+  if (room.engine === "Manabrew") {
+    return { error: MANABREW_ENGINE_UNAVAILABLE };
+  }
+  const isSeated = room.players.some((player) => player.username === username);
   if (
-    room &&
-    room.players.some((player) => player.username === username) &&
+    isSeated &&
     !samePlayers(
       playerOrder,
       room.players.map((player) => player.username),
@@ -54,18 +59,12 @@ export function buildEngineGameRouteState(
     return { error: "Server player order does not match the current room." };
   }
   const myIndex = playerOrder.indexOf(username ?? "");
-  const spectator =
-    room != null &&
-    room.host !== username &&
-    !room.players.some((player) => player.username === username);
-  if (
-    !spectator &&
-    (myIndex < 0 || (room && !room.players.some((player) => player.username === username)))
-  ) {
+  const spectator = room.host !== username && !isSeated;
+  if (!spectator && (myIndex < 0 || !isSeated)) {
     return { error: "Could not determine your player slot for this game." };
   }
-  const hostIndex = room ? playerOrder.indexOf(room.host) : -1;
-  const botNames = new Set(room?.players.filter((player) => player.is_bot).map((p) => p.username));
+  const hostIndex = playerOrder.indexOf(room.host);
+  const botNames = new Set(room.players.filter((player) => player.is_bot).map((p) => p.username));
   const botPlayerSlots = playerOrder.flatMap((playerName, index) =>
     botNames.has(playerName) ? [`player-${index}`] : [],
   );
@@ -76,11 +75,11 @@ export function buildEngineGameRouteState(
       bootId: PAGE_LOAD_ID,
       playerOrder,
       playerDecks,
-      isHost: room?.host === username,
+      isHost: room.host === username,
       startingLife,
       myPlayerSlot: spectator ? "spectator" : `player-${myIndex}`,
-      engine: room?.engine ?? "Manabrew",
-      format: room?.format ?? "Standard",
+      engine: room.engine,
+      format: room.format,
       hostPlayerSlot: hostIndex >= 0 ? `player-${hostIndex}` : null,
       botPlayerSlots,
     },

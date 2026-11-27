@@ -26,7 +26,6 @@ import { disposeDraftClock, syncDraftClocks, publishDraftClocks } from "@/game/l
 import { resolveSealedPool } from "@/lib/limited.utils";
 import { restoreGauntletProgress } from "@/lib/gauntletReturn";
 import { useGameStore } from "@/stores/useGameStore";
-import { clearActiveGameSession } from "@/lib/activeGameSession";
 import type { DraftState, WinstonState, SealedPool, GauntletState } from "@/types/limited";
 import type { MultiplayerLimitedState } from "@/stores/useMultiplayerLimitedStore";
 import type { MultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
@@ -304,10 +303,10 @@ export async function resumeLimitedSession(sessionId: string): Promise<LimitedSa
     if (
       marker.host === server.username ||
       server.currentRoom?.room_id !== marker.roomId ||
+      server.currentRoom.engine === "Manabrew" ||
       server.currentRoom.status !== "InGame"
     ) {
       await recoverLimitedMatchReturn();
-      clearActiveGameSession();
     } else await getPlatform().server?.requestResync();
   }
   return restored;

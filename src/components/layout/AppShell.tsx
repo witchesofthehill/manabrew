@@ -25,6 +25,7 @@ import { useStatusBanner } from "@/hooks/useStatusBanner";
 import { useDesktopUpdater } from "@/hooks/useDesktopUpdater";
 import { useEngineHostCloseGuard } from "@/hooks/useEngineHostCloseGuard";
 import { useLocalDeckAccountSync } from "@/hooks/useLocalDeckAccountSync";
+import { useDeckBracketWarmup } from "@/hooks/useDeckBracketWarmup";
 import { useSoundPreferencesRuntime } from "@/hooks/useSoundPreferencesRuntime";
 import { ROUTES } from "@/lib/constants";
 import { flushPublishedDeckPlayReports } from "@/lib/deckPlayEvidence";
@@ -118,6 +119,7 @@ export function AppShell() {
   useDesktopUpdater();
   useEngineHostCloseGuard();
   useLocalDeckAccountSync();
+  useDeckBracketWarmup(!isGameActive);
   useSoundPreferencesRuntime();
 
   function goToAdjacentPage(delta: number) {

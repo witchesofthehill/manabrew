@@ -20,6 +20,13 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { prefetchPresetDecks, usePresetDecksStore } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
 import type { EngineKind } from "@/protocol";
+
+function unavailableDeckMessage(engines: EngineKind[] | undefined) {
+  return engines?.includes("Ironsmith")
+    ? "This deck needs Ironsmith. Start an Ironsmith table from Multiplayer."
+    : "This deck is not available for play on Forge.";
+}
+
 async function ensurePresets(engine: EngineKind): Promise<PresetDeck[]> {
   if (usePresetDecksStore.getState().decks.length === 0) {
     await prefetchPresetDecks();
@@ -259,9 +266,7 @@ export function useQuickPlay() {
         return;
       }
       if (!presetSupportsEngine(preset, resolveOfflineEngine())) {
-        toast.error(
-          `This deck is built for the ${preset.engines?.[0] ?? "Ironsmith"} engine — start a table with that engine from Multiplayer.`,
-        );
+        toast.error(unavailableDeckMessage(preset.engines));
         return;
       }
       if (isOfflinePodFormat(formatId)) {
@@ -301,9 +306,7 @@ export function useQuickPlay() {
         }
         const engine = resolveOfflineEngine();
         if (entry.engines?.length && !entry.engines.includes(engine)) {
-          toast.error(
-            `This deck is built for the ${entry.engines[0]} engine — start a table with that engine from Multiplayer.`,
-          );
+          toast.error(unavailableDeckMessage(entry.engines));
           return;
         }
         if (isOfflinePodFormat(formatId)) {

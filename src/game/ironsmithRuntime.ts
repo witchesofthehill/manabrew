@@ -117,6 +117,9 @@ type IronsmithPrivatePayload =
       more: boolean;
     }
   | { type: "entry"; entry: IronsmithTranscriptEntry }
+  // Host to seat, before the host starts its own engine: the decks of the match
+  // about to start. A seat compiles them while the host does, instead of after.
+  | { type: "prepare"; decks: Deck[] }
   // Host to seat, every HEAD_INTERVAL_MS: how long the host's transcript is and
   // the digest of its last entry. A seat that missed an entry notices here.
   | { type: "head"; seq: number; digest: string | null }
@@ -141,6 +144,12 @@ const SYNC_CHUNK_ENTRIES = 200;
 // load and is replaced when that seat comes back from a reload.
 export class IronsmithTrustedGameApi implements IGameApi {
   private game: IronsmithEngine | null = null;
+  // Seat only: an engine compiling the match's decks before the first sync.
+  private warm: IronsmithEngine | null = null;
+  // Host only: the decks of a match whose engine is still starting.
+  private preparing: Deck[] | null = null;
+  // The local seat's last drawn view, hidden cards included.
+  private localView: GameViewDto | null = null;
   private generation = 0;
   private isMultiplayer = false;
   private isHost = false;
@@ -272,6 +281,10 @@ export class IronsmithTrustedGameApi implements IGameApi {
     this.work = Promise.resolve();
     this.game?.dispose();
     this.game = null;
+    this.warm?.dispose();
+    this.warm = null;
+    this.preparing = null;
+    this.localView = null;
     this.botRecovery.clear();
     this.config = null;
     this.entries = [];
@@ -289,14 +302,36 @@ export class IronsmithTrustedGameApi implements IGameApi {
     this.headStrikes = 0;
   }
 
-  private createEngine(): IronsmithEngine {
-    const engine = new IronsmithEngine((error) => {
+  private spawnEngine(): IronsmithEngine {
+    const engine: IronsmithEngine = new IronsmithEngine((error) => {
+      if (this.warm === engine) this.warm = null;
       if (this.game !== engine) return;
       reportClientError(error, "engine-worker");
       getPlatform().events.emit("game:fatal", { message: error.message });
     });
+    return engine;
+  }
+
+  // The engine for a match about to start: the one already compiling its
+  // decks, when there is one.
+  private createEngine(): IronsmithEngine {
+    const engine = this.warm ?? this.spawnEngine();
+    this.warm = null;
     this.game = engine;
     return engine;
+  }
+
+  // Seat only: compile the coming match's decks while the host starts.
+  private warmUp(decks: Deck[]): void {
+    if (this.isHost || this.game || this.warm) return;
+    const engine = this.spawnEngine();
+    this.warm = engine;
+    void engine.call("prepare", decks).catch((error: unknown) => {
+      // The sync that follows compiles whatever this did not.
+      if (!(error instanceof DOMException)) {
+        console.warn("[Ironsmith] preparing the decks failed", error);
+      }
+    });
   }
 
   private assertGeneration(generation: number): void {
@@ -355,13 +390,20 @@ export class IronsmithTrustedGameApi implements IGameApi {
     const decks = await Promise.all(params.decks.map(enrichDeckFaces));
     this.assertGeneration(generation);
     const config = matchConfig({ ...params, decks, botPlayerSlots: [...botSlots] });
+    this.preparing = decks;
     try {
+      for (const slot of this.remoteHumanSlots()) {
+        await this.sendPrivateRelay(slot, { type: "prepare", decks });
+        this.assertGeneration(generation);
+      }
       const issues = await this.callEngine("start", config, true);
       if (issues) throw new IronsmithUnsupportedDeckError(issues);
     } catch (error) {
       game.dispose();
       if (this.game === game) this.game = null;
       throw error;
+    } finally {
+      if (this.generation === generation) this.preparing = null;
     }
     this.config = config;
     await this.enqueue(async () => {
@@ -514,7 +556,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
     return recovery;
   }
 
-  private async emitLocalView(stateOnly = false): Promise<void> {
+  private async emitLocalView(): Promise<void> {
     const slot = this.localPlayerSlot;
     if (!this.game || !slot) return;
     const platform = getPlatform();
@@ -522,9 +564,9 @@ export class IronsmithTrustedGameApi implements IGameApi {
     const { gameView, prompt, error } = await this.readManabrewView(
       Number(slot.replace("player-", "")),
     );
+    this.localView = gameView;
     platform.events.emit("game:state", { gameView });
     this.assertGeneration(generation);
-    if (stateOnly) return;
     if (error) platform.events.emit("game:error", error);
     if (prompt && prompt.decidingPlayerId === slot) {
       this.prompts.set(slot, prompt);
@@ -745,16 +787,17 @@ export class IronsmithTrustedGameApi implements IGameApi {
     for (const unsubscribe of this.roomUnsubscribes) unsubscribe();
     const events = getPlatform().events;
     this.roomUnsubscribes = [
-      // The room's public view carries no hidden cards. A seat that receives
-      // it draws its own view again on top, whatever order the two arrived in.
-      // The platform hands the public view to the store as `game:remote_state`.
+      // The room's public view carries no hidden cards, and the store draws it
+      // on every seat. A seat puts its own view back before the browser can
+      // paint the public one, so its hand does not blink on every input. The
+      // microtask runs after every listener of this event, the store's included.
       events.on<{ kind?: string }>("game:remote_state", (payload) => {
         if (!this.isMultiplayer || this.isHost || payload?.kind !== "state") return;
         const generation = this.generation;
-        setTimeout(() => {
-          if (generation !== this.generation) return;
-          this.runBackground(() => this.enqueue(() => this.emitLocalView(true)));
-        }, 0);
+        queueMicrotask(() => {
+          if (generation !== this.generation || !this.localView) return;
+          events.emit("game:state", { gameView: this.localView });
+        });
       }),
       events.on<{ room: RoomInfo }>("server:room_update", ({ room }) => {
         const hostSlot = this.slotForUsername(room.host);
@@ -897,6 +940,13 @@ export class IronsmithTrustedGameApi implements IGameApi {
       if (changed) {
         await this.sendRelayHello();
         this.assertGeneration(generation);
+        if (this.isHost && this.preparing) {
+          await this.sendPrivateRelay(relayPayload.seat, {
+            type: "prepare",
+            decks: this.preparing,
+          });
+          this.assertGeneration(generation);
+        }
         if (this.isHost && this.game) {
           const seat = relayPayload.seat;
           await this.enqueue(() => this.sendSync(seat, 0, true));
@@ -914,6 +964,10 @@ export class IronsmithTrustedGameApi implements IGameApi {
       case "sync":
         if (this.isHost || sender !== this.hostPlayerSlot) return;
         await this.enqueue(() => this.applySync(privatePayload));
+        return;
+      case "prepare":
+        if (sender !== this.hostPlayerSlot) return;
+        this.warmUp(privatePayload.decks);
         return;
       case "entry":
         if (this.isHost || sender !== this.hostPlayerSlot) return;

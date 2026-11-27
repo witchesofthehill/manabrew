@@ -15,6 +15,7 @@ import {
   completeLimitedOpening,
   limitedGameLaunch,
   requestLimitedResync,
+  recoverLimitedMatchReturn,
   setLimitedBestOf,
   startLimitedMatches,
   submitLimitedBuild,
@@ -22,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/constants";
 import type { DraftCard } from "@/types/limited";
+import { MANABREW_ENGINE_UNAVAILABLE } from "@/types/server";
 import {
   activeGameSessionAtPageLoad,
   isActiveGameSessionAtPageLoadCurrent,
@@ -36,16 +38,17 @@ export default function MultiplayerLimitedBuild() {
   const gameActive = useGameStore((s) => s.isGameActive);
   const [returning, setReturning] = useState(false);
   const returnAttempted = useRef(false);
+  const legacyMatch = Boolean(session.matchReturn && session.originalRoom?.engine === "Manabrew");
   const returnToBuild = useCallback(async () => {
     setReturning(true);
     try {
-      await completeLimitedMatch();
+      await (legacyMatch ? recoverLimitedMatchReturn() : completeLimitedMatch());
     } catch (error) {
       useMultiplayerLimitedStore.getState().setError(String(error));
     } finally {
       setReturning(false);
     }
-  }, []);
+  }, [legacyMatch]);
   const onChange = useCallback(
     ({ main, sideboard }: { main: DraftCard[]; sideboard: DraftCard[] }) => {
       void submitLimitedBuild(main, sideboard).catch((error) =>
@@ -65,7 +68,7 @@ export default function MultiplayerLimitedBuild() {
     [],
   );
   useEffect(() => {
-    if (!server.gameStarted || !session.matchReturn) return;
+    if (legacyMatch || !server.gameStarted || !session.matchReturn) return;
     const launch = limitedGameLaunch({
       room_id: server.gameRoomId,
       game_id: server.gameId,
@@ -76,6 +79,7 @@ export default function MultiplayerLimitedBuild() {
     if (launch) navigate(ROUTES.PLAY, { replace: true, state: launch });
   }, [
     navigate,
+    legacyMatch,
     server.gameStarted,
     server.gameRoomId,
     server.gameId,
@@ -91,6 +95,7 @@ export default function MultiplayerLimitedBuild() {
       );
   }, [session.sessionId, session.phase, session.matchReturn]);
   useEffect(() => {
+    if (legacyMatch) return;
     const recovering = activeGameSessionAtPageLoad();
     if (
       recovering &&
@@ -108,7 +113,7 @@ export default function MultiplayerLimitedBuild() {
       return;
     returnAttempted.current = true;
     void returnToBuild();
-  }, [session.matchReturn, gameActive, server.gameStarted, returnToBuild]);
+  }, [legacyMatch, session.matchReturn, gameActive, server.gameStarted, returnToBuild]);
   if (!session.sessionId || !session.originalRoom) return null;
   const amHost = session.originalRoom.host === server.username;
   const ownStatus = session.statuses.find((status) => status.seat === session.mySeat);
@@ -136,13 +141,15 @@ export default function MultiplayerLimitedBuild() {
       setStarting(false);
     }
   };
-  if (session.matchReturn?.started && !gameActive)
+  if ((legacyMatch || session.matchReturn?.started) && !gameActive)
     return (
       <section className="flex h-full min-h-0 min-w-0 flex-col items-center gap-3 overflow-y-auto overscroll-contain px-4 py-3 text-ui-body break-words sm:px-6 lg:px-8">
         <p role="status" className="mt-auto shrink-0 text-ui-body text-muted-foreground">
           {returning
             ? "Returning to your Limited pool…"
-            : "Your pool and build are retained. Confirm your return with the relay to continue."}
+            : legacyMatch
+              ? MANABREW_ENGINE_UNAVAILABLE
+              : "Your pool and build are retained. Confirm your return with the relay to continue."}
         </p>
         {session.lastError && (
           <p role="alert" className="shrink-0 text-ui-label text-destructive">

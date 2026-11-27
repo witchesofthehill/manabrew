@@ -6,6 +6,7 @@ import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { DeckSelectionCard } from "@/components/lobby/DeckSelectionCard";
 import { useDeckBrackets } from "@/components/lobby/useDeckBrackets";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
@@ -55,6 +56,7 @@ export function FindGameDialog({
   const shortScreen = useIsShortScreen();
   const isTouch = useIsTouch();
   const [sizes, setSizes] = useState<PodSize[]>([4, 3]);
+  const [botFill, setBotFill] = useState(false);
   const [excluded, setExcluded] = useState<string[]>([]);
   const [starters, setStarters] = useState<string[]>([]);
   const [search, setSearch] = useState("");
@@ -78,6 +80,7 @@ export function FindGameDialog({
   const allOwnedSelected = owned.every(({ id }) => !excluded.includes(id));
   const tooMany = selected.length > MAX_QUEUED_DECKS;
   const podSizes = POD_SIZES.filter((podSize) => sizes.includes(podSize));
+  const canBotFill = podSizes.some((podSize) => podSize > 2);
   const brackets = useDeckBrackets(
     [...owned, ...presets],
     open && connected && supported && phase === "idle",
@@ -105,6 +108,7 @@ export function FindGameDialog({
       await useMatchmakingStore.getState().enter(
         podSizes,
         selected.map(({ deck }) => deck),
+        botFill && canBotFill,
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not start the search.");
@@ -112,25 +116,39 @@ export function FindGameDialog({
   }
 
   function deckGrid(options: DeckOption[]) {
+    const groups = new Map<number | undefined, DeckOption[]>();
+    for (const option of options) {
+      const bracket = brackets[option.id];
+      groups.set(bracket, [...(groups.get(bracket) ?? []), option]);
+    }
+    const ordered = [...groups].sort(
+      ([a], [b]) => (a ?? Number.POSITIVE_INFINITY) - (b ?? Number.POSITIVE_INFINITY),
+    );
     return (
-      <div className={DECK_GRID}>
-        {options.map((option) => (
-          <DeckSelectionCard
-            key={option.id}
-            name={option.deck.name}
-            desc={option.isPreset ? option.deck.description : undefined}
-            color={option.isPreset ? option.deck.color : undefined}
-            labels={option.deck.labels}
-            cards={[...option.deck.cards, ...(option.deck.commanders ?? [])]}
-            cover={resolveCoverCard(option.deck)}
-            isPreset={option.isPreset}
-            badge={`Bracket ${brackets[option.id] ?? "…"}`}
-            isSelected={selectedIds.includes(option.id)}
-            dense
-            isTouch={isTouch}
-            disabled={disabled}
-            onSelect={() => toggle(option)}
-          />
+      <div className="space-y-5">
+        {ordered.map(([bracket, items]) => (
+          <div key={bracket ?? "checking"} className="space-y-2">
+            <BracketHeader bracket={bracket} />
+            <div className={DECK_GRID}>
+              {items.map((option) => (
+                <DeckSelectionCard
+                  key={option.id}
+                  name={option.deck.name}
+                  desc={option.isPreset ? option.deck.description : undefined}
+                  color={option.isPreset ? option.deck.color : undefined}
+                  labels={option.deck.labels}
+                  cards={[...option.deck.cards, ...(option.deck.commanders ?? [])]}
+                  cover={resolveCoverCard(option.deck)}
+                  isPreset={option.isPreset}
+                  isSelected={selectedIds.includes(option.id)}
+                  dense
+                  isTouch={isTouch}
+                  disabled={disabled}
+                  onSelect={() => toggle(option)}
+                />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     );
@@ -185,6 +203,24 @@ export function FindGameDialog({
                   )}
                 </button>
               ))}
+            </div>
+            <div className="mt-4 flex items-start gap-3 px-1">
+              <Checkbox
+                id="find-game-bot-fill"
+                checked={botFill && canBotFill}
+                disabled={disabled || !canBotFill}
+                onCheckedChange={(checked) => setBotFill(checked === true)}
+                className="mt-0.5"
+              />
+              <Label htmlFor="find-game-bot-fill" className="space-y-1 font-normal">
+                <span className="block text-ui-label font-medium">
+                  Fill empty seats with Manabot
+                </span>
+                <span className="block text-ui-meta text-muted-foreground">
+                  Start with at least one other player who allows it, instead of waiting for a full
+                  table.
+                </span>
+              </Label>
             </div>
             {!shortScreen && (
               <img
@@ -297,6 +333,27 @@ export function FindGameDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function BracketHeader({ bracket }: { bracket: number | undefined }) {
+  if (bracket === undefined) {
+    return (
+      <p className="flex items-center gap-2 text-ui-label text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Checking bracket…
+      </p>
+    );
+  }
+  const info = BRACKET_INFO[bracket as Bracket];
+  return (
+    <p className="flex min-w-0 items-baseline gap-2 text-ui-label">
+      <span className="shrink-0 font-semibold">
+        Bracket {bracket}
+        {info && ` · ${info.name}`}
+      </span>
+      {info && <span className="truncate text-ui-meta text-muted-foreground">{info.blurb}</span>}
+    </p>
   );
 }
 

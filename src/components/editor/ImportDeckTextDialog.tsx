@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, ClipboardPaste, Download } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { ArrowLeft, CheckCircle2, ClipboardPaste, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AppSelect, AppSelectOption } from "@/components/ui/AppSelect";
@@ -11,9 +11,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { fetchArchidektDeckList, parseArchidektDeckLink } from "@/lib/archidekt";
 import { DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { GAME_FORMATS } from "@/lib/formats";
 import { cn } from "@/lib/utils";
+import { platformFetch } from "@/lib/platformFetch";
+import { getPlatformType } from "@/platform";
 import {
   deckImportEntryZone,
   isDetectedCommander,
@@ -56,6 +59,7 @@ const GUIDE_STEPS = [
   `Click the ••• menu, then Export.`,
   `Choose "Copy Plain Text" and copy it to your clipboard.`,
 ];
+const ARCHIDEKT_WEB_PROXY = "/archidekt-api";
 const IMPORT_FORMATS = GAME_FORMATS.filter(
   (format) => format.id !== "oathbreaker" && !format.deckFormat,
 );
@@ -73,7 +77,13 @@ export function ImportDeckTextDialog({
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [reviewing, setReviewing] = useState(false);
+  const [fetchingDeck, setFetchingDeck] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const deckFetch = useRef<AbortController | null>(null);
   const close = useCallback(() => {
+    deckFetch.current?.abort();
+    setFetchingDeck(false);
+    setFetchError(null);
     setText("");
     setSource("text");
     setCustomName(null);
@@ -118,17 +128,59 @@ export function ImportDeckTextDialog({
       .filter((line) => /^\d+x?\s+/i.test(line))
       .filter((line) => ![...parsedNames].some((name) => line.toLowerCase().includes(name)));
   }, [entries, text]);
+  const changeText = useCallback(
+    async (value: string) => {
+      setText(value);
+      setReviewing(false);
+      deckFetch.current?.abort();
+      setFetchError(null);
+      const deckId = parseArchidektDeckLink(value);
+      if (!deckId) {
+        setFetchingDeck(false);
+        return;
+      }
+      const controller = new AbortController();
+      deckFetch.current = controller;
+      setFetchingDeck(true);
+      try {
+        const deck = await fetchArchidektDeckList(deckId, {
+          fetch: platformFetch,
+          signal: controller.signal,
+          baseUrl: getPlatformType() === "tauri" ? undefined : ARCHIDEKT_WEB_PROXY,
+        });
+        if (controller.signal.aborted) return;
+        setText(deck.text);
+        if (mode === "create") {
+          setCustomName((current) => current ?? deck.name);
+          setFormatId(
+            (current) =>
+              current ||
+              ((IMPORT_FORMATS.find((format) => format.id === deck.format)?.id as
+                | DeckFormat
+                | undefined) ??
+                ""),
+          );
+        }
+      } catch (e) {
+        if (controller.signal.aborted) return;
+        setFetchError(e instanceof Error ? e.message : `Couldn't fetch the Archidekt deck`);
+      } finally {
+        if (!controller.signal.aborted) setFetchingDeck(false);
+      }
+    },
+    [mode],
+  );
   const pasteFromClipboard = useCallback(async () => {
     try {
       const clip = await navigator.clipboard.readText();
       if (clip.trim()) {
-        setText(clip);
         setSource("clipboard");
+        void changeText(clip);
       }
     } catch {
       toast.error(`Couldn't read the clipboard \u2014 paste manually instead`);
     }
-  }, []);
+  }, [changeText]);
   const handleImportClick = useCallback(async () => {
     if (!valid || importing || (mode === "edit" && reviewRows.length === 0)) return;
     setImporting(true);
@@ -146,14 +198,14 @@ export function ImportDeckTextDialog({
     create: {
       title: `Import a deck`,
       busy: `Building "${name.trim() || DEFAULT_IMPORT_NAME}"…`,
-      hint: `Copy your deck as text from Moxfield, then paste it below.`,
+      hint: `Paste an Archidekt deck link, or copy your deck as text from Moxfield and paste it below.`,
       review: `Review import`,
       confirm: `Confirm import`,
     },
     add: {
       title: `Add cards from a list`,
       busy: `Adding cards to this deck\u2026`,
-      hint: `Paste a deck list to merge its cards into this deck.`,
+      hint: `Paste a deck list or an Archidekt deck link to merge its cards into this deck.`,
       review: `Review addition`,
       confirm: `Confirm addition`,
     },
@@ -373,11 +425,11 @@ export function ImportDeckTextDialog({
                   autoFocus
                   value={text}
                   onPaste={() => setSource("clipboard")}
-                  onChange={(e) => {
-                    setText(e.target.value);
-                    setReviewing(false);
-                  }}
-                  placeholder={"4 Lightning Bolt\n2 Counterspell\n…"}
+                  onChange={(e) => void changeText(e.target.value)}
+                  readOnly={fetchingDeck}
+                  placeholder={
+                    "4 Lightning Bolt\n2 Counterspell\n…\n\nor https://archidekt.com/decks/…"
+                  }
                   className={cn(
                     "touch:min-h-11 flex min-h-[176px] w-full resize-none rounded-md border bg-transparent px-3 py-2 font-mono text-ui-input shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                     mode === "edit" && "min-h-[40dvh]",
@@ -386,7 +438,14 @@ export function ImportDeckTextDialog({
                 />
               </div>
 
-              {valid ? (
+              {fetchingDeck ? (
+                <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-ui-label text-muted-foreground">
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                  Fetching deck from Archidekt…
+                </div>
+              ) : fetchError ? (
+                <p className="text-ui-meta text-destructive">{fetchError}</p>
+              ) : valid ? (
                 <div
                   key={mainCount + sideCount + maybeCount + commanderCount}
                   className="flex items-center gap-2 rounded-md border border-legality-legal/40 bg-legality-legal/10 px-3 py-2 text-legality-legal"
@@ -419,7 +478,7 @@ export function ImportDeckTextDialog({
                 variant="primary"
                 size="sm"
                 onClick={() => setReviewing(true)}
-                disabled={!valid}
+                disabled={!valid || fetchingDeck}
                 className={cn(
                   "touch:min-w-11 touch:min-h-11 gap-1 transition-all",
                   valid && "ring-2 ring-primary/40",

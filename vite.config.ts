@@ -176,6 +176,16 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/edhrec-api/, "/pages"),
       },
+      "/archidekt-api": {
+        target: "https://archidekt.com",
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on("proxyRes", (proxyRes) => {
+            delete proxyRes.headers["set-cookie"];
+          });
+        },
+        rewrite: (p) => p.replace(/^\/archidekt-api/, "/api"),
+      },
       "/cubecobra-download": {
         target: "https://cubecobra.com",
         changeOrigin: true,

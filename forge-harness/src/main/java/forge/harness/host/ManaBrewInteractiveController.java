@@ -1877,6 +1877,10 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         return costPlumbing.payWithControllerDecision(cost, sa, true);
     }
 
+    int pendingCounterRemoval(final Card card, final CounterType type) {
+        return costPlumbing.pendingCounterRemoval(card, type);
+    }
+
     // ── Mana payment (interactive) ────────────────────────────────────
 
     @Override

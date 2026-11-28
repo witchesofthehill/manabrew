@@ -125,7 +125,10 @@ interface CompanionState {
   setActivePlayer: (playerId: string | null) => void;
   advanceTurn: () => void;
   pickRandomFirstPlayer: () => string | null;
-  setFirstPlayer: (playerId: string) => void;
+  setFirstPlayer: (
+    playerId: string,
+    setup?: { turnOrder: readonly string[]; seatOrder?: readonly string[] },
+  ) => void;
 }
 
 function uid(): string {
@@ -197,7 +200,7 @@ function sameCommander(a: CompanionCommanderRef | null, b: CompanionCommanderRef
   if (a === b) return true;
   if (!a || !b) return false;
   if (a.scryfallId && b.scryfallId) return a.scryfallId === b.scryfallId;
-  return a.name === b.name;
+  return a.name === b.name && a.imageUrl === b.imageUrl;
 }
 
 function pushEvent(session: CompanionSession, event: CompanionEvent): CompanionSession {
@@ -324,7 +327,8 @@ function clearAllPendingTimers(): void {
 
 function flushPendingDelta(playerId: string): void {
   const pending = pendingDeltaTimers[playerId];
-  if (!pending || pending.amount === 0) return;
+  if (!pending) return;
+  clearTimeout(pending.timer ?? undefined);
   delete pendingDeltaTimers[playerId];
   const store = useCompanionStore.getState();
   if (!store.session) return;
@@ -333,10 +337,16 @@ function flushPendingDelta(playerId: string): void {
   useCompanionStore.setState((state) => {
     if (!state.session) return state;
     const nextLife = pending.prev + pending.amount;
-    const session = pushEvent(
-      replacePlayer(state.session, playerId, (p) => ({ ...p, life: nextLife })),
-      { type: "life", playerId, prev: pending.prev, next: nextLife, at: Date.now() },
-    );
+    const session =
+      pending.amount === 0
+        ? state.session
+        : pushEvent(state.session, {
+            type: "life",
+            playerId,
+            prev: pending.prev,
+            next: nextLife,
+            at: Date.now(),
+          });
     const { [playerId]: _drop, ...rest } = state.pendingDeltas;
     void _drop;
     return { ...state, session, pendingDeltas: rest };
@@ -421,13 +431,12 @@ export const useCompanionStore = create<CompanionState>()(
                 redoStack: [],
                 turn: 0,
                 activePlayerId: null,
+                turnOrder: undefined,
                 lastFirstPlayerId: null,
                 phase: "main1",
                 dayNight: null,
                 timer: { startedAt: null, pausedAt: null, accumulatedMs: 0 },
-                // Don't pre-arm the chess clock — there's no active player
-                // yet. setFirstPlayer / advanceTurn will start it when one
-                // actually takes their turn.
+                // The chess clock starts when the first player takes their turn.
                 chessClockStartedAt: null,
               },
               pendingDeltas: {},
@@ -487,11 +496,20 @@ export const useCompanionStore = create<CompanionState>()(
               if (count === session.players.length) return session;
               if (count < session.players.length) {
                 const kept = session.players.slice(0, count);
-                const stillAlive = kept.some((p) => p.id === session.activePlayerId);
+                const keptIds = new Set(kept.map((p) => p.id));
                 return {
                   ...session,
                   players: kept,
-                  activePlayerId: stillAlive ? session.activePlayerId : null,
+                  activePlayerId:
+                    session.activePlayerId && keptIds.has(session.activePlayerId)
+                      ? session.activePlayerId
+                      : null,
+                  lastFirstPlayerId:
+                    session.lastFirstPlayerId && keptIds.has(session.lastFirstPlayerId)
+                      ? session.lastFirstPlayerId
+                      : null,
+                  turnOrder: session.turnOrder?.filter((id) => keptIds.has(id)),
+                  gridSeatOrder: session.gridSeatOrder?.filter((id) => keptIds.has(id)),
                   layout: COMPANION_DEFAULT_LAYOUT_BY_COUNT[count] ?? session.layout,
                 };
               }
@@ -510,6 +528,8 @@ export const useCompanionStore = create<CompanionState>()(
               return {
                 ...session,
                 players: [...session.players, ...added],
+                turnOrder: session.turnOrder?.concat(added.map((p) => p.id)),
+                gridSeatOrder: session.gridSeatOrder?.concat(added.map((p) => p.id)),
                 layout: COMPANION_DEFAULT_LAYOUT_BY_COUNT[count] ?? session.layout,
               };
             }),
@@ -616,12 +636,14 @@ export const useCompanionStore = create<CompanionState>()(
         },
 
         setLife: (playerId, value) => {
+          const next = Math.round(value);
+          const current = get().session?.players.find((player) => player.id === playerId);
+          if (!current || next === current.life) return;
+          for (const id of Object.keys(pendingDeltaTimers)) flushPendingDelta(id);
           set((state) =>
             withSession(state, (session) => {
               const player = session.players.find((p) => p.id === playerId);
               if (!player) return session;
-              const next = Math.round(value);
-              if (next === player.life) return session;
               return pushEvent(
                 replacePlayer(session, playerId, (p) => ({ ...p, life: next })),
                 { type: "life", playerId, prev: player.life, next, at: Date.now() },
@@ -997,16 +1019,23 @@ export const useCompanionStore = create<CompanionState>()(
         advanceTurn: () =>
           set((state) =>
             withSession(state, (session) => {
-              if (session.players.length === 0) return session;
-              const living = session.players.filter((p) => !p.isDead);
-              if (living.length === 0) return session;
-              const currentIndex = session.activePlayerId
-                ? living.findIndex((p) => p.id === session.activePlayerId)
-                : -1;
-              const nextIndex = (currentIndex + 1) % living.length;
-              const nextPlayer = living[nextIndex]!;
+              const order = session.turnOrder ?? session.players.map((p) => p.id);
+              const currentIndex = order.indexOf(session.activePlayerId ?? "");
+              let nextIndex = currentIndex;
+              let nextPlayer: CompanionPlayer | undefined;
+              for (let i = 0; i < order.length; i++) {
+                nextIndex = (nextIndex + 1) % order.length;
+                const id = order[nextIndex];
+                nextPlayer = session.players.find((p) => p.id === id && !p.isDead);
+                if (nextPlayer) break;
+              }
+              if (!nextPlayer) return session;
               const nextTurn =
-                currentIndex < 0 ? 1 : nextIndex === 0 ? session.turn + 1 : session.turn;
+                currentIndex < 0
+                  ? Math.max(1, session.turn)
+                  : nextIndex <= currentIndex
+                    ? session.turn + 1
+                    : session.turn;
               // Storm count resets at the end of the turn (oracle rule 702.40).
               let players = session.players.map((p) => ({
                 ...p,
@@ -1037,28 +1066,30 @@ export const useCompanionStore = create<CompanionState>()(
           ),
 
         pickRandomFirstPlayer: () => {
-          const session = get().session;
-          if (!session || session.players.length === 0) return null;
-          const idx = Math.floor(Math.random() * session.players.length);
-          const winner = session.players[idx]!;
-          set((state) =>
-            withSession(state, (s) => ({
-              ...s,
-              activePlayerId: winner.id,
-              turn: 1,
-              lastFirstPlayerId: winner.id,
-            })),
-          );
+          const living = get().session?.players.filter((p) => !p.isDead) ?? [];
+          const winner = living[Math.floor(Math.random() * living.length)];
+          if (!winner) return null;
+          get().setFirstPlayer(winner.id);
           return winner.id;
         },
 
-        setFirstPlayer: (playerId) =>
+        setFirstPlayer: (playerId, setup) =>
           set((state) =>
             withSession(state, (session) => {
-              if (!session.players.some((p) => p.id === playerId)) return session;
+              if (!session.players.some((p) => p.id === playerId && !p.isDead)) return session;
+              const turnOrder = setup?.turnOrder;
+              const cycle = turnOrder
+                ? [
+                    ...turnOrder,
+                    ...session.players.filter((p) => !turnOrder.includes(p.id)).map((p) => p.id),
+                  ]
+                : (session.turnOrder ?? session.players.map((p) => p.id));
+              const first = cycle.indexOf(playerId);
               return {
                 ...session,
+                gridSeatOrder: setup?.seatOrder ?? session.gridSeatOrder,
                 activePlayerId: playerId,
+                turnOrder: [...cycle.slice(first), ...cycle.slice(0, first)],
                 turn: 1,
                 lastFirstPlayerId: playerId,
                 chessClockStartedAt: session.timerMode === "chess" ? Date.now() : null,

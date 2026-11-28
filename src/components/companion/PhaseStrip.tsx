@@ -53,7 +53,7 @@ export function PhaseStrip() {
     return active ? COMPANION_ACCENT_COLORS[active.accentKey] : null;
   });
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-card/40 px-2 py-1 text-ui-label">
+    <div className="flex items-center gap-1 overflow-x-auto overscroll-x-contain bg-card px-2 py-1 text-ui-label">
       {PHASES.map((p) => {
         const isActive = phase === p.id;
         return (
@@ -73,8 +73,8 @@ export function PhaseStrip() {
             aria-label={p.label}
             aria-pressed={isActive}
           >
-            <span className="sm:hidden">{p.short}</span>
-            <span className="hidden sm:inline">{p.label}</span>
+            <span className="@min-[40rem]/companion-tracker:hidden">{p.short}</span>
+            <span className="hidden @min-[40rem]/companion-tracker:inline">{p.label}</span>
           </button>
         );
       })}

@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import { GameIcon } from "./GameIcon";
-export function TurnTimer({ className }: { className?: string }) {
+export function TurnTimer() {
   const session = useCompanionStore((s) => s.session);
   const startTimer = useCompanionStore((s) => s.startTimer);
   const pauseTimer = useCompanionStore((s) => s.pauseTimer);
@@ -51,83 +51,47 @@ export function TurnTimer({ className }: { className?: string }) {
       : 0);
   const shownMs = session.timerMode === "chess" && activePlayer ? chessElapsed : sharedElapsed;
   const isIdle = !running && shownMs === 0;
-  // When the timer hasn't started yet, collapse to a single Play button.
-  // Once it's running (or has accumulated time on pause), expand to show
-  // the readout + the pause / reset controls. Saves ~120px on phones.
-  if (isIdle) {
-    return (
-      <Button
-        size="icon"
-        variant="ghost"
-        className={cn("size-8 rounded-md bg-muted/60 touch:min-h-11 touch:min-w-11", className)}
-        onClick={() => startTimer()}
-        aria-label={`Start timer`}
-        title={`Start timer`}
-      >
-        <GameIcon icon="sands-of-time" className="size-3.5 text-muted-foreground" />
-      </Button>
-    );
-  }
+  const elapsed = formatElapsed(shownMs);
+  const timerAction = running ? "Pause timer" : isIdle ? "Start timer" : "Resume timer";
   return (
-    <div
-      className={cn(
-        "flex items-center gap-0.5 rounded-md bg-muted/60 px-1 py-0.5 sm:gap-1 sm:px-1.5 sm:py-1",
-        className,
-      )}
-    >
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-6 touch:min-h-11 touch:min-w-11"
-            aria-label={
-              session.timerMode === "chess" ? `Timer mode: chess clock` : `Timer mode: shared`
-            }
-            title={session.timerMode === "chess" ? `Chess clock` : `Shared clock`}
-          >
-            <GameIcon icon="sands-of-time" className="size-3.5 text-muted-foreground" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuLabel>Timer mode</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onSelect={() => setTimerMode("shared")}
-            className={cn(session.timerMode === "shared" && "bg-accent")}
-          >
-            Shared game clock
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => setTimerMode("chess")}
-            className={cn(session.timerMode === "chess" && "bg-accent")}
-          >
-            Per-player chess clock
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <span className="min-w-[42px] text-center tabular-nums text-ui-meta font-medium sm:min-w-[52px]">
-        {formatElapsed(shownMs)}
-      </span>
-      <Button
-        size="icon"
-        variant="ghost"
-        className="size-6 touch:min-h-11 touch:min-w-11"
-        onClick={() => (running ? pauseTimer() : startTimer())}
-        aria-label={running ? `Pause timer` : `Resume timer`}
-      >
-        {running ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        className="size-6 touch:min-h-11 touch:min-w-11"
-        onClick={resetTimer}
-        aria-label={`Reset timer`}
-      >
-        <RotateCcw className="size-3.5" />
-      </Button>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-9 shrink-0 gap-1.5 px-2 touch:min-h-11 touch:min-w-11"
+          aria-label={`Timer: ${elapsed}, ${session.timerMode === "chess" ? "chess clock" : "shared clock"}`}
+          title={`Timer: ${elapsed}`}
+        >
+          <GameIcon icon="sands-of-time" className="size-4 text-muted-foreground" />
+          <span className="hidden max-w-20 truncate tabular-nums @min-[22rem]/companion-tracker:inline">
+            {elapsed}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel className="tabular-nums">Timer: {elapsed}</DropdownMenuLabel>
+        <DropdownMenuItem onSelect={() => (running ? pauseTimer() : startTimer())}>
+          {running ? <Pause /> : <Play />} {timerAction}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={resetTimer}>
+          <RotateCcw /> Reset timer
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={() => setTimerMode("shared")}
+          className={cn(session.timerMode === "shared" && "bg-accent")}
+        >
+          Shared game clock
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => setTimerMode("chess")}
+          className={cn(session.timerMode === "chess" && "bg-accent")}
+        >
+          Per-player chess clock
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 function formatElapsed(ms: number): string {

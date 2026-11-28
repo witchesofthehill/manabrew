@@ -125,6 +125,7 @@ export interface CompanionSession {
   commanderRules: boolean;
   layout: CompanionLayout;
   players: CompanionPlayer[];
+  gridSeatOrder?: readonly string[];
   history: CompanionEvent[];
   redoStack: CompanionEvent[];
   dayNight: "day" | "night" | null;
@@ -140,6 +141,7 @@ export interface CompanionSession {
   oathbreaker?: boolean;
   tag?: string;
   activePlayerId: string | null;
+  turnOrder?: string[];
   turn: number;
   lastFirstPlayerId: string | null;
 }

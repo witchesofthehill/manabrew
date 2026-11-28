@@ -12,6 +12,7 @@ import healing from "~icons/game-icons/healing";
 import lightningTrio from "~icons/game-icons/lightning-trio";
 import magicPortal from "~icons/game-icons/magic-portal";
 import flame from "~icons/game-icons/flame";
+import overlordHelm from "~icons/game-icons/overlord-helm";
 import potionBall from "~icons/game-icons/potion-ball";
 import radioactive from "~icons/game-icons/radioactive";
 import sandsOfTime from "~icons/game-icons/sands-of-time";
@@ -40,6 +41,7 @@ const ICONS = {
   "lightning-trio": lightningTrio,
   "magic-portal": magicPortal,
   flame,
+  "overlord-helm": overlordHelm,
   "potion-ball": potionBall,
   radioactive,
   "sands-of-time": sandsOfTime,

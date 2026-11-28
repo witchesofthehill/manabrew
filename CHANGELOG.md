@@ -9,6 +9,14 @@
 - **Deck editor:** The command zone shares the main deck's background and follows its List, Grid, or Stacks view.
 - **Deck editor:** Tokens are below Maybeboard in Build.
 - **Deck editor:** Bracket and Combos follow Mana in Deck stats. Collection is last.
+- **Life tracker:** Life totals are read-only; Player menu → Set life opens a keypad without the system keyboard. Table tools use one row, and compact seats keep counters, mana, and commander damage in Player tools.
+- **Life tracker:** Choose who goes first and preview the turn order clockwise or counterclockwise. Grid seats follow the list when the game starts; free-layout seats stay put. The board and borderless settings strip share a background, and life totals and resources sit directly on the seat. The commander picker can use a commander's name as the player name, and Commander rules and tax use the deck editor's helm icon.
+- **Life tracker:** Choose a deck opens the multiplayer lobby's deck picker, including My Decks, Community, and Presets. Selecting a deck fills the commander slots, including partners or an Oathbreaker's signature spell.
+
+### Fixes
+
+- **Life tracker:** Fullscreen hides app navigation and keeps the Game strip and enabled phase controls visible. Use More → Exit fullscreen to return.
+- **Life tracker:** The commander dialog puts deck import beside card search, shows two-faced card names on separate lines, and keeps the optional second slot collapsed until needed.
 
 ## [3.96.5](https://github.com/witchesofthehill/manabrew/compare/v3.96.4...v3.96.5) (2026-11-26)
 

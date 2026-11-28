@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Flag, MoreVertical, NotebookPen, PlayCircle, UserMinus, UserPlus } from "lucide-react";
 import { PlayerNotesDialog } from "./PlayerNotesDialog";
+import { SetLifeDialog } from "./SetLifeDialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -24,8 +25,9 @@ import { GameIcon } from "./GameIcon";
 interface PlayerMenuProps {
   player: CompanionPlayer;
   onPickCommander: () => void;
+  onOpenTools: (returnFocus: () => void) => void;
 }
-export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
+export function PlayerMenu({ player, onPickCommander, onOpenTools }: PlayerMenuProps) {
   const toggleMonarch = useCompanionStore((s) => s.toggleMonarch);
   const toggleInitiative = useCompanionStore((s) => s.toggleInitiative);
   const toggleCityBlessing = useCompanionStore((s) => s.toggleCityBlessing);
@@ -40,6 +42,10 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
   const resetCounters = useCompanionStore((s) => s.resetCounters);
   const [pendingConcede, setPendingConcede] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [lifeOpen, setLifeOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const handingOffFocus = useRef(false);
+  const returnFocus = () => trigger.current?.focus({ preventScroll: true });
   const concedeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
@@ -62,19 +68,47 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          variant="ghost"
+          ref={trigger}
+          variant="outline"
           size="icon"
-          className="size-7 rounded-full bg-black/40 text-white hover:bg-black/55 hover:text-white @md:size-8 touch:min-h-11 touch:min-w-11"
-          aria-label={`Player menu`}
+          className="size-8 shrink-0 rounded-full touch:min-h-11 touch:min-w-11"
+          aria-label={`Player menu for ${player.name}`}
         >
           <MoreVertical className="size-4 @md:size-5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72 max-w-[calc(100vw-2rem)]">
+      <DropdownMenuContent
+        align="end"
+        className="w-72 max-w-[calc(100vw-2rem)]"
+        onCloseAutoFocus={(event) => {
+          if (!handingOffFocus.current) return;
+          handingOffFocus.current = false;
+          event.preventDefault();
+        }}
+      >
+        <DropdownMenuItem
+          onSelect={() => {
+            handingOffFocus.current = true;
+            setLifeOpen(true);
+          }}
+        >
+          Set life…
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => {
+            handingOffFocus.current = true;
+            onOpenTools(returnFocus);
+          }}
+        >
+          Counters, mana &amp; damage…
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={onPickCommander}>
           <GameIcon icon="crossed-swords" className="mr-2 size-4" /> Choose commander…
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => setFirstPlayer(player.id)} disabled={isFirstPlayer}>
+        <DropdownMenuItem
+          onSelect={() => setFirstPlayer(player.id)}
+          disabled={isFirstPlayer || player.isDead}
+        >
           <PlayCircle className="mr-2 size-4" />{" "}
           {isFirstPlayer ? `Goes first` : `Set as first player`}
         </DropdownMenuItem>
@@ -157,6 +191,13 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
         )}
       </DropdownMenuContent>
       <PlayerNotesDialog open={notesOpen} onOpenChange={setNotesOpen} player={player} />
+      {lifeOpen && (
+        <SetLifeDialog
+          player={player}
+          onClose={() => setLifeOpen(false)}
+          returnFocus={returnFocus}
+        />
+      )}
     </DropdownMenu>
   );
 }

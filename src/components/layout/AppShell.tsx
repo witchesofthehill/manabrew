@@ -72,13 +72,13 @@ export function AppShell() {
     pathname.startsWith(ROUTES.HUB) ||
     pathname.startsWith(ROUTES.DESIGN_SYSTEM) ||
     pathname === "/card-mock";
-  const hideNavChrome = isGameRoute;
   const activeTopBarOverride =
     topBarOverride?.locationKey === location.key &&
     topBarOverride.pathname === location.pathname &&
     topBarOverride.search === location.search
       ? topBarOverride
       : undefined;
+  const hideNavChrome = isGameRoute || activeTopBarOverride?.hidden;
 
   // Register Tauri event listeners at app level so they're always active.
   useEffect(() => {

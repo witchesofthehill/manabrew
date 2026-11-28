@@ -10,6 +10,8 @@ import {
   GAME_FORMATS,
   validateDeckSections,
   commanderPairLabel,
+  type DeckValidation,
+  type DeckValidationInput,
   type GameFormat,
 } from "@/lib/formats";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
@@ -27,8 +29,6 @@ import { useCardPool } from "@/hooks/useCardPool";
 import { useHubStore } from "@/stores/useHubStore";
 import type { DeckHubEntryDetail, DeckHubEntrySummary } from "@/api/hubTypes";
 
-import type { CardPool, DeckValidation, DeckValidationInput } from "@/lib/formats";
-
 export interface DeckPickerEntry {
   id: string;
   name: string;
@@ -42,6 +42,11 @@ export interface DeckPickerEntry {
   cards: DeckCard[];
   formatId: string;
   commanderName?: string;
+}
+
+export interface CommanderImportOptions {
+  formats: readonly string[];
+  validate: (input: DeckValidationInput) => DeckValidation;
 }
 
 export interface DeckSelectionModel {
@@ -69,9 +74,8 @@ export interface DeckSelectionModel {
   filteredUserDecks: DeckPickerEntry[];
   filteredPresetEntries: DeckPickerEntry[];
   searchLower: string;
-  cardPool: CardPool;
-  userDeckValidationInput: (entry: DeckPickerEntry) => DeckValidationInput;
-  hubDeckValidationInput: (deck: Deck) => DeckValidationInput;
+  validateDeck: (entry: DeckPickerEntry) => DeckValidation;
+  validateHubDeck: (deck: Deck) => DeckValidation;
   selectedDeckEntry: DeckPickerEntry | undefined;
   selectedDeckCommanders: DeckCard[];
   selectedPartnerLabel: string | null;
@@ -94,6 +98,7 @@ interface DeckSelectionOptions {
   mode?: "play" | "lobby";
   engineKind?: EngineKind;
   forcedFormatId?: string;
+  commanderImport?: CommanderImportOptions;
   preSelectedDeckId?: string;
   preSelectedHubDeckId?: string;
   preSelectedDeck?: PlayerDeckInfo;
@@ -113,6 +118,7 @@ export function useDeckSelection({
   mode = "play",
   engineKind,
   forcedFormatId,
+  commanderImport,
   preSelectedDeckId,
   preSelectedHubDeckId,
   preSelectedDeck,
@@ -123,7 +129,7 @@ export function useDeckSelection({
   const isReadOnly = useDeckStore((state) => state.isReadOnly);
   const ownedDecks = useOwnedDecks();
   const accountDeckDetails = useAccountDecksStore((state) => state.details);
-  const allowIllegalDecks = useGameDevStore((s) => s.allowIllegalDecks);
+  const allowIllegalDecks = useGameDevStore((s) => s.allowIllegalDecks) && !commanderImport;
   const isLobbyMode = mode === "lobby";
   const denseDecks = useIsShortScreen();
   const isTouch = useIsTouch();
@@ -149,7 +155,7 @@ export function useDeckSelection({
   const deckFormatId = selectedFormat.deckFormat ?? selectedFormat.id;
   const hubDecks = useHubDeckSearch(
     deckSearch,
-    deckFormatId,
+    commanderImport?.formats ?? deckFormatId,
     open,
     engineKind ? [engineKind] : availableEngines(),
     "community",
@@ -222,15 +228,19 @@ export function useDeckSelection({
     deckFormatId,
     selectedFormat.name,
   ]);
-  const currentDeckFingerprint = getDeckFingerprint(currentDeck);
-  const distinctSavedDecks = ownedDecks.filter(
-    (saved) =>
-      isReadOnly ||
-      saved.id === preSelectedDeckId ||
-      getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
-  );
+  const currentDeckFingerprint = open ? getDeckFingerprint(currentDeck) : null;
+  const distinctSavedDecks = open
+    ? ownedDecks.filter(
+        (saved) =>
+          isReadOnly ||
+          saved.id === preSelectedDeckId ||
+          getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
+      )
+    : [];
   const currentDeckIsPlayable =
-    !isReadOnly && (currentDeck.cards.length > 0 || (currentDeck.commanders?.length ?? 0) > 0);
+    open &&
+    !isReadOnly &&
+    (currentDeck.cards.length > 0 || (currentDeck.commanders?.length ?? 0) > 0);
   const allDeckCards = (d: Deck): DeckCard[] => [
     ...d.cards,
     ...d.sideboard,
@@ -285,7 +295,7 @@ export function useDeckSelection({
       commanderName: s.deck.commanders?.[0]?.identity.name,
     })),
   ];
-  const presetDeckEntries = presetDecks.map((deck) => ({
+  const presetDeckEntries = (open ? presetDecks : []).map((deck) => ({
     id: `preset__${deck.id ?? deck.name}`,
     name: deck.name,
     desc: deck.description,
@@ -317,19 +327,24 @@ export function useDeckSelection({
     ...presetDeckEntries,
   ];
   const searchLower = deckSearch.toLowerCase();
+  function matchesFormat(formatId: string, activeFormatId = deckFormatId) {
+    return commanderImport
+      ? commanderImport.formats.includes(formatId)
+      : formatId === activeFormatId;
+  }
   const filteredPreviousDeck =
     previousDeckEntry?.formatId === deckFormatId &&
     previousDeckEntry.name.toLowerCase().includes(searchLower)
       ? previousDeckEntry
       : undefined;
-  const formatPresetEntries = presetDeckEntries.filter((d) => d.formatId === deckFormatId);
+  const formatPresetEntries = presetDeckEntries.filter((d) => matchesFormat(d.formatId));
   const filteredPresetEntries = searchLower
     ? formatPresetEntries.filter(
         (d) =>
           d.name.toLowerCase().includes(searchLower) || d.desc?.toLowerCase().includes(searchLower),
       )
     : formatPresetEntries;
-  const formatUserDecks = userDecks.filter((d) => d.formatId === deckFormatId);
+  const formatUserDecks = userDecks.filter((d) => matchesFormat(d.formatId));
   const filteredUserDecks = searchLower
     ? formatUserDecks.filter((d) => d.name.toLowerCase().includes(searchLower))
     : formatUserDecks;
@@ -338,7 +353,7 @@ export function useDeckSelection({
     setSelectedCommander(defaultCommander);
   }, [selectedDeck, defaultCommander]);
   const selectedDeckEntry = allDecks.find(
-    (d) => d.id === selectedDeck && d.formatId === deckFormatId,
+    (d) => d.id === selectedDeck && matchesFormat(d.formatId),
   );
   const userDeckValidationInput = (d: DeckPickerEntry) => ({
     deck: d.sourceDeck,
@@ -350,30 +365,47 @@ export function useDeckSelection({
   });
   const hubDeckValidationInput = (deck: Deck) => ({
     deck,
-    commanderName: deck.commanders?.[0]?.identity.name,
+    commanderName:
+      (commanderImport && selectedDeckEntry?.sourceDeck === deck && selectedCommander) ||
+      deck.commanders?.[0]?.identity.name,
   });
-  const cardPool = useCardPool([
-    ...filteredUserDecks.map((d) => ({
-      input: userDeckValidationInput(d),
-      format: selectedFormat,
-    })),
-    ...(selectedDeckEntry && !selectedDeckEntry.isPreset
-      ? [
-          {
-            input: {
-              deck: selectedDeckEntry.sourceDeck,
-              commanderName: selectedCommander || selectedDeckEntry.commanderName,
-            },
+  const cardPool = useCardPool(
+    commanderImport
+      ? []
+      : [
+          ...filteredUserDecks.map((d) => ({
+            input: userDeckValidationInput(d),
             format: selectedFormat,
-          },
-        ]
-      : []),
-    ...hubSearchResults.flatMap((deck) =>
-      loadedHubDecks[deck.id]
-        ? [{ input: hubDeckValidationInput(loadedHubDecks[deck.id].deck), format: selectedFormat }]
-        : [],
-    ),
-  ]);
+          })),
+          ...(selectedDeckEntry && !selectedDeckEntry.isPreset
+            ? [
+                {
+                  input: {
+                    deck: selectedDeckEntry.sourceDeck,
+                    commanderName: selectedCommander || selectedDeckEntry.commanderName,
+                  },
+                  format: selectedFormat,
+                },
+              ]
+            : []),
+          ...hubSearchResults.flatMap((deck) =>
+            loadedHubDecks[deck.id]
+              ? [
+                  {
+                    input: hubDeckValidationInput(loadedHubDecks[deck.id].deck),
+                    format: selectedFormat,
+                  },
+                ]
+              : [],
+          ),
+        ],
+  );
+  function validate(input: DeckValidationInput, isPreset = false): DeckValidation {
+    if (commanderImport) return commanderImport.validate(input);
+    return isPreset
+      ? { legal: true, errors: [] }
+      : validateDeckSections(input, selectedFormat, cardPool);
+  }
   const selectedDeckCommanders = selectedDeckEntry?.sourceDeck.commanders ?? [];
   const selectedPartnerLabel = commanderPairLabel(
     selectedDeckCommanders,
@@ -404,16 +436,13 @@ export function useDeckSelection({
     hubSearchResults.some((entry) => `hub:${entry.id}` === selectedDeck) ||
     (selectedDeck.startsWith("hub:") && selectedDeckEntry !== undefined);
   const selectedDeckValidation = selectedDeckEntry
-    ? selectedDeckEntry.isPreset
-      ? { legal: true, errors: [] as string[] }
-      : validateDeckSections(
-          {
-            deck: selectedDeckEntry.sourceDeck,
-            commanderName: selectedCommander || selectedDeckEntry.commanderName,
-          },
-          selectedFormat,
-          cardPool,
-        )
+    ? validate(
+        {
+          deck: selectedDeckEntry.sourceDeck,
+          commanderName: selectedCommander || selectedDeckEntry.commanderName,
+        },
+        selectedDeckEntry.isPreset,
+      )
     : { legal: false, errors: [] as string[] };
   const isReady =
     selectedDeckIsVisible && (selectedDeckValidation.legal || allowIllegalDecks) && commanderValid;
@@ -424,11 +453,18 @@ export function useDeckSelection({
   function selectDeck(deckId: string) {
     if (startingRef.current) return;
     invalidateHubSelection();
+    if (commanderImport && selectedDeck === deckId) return;
     setSelectedDeck(deckId);
     setSelectedCommander(allDecks.find((entry) => entry.id === deckId)?.commanderName ?? "");
   }
   function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen) invalidateHubSelection();
+    if (!nextOpen) {
+      invalidateHubSelection();
+      if (commanderImport) {
+        setDeckSearch("");
+        setSelectedDeck("current");
+      }
+    }
     onOpenChange?.(nextOpen);
   }
   async function selectHubDeck(summary: DeckHubEntrySummary, activate = false) {
@@ -448,12 +484,14 @@ export function useDeckSelection({
       setLoadedHubDecks((current) => ({ ...current, [detail.id]: detail }));
       const formatId = detail.deck.format ?? detail.format ?? "standard";
       const currentFormat = selectedFormatRef.current;
-      if (formatId !== (currentFormat.deckFormat ?? currentFormat.id)) {
+      if (!matchesFormat(formatId, currentFormat.deckFormat ?? currentFormat.id)) {
         toast.error(`"${detail.title}" is not a ${currentFormat.name} deck`);
         return;
       }
-      setSelectedDeck(`hub:${detail.id}`);
-      setSelectedCommander(detail.deck.commanders?.[0]?.identity.name ?? "");
+      if (!commanderImport || selectedDeck !== `hub:${detail.id}`) {
+        setSelectedDeck(`hub:${detail.id}`);
+        setSelectedCommander(detail.deck.commanders?.[0]?.identity.name ?? "");
+      }
       if (activate) {
         await handleCreate(
           {
@@ -488,7 +526,7 @@ export function useDeckSelection({
       toast.error(`Please select a deck`);
       return;
     }
-    if (entry.formatId !== deckFormatId) {
+    if (!matchesFormat(entry.formatId)) {
       toast.error(`Please select a deck for this format`);
       return;
     }
@@ -496,15 +534,15 @@ export function useDeckSelection({
       toast.error(`"${entry.name}" has no cards`);
       return;
     }
-    const commander =
-      commanderOverride ?? (needsCommander ? selectedCommander : entry.commanderName);
-    const validation = entry.isPreset
-      ? { legal: true, errors: [] as string[] }
-      : validateDeckSections(
-          { deck: entry.sourceDeck, commanderName: commander || entry.commanderName },
-          selectedFormat,
-          cardPool,
-        );
+    const commander = commanderImport
+      ? entry.id === selectedDeck
+        ? selectedCommander
+        : entry.commanderName
+      : (commanderOverride ?? (needsCommander ? selectedCommander : entry.commanderName));
+    const validation = validate(
+      { deck: entry.sourceDeck, commanderName: commander || entry.commanderName },
+      entry.isPreset,
+    );
     if (!validation.legal && !allowIllegalDecks) {
       toast.warning(validation.errors[0] ?? `Deck is not legal in this format`);
       return;
@@ -531,7 +569,13 @@ export function useDeckSelection({
         : savedEntry?.accountDeckId
           ? accountDeckDetails[savedEntry.accountDeckId]?.derivedFromPresetKey
           : undefined;
-      if (isLobbyMode && target !== "bot" && rankingPresetKey && hubDecks.enabled) {
+      if (
+        isLobbyMode &&
+        !commanderImport &&
+        target !== "bot" &&
+        rankingPresetKey &&
+        hubDecks.enabled
+      ) {
         try {
           const published = await loadHubDeck(rankingPresetKey);
           if (getDeckFingerprint(published.deck) === getDeckFingerprint(entry.sourceDeck)) {
@@ -591,9 +635,8 @@ export function useDeckSelection({
     filteredUserDecks,
     filteredPresetEntries,
     searchLower,
-    cardPool,
-    userDeckValidationInput,
-    hubDeckValidationInput,
+    validateDeck: (entry) => validate(userDeckValidationInput(entry), entry.isPreset),
+    validateHubDeck: (deck) => validate(hubDeckValidationInput(deck)),
     selectedDeckEntry,
     selectedDeckCommanders,
     selectedPartnerLabel,

@@ -72,7 +72,7 @@ export function FreeTile({
     pressTime: number;
     origX: number;
     origY: number;
-    half: "left" | "right";
+    half: "left" | "right" | null;
     maxMotion: number;
     holdTimer: ReturnType<typeof setTimeout> | null;
     tickTimer: ReturnType<typeof setInterval> | null;
@@ -241,11 +241,10 @@ export function FreeTile({
   const onBodyPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (event.pointerType === "mouse" && event.button !== 0) return;
-      const target = event.target instanceof Element ? event.target : null;
-      if (target?.closest("[data-companion-handle]")) return;
-      if (
-        target?.closest("input, textarea, button, [role='menu'], [data-companion-no-body-drag]")
-      ) {
+      const target = event.target;
+      if (!(target instanceof Element) || !event.currentTarget.contains(target)) return;
+      if (target.closest("[data-companion-handle]")) return;
+      if (target.closest("input, textarea, button, [role='menu'], [data-companion-no-body-drag]")) {
         return;
       }
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -265,8 +264,16 @@ export function FreeTile({
         return;
       }
       const rect = event.currentTarget.getBoundingClientRect();
-      const half: "left" | "right" = event.clientX - rect.left < rect.width / 2 ? "left" : "right";
-      const state = {
+      const angle = (position.rotation * Math.PI) / 180;
+      const x = event.clientX - rect.left - rect.width / 2;
+      const y = event.clientY - rect.top - rect.height / 2;
+      const localX = x * Math.cos(angle) + y * Math.sin(angle);
+      const half = target.closest("[data-companion-life-readout]")
+        ? null
+        : localX < 0
+          ? "left"
+          : "right";
+      const state: NonNullable<typeof bodyPress.current> = {
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
@@ -275,11 +282,12 @@ export function FreeTile({
         origY: position.y,
         half,
         maxMotion: 0,
-        holdTimer: null as ReturnType<typeof setTimeout> | null,
-        tickTimer: null as ReturnType<typeof setInterval> | null,
+        holdTimer: null,
+        tickTimer: null,
         holding: false,
       };
       bodyPress.current = state;
+      if (!half) return;
       state.holdTimer = setTimeout(() => {
         if (bodyPress.current !== state || state.maxMotion >= TAP_MAX_MOTION_PX) return;
         state.holding = true;
@@ -349,12 +357,10 @@ export function FreeTile({
   const onBodyPointerUp = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const wasPinch = pinch.current != null;
-      activePointers.current.delete(event.pointerId);
+      if (!activePointers.current.delete(event.pointerId)) return;
       if (activePointers.current.size < 2) pinch.current = null;
-      try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
-      } catch {
-        /* already released */
       }
       if (wasPinch) {
         if (bodyPress.current) {
@@ -368,6 +374,8 @@ export function FreeTile({
       bodyPress.current = null;
       cleanupBodyTimers(state);
       const wasTap =
+        state.half !== null &&
+        event.type !== "pointercancel" &&
         !state.holding &&
         state.maxMotion < TAP_MAX_MOTION_PX &&
         Date.now() - state.pressTime < TAP_MAX_DURATION_MS;
@@ -415,6 +423,7 @@ export function FreeTile({
     <div
       className="absolute select-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-white"
       style={{ left: position.x, top: position.y, width: tileWidth, height: tileHeight }}
+      data-companion-seat-id={player.id}
       role="group"
       aria-label={`${player.name} tile — left/right arrows or +/- to adjust life`}
       tabIndex={0}

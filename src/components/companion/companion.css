@@ -1,0 +1,72 @@
+.companion-tracker {
+  container: companion-tracker / size;
+}
+
+.companion-table {
+  display: grid;
+  grid-template:
+    "board" minmax(0, 1fr)
+    "phases" auto
+    "dock" auto / minmax(0, 1fr);
+}
+
+.companion-dock {
+  grid-area: dock;
+  min-width: 0;
+}
+
+.companion-phases {
+  grid-area: phases;
+  min-width: 0;
+}
+
+.companion-board {
+  grid-area: board;
+}
+
+@container companion-tracker (min-width: 40rem) {
+  .companion-table {
+    grid-template:
+      "dock" auto
+      "phases" auto
+      "board" minmax(0, 1fr) / minmax(0, 1fr);
+  }
+}
+
+@container companion-tracker (min-width: 48rem) and (min-height: 32rem) {
+  .companion-table[data-center-dock] {
+    --companion-dock-height: 3.75rem;
+
+    grid-template:
+      "phases" auto
+      "board" minmax(0, 1fr) / minmax(0, 1fr);
+  }
+
+  .companion-table[data-center-dock] .companion-dock {
+    z-index: 30;
+    grid-area: board;
+    align-self: center;
+  }
+
+  .companion-table[data-center-dock] .companion-board-grid {
+    row-gap: var(--companion-dock-height);
+  }
+}
+
+.companion-seat {
+  container: companion-seat / size;
+}
+
+.companion-seat-controls {
+  display: none;
+}
+
+@container companion-seat (min-width: 24rem) and (min-height: 14rem) {
+  .companion-seat-controls {
+    display: flex;
+  }
+
+  .companion-seat-summary {
+    display: none;
+  }
+}

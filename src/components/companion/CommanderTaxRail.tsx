@@ -39,7 +39,7 @@ function TaxPip({ playerId, slot, casts }: { playerId: string; slot: 0 | 1; cast
       title={`Commander tax \u2014 tap +1 cast, hold -1`}
       {...bindings}
     >
-      <GameIcon icon="crown" className="size-3.5 text-white/80" />
+      <GameIcon icon="overlord-helm" className="size-3.5 text-white/80" />
       <span className="tabular-nums">{tax}</span>
     </button>
   );

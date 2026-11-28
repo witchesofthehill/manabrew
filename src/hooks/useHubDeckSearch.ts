@@ -8,7 +8,7 @@ const SEARCH_DELAY_MS = 300;
 
 export function useHubDeckSearch(
   search: string,
-  format?: string,
+  format?: string | readonly string[],
   active = true,
   engines?: EngineKind[],
   source?: DeckHubSource,
@@ -21,7 +21,8 @@ export function useHubDeckSearch(
   const [attempt, setAttempt] = useState(0);
   const enabled = isFeatureEnabled("deckHub") && active;
   const enginesKey = (engines ?? []).join(",");
-  const key = `${format ?? ""}\n${search.trim()}\n${enginesKey}\n${source ?? ""}\n${attempt}`;
+  const formatKey = typeof format === "string" ? format : (format ?? []).join(",");
+  const key = `${formatKey}\n${search.trim()}\n${enginesKey}\n${source ?? ""}\n${attempt}`;
 
   useEffect(() => {
     if (!enabled) return;
@@ -29,7 +30,7 @@ export function useHubDeckSearch(
     const timer = window.setTimeout(() => {
       void fetchDeckHubEntries({
         search: search.trim() || undefined,
-        formats: format ? [format] : undefined,
+        formats: formatKey ? formatKey.split(",") : undefined,
         engines: enginesKey ? (enginesKey.split(",") as EngineKind[]) : undefined,
         source,
         sort: "newest",
@@ -53,7 +54,7 @@ export function useHubDeckSearch(
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [attempt, enabled, enginesKey, format, key, search, source]);
+  }, [attempt, enabled, enginesKey, formatKey, key, search, source]);
 
   const current = enabled && result.key === key;
   return {

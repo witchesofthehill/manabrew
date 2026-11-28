@@ -229,7 +229,7 @@ function NewSessionForm({
             })
           }
         >
-          Start game
+          Create game
         </Button>
       </DialogFooter>
     </>

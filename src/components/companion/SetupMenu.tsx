@@ -6,6 +6,10 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuPortal,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -18,11 +22,14 @@ import {
 } from "@/stores/useCompanionStore.constants";
 import type { CompanionSession } from "@/stores/useCompanionStore.types";
 import { GameIcon } from "./GameIcon";
+import { LayoutIcon } from "./LayoutIcon";
+import { LayoutMenuItems } from "./LayoutMenuItems";
 interface SetupMenuProps {
   session: CompanionSession;
+  onOpenNewSession: () => void;
   onOpenLog: () => void;
 }
-export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
+export function SetupMenu({ session, onOpenNewSession, onOpenLog }: SetupMenuProps) {
   const setPlayerCount = useCompanionStore((s) => s.setPlayerCount);
   const setStartingLife = useCompanionStore((s) => s.setStartingLife);
   const setCommanderRules = useCompanionStore((s) => s.setCommanderRules);
@@ -36,16 +43,31 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          size="icon"
-          variant="outline"
-          className="size-8 sm:size-9 touch:min-h-11 touch:min-w-11"
+          size="sm"
+          variant="ghost"
+          className="h-9 shrink-0 gap-1.5 px-2 touch:min-h-11 touch:min-w-11"
           aria-label={`Game setup`}
           title={`Game setup`}
         >
           <Settings className="size-4" />
+          <span className="hidden @min-[24rem]/companion-tracker:inline">Game</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
+        <DropdownMenuItem onSelect={onOpenNewSession}>
+          <Plus /> New game
+        </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <LayoutIcon layout={session.layout} /> Layout
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent>
+              <LayoutMenuItems session={session} />
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+        <DropdownMenuSeparator />
         <DropdownMenuLabel>Players</DropdownMenuLabel>
         <div className="flex items-center justify-between gap-2 px-2 pb-2">
           <Button
@@ -97,7 +119,7 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
           }}
           className={cn(session.commanderRules && "bg-accent")}
         >
-          <GameIcon icon="crown" className="mr-2 size-4" /> Commander rules
+          <GameIcon icon="overlord-helm" className="mr-2 size-4" /> Commander rules
           {session.commanderRules && <span className="ml-auto text-ui-meta">on</span>}
         </DropdownMenuItem>
         <DropdownMenuItem

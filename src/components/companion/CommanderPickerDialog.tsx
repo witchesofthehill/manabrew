@@ -1,22 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Search, X } from "lucide-react";
-import { ScryfallImg } from "@/components/ScryfallImg";
+import { useCallback, useState } from "react";
+import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
-import { scryfallDisplayName, scryfallDisplayTypeLine } from "@/lib/scryfall.utils";
-import type { ScryfallCard } from "@/types/scryfall";
 import { useCompanionStore } from "@/stores/useCompanionStore";
-import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { CompanionCommanderRef } from "@/stores/useCompanionStore.types";
+import { CommanderDeckSelect } from "./CommanderDeckSelect";
+import { CommanderSlot } from "./CommanderSlot";
+
 interface CommanderPickerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -27,7 +24,6 @@ interface SlotState {
   query: string;
   pick: CompanionCommanderRef | null;
 }
-const SEARCH_DEBOUNCE_MS = 220;
 export function CommanderPickerDialog({
   open,
   onOpenChange,
@@ -36,9 +32,12 @@ export function CommanderPickerDialog({
 }: CommanderPickerDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl overflow-y-auto overscroll-contain">
-        <DialogHeader>
+      <DialogContent className="max-w-md gap-4 overscroll-contain rounded-lg p-4 sm:p-5">
+        <DialogHeader className="text-left">
           <DialogTitle>Choose commander</DialogTitle>
+          <DialogDescription className="sr-only">
+            Search for a card or choose a deck.
+          </DialogDescription>
         </DialogHeader>
         {open && (
           <CommanderPickerForm
@@ -61,13 +60,18 @@ function CommanderPickerForm({
   onClose: () => void;
 }) {
   const setCommander = useCompanionStore((s) => s.setCommander);
+  const renamePlayer = useCompanionStore((s) => s.renamePlayer);
   const oathbreaker = useCompanionStore((s) => s.session?.oathbreaker ?? false);
-  const partnerLabel = oathbreaker ? `Signature spell` : `Partner / Background`;
+  const slotLabel = oathbreaker ? "Oathbreaker" : "Commander";
+  const partnerLabel = oathbreaker ? "Signature spell" : "Partner or background";
   const [partnerEnabled, setPartnerEnabled] = useState(Boolean(initial[1]));
+  const [useCommanderName, setUseCommanderName] = useState(false);
   const [slots, setSlots] = useState<[SlotState, SlotState]>([
     { query: initial[0]?.name ?? "", pick: initial[0] },
     { query: initial[1]?.name ?? "", pick: initial[1] },
   ]);
+  const commanderName = (slots[0].pick ?? (partnerEnabled && !oathbreaker ? slots[1].pick : null))
+    ?.name;
   const updateSlot = useCallback((index: 0 | 1, patch: Partial<SlotState>) => {
     setSlots((prev) => {
       const next: [SlotState, SlotState] = [prev[0], prev[1]];
@@ -78,6 +82,7 @@ function CommanderPickerForm({
   const confirm = () => {
     setCommander(playerId, 0, slots[0].pick);
     setCommander(playerId, 1, partnerEnabled ? slots[1].pick : null);
+    if (useCommanderName && commanderName) renamePlayer(playerId, commanderName);
     onClose();
   };
   const clearAll = () => {
@@ -87,23 +92,42 @@ function CommanderPickerForm({
   };
   return (
     <>
-      <div className="space-y-4">
+      <div className="grid gap-3">
         <CommanderSlot
-          slotLabel="Commander"
+          slotLabel={slotLabel}
+          action={
+            <CommanderDeckSelect
+              oathbreaker={oathbreaker}
+              onChoose={([primary, secondary]) => {
+                setSlots([
+                  { query: primary.name, pick: primary },
+                  { query: secondary?.name ?? "", pick: secondary },
+                ]);
+                setPartnerEnabled(Boolean(secondary));
+              }}
+            />
+          }
           query={slots[0].query}
           pick={slots[0].pick}
           onQueryChange={(query) => updateSlot(0, { query })}
           onPick={(pick) => updateSlot(0, { pick })}
         />
-        <label className="flex cursor-pointer items-center gap-2 text-ui-label touch:min-h-11">
-          <input
-            type="checkbox"
-            checked={partnerEnabled}
-            onChange={(e) => setPartnerEnabled(e.target.checked)}
-            className="size-4 shrink-0 accent-selection"
-          />
-          {partnerLabel} slot
-        </label>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2 w-fit max-w-full justify-start whitespace-normal px-2 text-left text-muted-foreground"
+          aria-expanded={partnerEnabled}
+          onClick={() => setPartnerEnabled(!partnerEnabled)}
+        >
+          {partnerEnabled ? <Minus /> : <Plus />}
+          {partnerEnabled
+            ? oathbreaker
+              ? "Remove signature spell slot"
+              : "Remove partner slot"
+            : oathbreaker
+              ? "Add a signature spell"
+              : "Add a partner or background"}
+        </Button>
         {partnerEnabled && (
           <CommanderSlot
             slotLabel={partnerLabel}
@@ -113,13 +137,25 @@ function CommanderPickerForm({
             onPick={(pick) => updateSlot(1, { pick })}
           />
         )}
+        {commanderName && (
+          <label className="flex cursor-pointer items-center gap-2 text-ui-label touch:min-h-11">
+            <input
+              type="checkbox"
+              checked={useCommanderName}
+              onChange={(e) => setUseCommanderName(e.target.checked)}
+              className="size-4 shrink-0 accent-selection"
+            />
+            Use commander's name as player name
+          </label>
+        )}
       </div>
-      <DialogFooter className="gap-2">
-        <Button variant="ghost" onClick={clearAll}>
-          Clear
+      <DialogFooter className="flex-row items-center justify-between border-t pt-3 sm:justify-between">
+        <Button variant="ghost" size="sm" onClick={clearAll}>
+          Clear commanders
         </Button>
         <Button
           variant="primary"
+          size="sm"
           onClick={confirm}
           disabled={!slots[0].pick && !(partnerEnabled && slots[1].pick)}
         >
@@ -127,137 +163,5 @@ function CommanderPickerForm({
         </Button>
       </DialogFooter>
     </>
-  );
-}
-interface CommanderSlotProps {
-  slotLabel: string;
-  query: string;
-  pick: CompanionCommanderRef | null;
-  onQueryChange: (q: string) => void;
-  onPick: (ref: CompanionCommanderRef | null) => void;
-}
-function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: CommanderSlotProps) {
-  const [results, setResults] = useState<ScryfallCard[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-    }
-    const trimmed = query.trim();
-    if (!trimmed || pick) return;
-    debounceRef.current = setTimeout(() => {
-      setLoading(true);
-      setError(null);
-      useScryfallStore
-        .getState()
-        .searchCards(`${trimmed} -is:digital`, 1, "name", "asc")
-        .then((response) => {
-          setResults(response.data.slice(0, 12));
-          setLoading(false);
-        })
-        .catch((err: unknown) => {
-          setResults([]);
-          setLoading(false);
-          setError(err instanceof Error ? err.message : "No matches");
-        });
-    }, SEARCH_DEBOUNCE_MS);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [query, pick]);
-  if (pick) {
-    return (
-      <div className="space-y-1">
-        <Label>{slotLabel}</Label>
-        <div className="flex items-center gap-3 rounded-md border border-border bg-card p-2">
-          {pick.imageUrl && (
-            <ScryfallImg
-              src={pick.imageUrl}
-              alt=""
-              className="h-12 w-9 shrink-0 rounded-sm object-cover"
-              draggable={false}
-            />
-          )}
-          <div className="min-w-0 flex-1 break-words text-ui-label font-medium">{pick.name}</div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              onPick(null);
-              onQueryChange("");
-            }}
-            aria-label={`Clear`}
-          >
-            <X className="size-4" />
-          </Button>
-        </div>
-      </div>
-    );
-  }
-  const showResults = Boolean(query.trim()) && results.length > 0;
-  return (
-    <div className="space-y-1">
-      <Label>{slotLabel}</Label>
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          placeholder={`Search Scryfall\u2026`}
-          className="pl-8"
-        />
-        {loading && (
-          <Loader2 className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
-        )}
-      </div>
-      {error && <p className="text-ui-meta text-destructive">{error}</p>}
-      {showResults && (
-        <ul className="max-h-56 space-y-1 overflow-y-auto overscroll-contain rounded-md border border-border bg-popover p-1">
-          {results.map((card) => {
-            const imageUrl =
-              card.image_uris?.art_crop ??
-              card.card_faces?.[0]?.image_uris?.art_crop ??
-              card.image_uris?.small ??
-              card.card_faces?.[0]?.image_uris?.small;
-            const displayName = scryfallDisplayName(card);
-            return (
-              <li key={card.id}>
-                <button
-                  type="button"
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-sm px-2 py-1.5 text-left text-ui-label hover:bg-accent touch:min-h-11 touch:min-w-11",
-                  )}
-                  onClick={() =>
-                    onPick({
-                      scryfallId: card.id,
-                      name: card.name,
-                      imageUrl,
-                    })
-                  }
-                >
-                  {imageUrl && (
-                    <ScryfallImg
-                      src={imageUrl}
-                      alt=""
-                      className="size-8 shrink-0 rounded-sm object-cover"
-                      draggable={false}
-                    />
-                  )}
-                  <div className="flex min-w-0 flex-col break-words">
-                    <span className="font-medium">{displayName}</span>
-                    <span className="text-ui-meta text-muted-foreground">
-                      {scryfallDisplayTypeLine(card)} · {card.set.toUpperCase()}
-                    </span>
-                  </div>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
   );
 }

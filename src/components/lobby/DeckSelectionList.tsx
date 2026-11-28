@@ -1,14 +1,13 @@
-import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { DeckPickerList } from "./DeckPickerList";
 import { DeckSelectionCard } from "./DeckSelectionCard";
-import { GAME_FORMATS, validateDeckSections } from "@/lib/formats";
+import { SavedDeckPickerSection } from "./SavedDeckPickerSection";
 import { cn } from "@/lib/utils";
 import type { DeckSelectionModel } from "./useDeckSelection";
 
 export function DeckSelectionList({ model }: { model: DeckSelectionModel }) {
   const {
-    selectedFormat,
     selectedDeck,
     deckSearch,
     setDeckSearch,
@@ -22,38 +21,17 @@ export function DeckSelectionList({ model }: { model: DeckSelectionModel }) {
     filteredUserDecks,
     filteredPresetEntries,
     searchLower,
-    cardPool,
-    userDeckValidationInput,
-    hubDeckValidationInput,
+    validateDeck,
+    validateHubDeck,
     selectDeck,
     selectHubDeck,
     handleCreate,
     disabled,
   } = model;
-  const previousDeckValidation = previousDeckEntry
-    ? validateDeckSections(userDeckValidationInput(previousDeckEntry), selectedFormat, cardPool)
-    : undefined;
+  const previousDeckValidation = previousDeckEntry ? validateDeck(previousDeckEntry) : undefined;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 bg-background px-4 pb-2 pt-3">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            aria-label={`Filter decks`}
-            placeholder={`Filter decks...`}
-            value={deckSearch}
-            onChange={(e) => setDeckSearch(e.target.value)}
-            className="min-h-9 w-full rounded-md border bg-background pl-9 pr-3 text-ui-input focus:outline-none focus:ring-1 focus:ring-primary touch:min-h-11 touch:min-w-11"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-          />
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <DeckPickerList search={deckSearch} onSearchChange={setDeckSearch}>
         {previousDeckEntry && previousDeckValidation && (
           <div className="p-4 pb-0 pt-2">
             <SectionLabel>Assigned deck</SectionLabel>
@@ -79,53 +57,38 @@ export function DeckSelectionList({ model }: { model: DeckSelectionModel }) {
             </div>
           </div>
         )}
-        <div className="p-4 pt-2">
-          <SectionLabel>My decks</SectionLabel>
-          <p className="text-ui-meta text-muted-foreground mt-0.5 mb-3">
-            Decks you've built in the editor.
-          </p>
-          {filteredUserDecks.length === 0 ? (
-            <p className="text-ui-meta text-muted-foreground italic">
-              {searchLower
-                ? `No saved decks match your search.`
-                : `No saved decks. Build one in the Deck Editor.`}
-            </p>
-          ) : (
-            <div
-              className={cn(
-                "grid gap-3",
-                "grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]",
-              )}
-            >
-              {filteredUserDecks.map((d) => {
-                const validation = validateDeckSections(
-                  userDeckValidationInput(d),
-                  selectedFormat,
-                  cardPool,
-                );
-                return (
-                  <DeckSelectionCard
-                    key={d.id}
-                    name={d.name}
-                    badge={d.badge}
-                    labels={d.labels}
-                    cards={d.cards}
-                    cover={d.cover}
-                    isPreset={d.isPreset}
-                    isSelected={selectedDeck === d.id}
-                    isLegal={validation.legal}
-                    validationError={validation.errors[0]}
-                    dense={denseDecks}
-                    isTouch={isTouch}
-                    disabled={disabled}
-                    onSelect={() => selectDeck(d.id)}
-                    onActivate={() => void handleCreate(d, d.commanderName)}
-                  />
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <SavedDeckPickerSection
+          emptyMessage={
+            filteredUserDecks.length
+              ? undefined
+              : searchLower
+                ? "No saved decks match your search."
+                : "No saved decks. Build one in the Deck Editor."
+          }
+        >
+          {filteredUserDecks.map((d) => {
+            const validation = validateDeck(d);
+            return (
+              <DeckSelectionCard
+                key={d.id}
+                name={d.name}
+                badge={d.badge}
+                labels={d.labels}
+                cards={d.cards}
+                cover={d.cover}
+                isPreset={d.isPreset}
+                isSelected={selectedDeck === d.id}
+                isLegal={validation.legal}
+                validationError={validation.errors[0]}
+                dense={denseDecks}
+                isTouch={isTouch}
+                disabled={disabled}
+                onSelect={() => selectDeck(d.id)}
+                onActivate={() => void handleCreate(d, d.commanderName)}
+              />
+            );
+          })}
+        </SavedDeckPickerSection>
         <div className="mx-4 border-t" />
 
         {hubDecks.enabled &&
@@ -175,17 +138,9 @@ export function DeckSelectionList({ model }: { model: DeckSelectionModel }) {
                 >
                   {hubSearchResults.map((deck) => {
                     const loaded = loadedHubDecks[deck.id];
-                    const format = loaded
-                      ? GAME_FORMATS.find((item) => item.id === selectedFormat.id)
-                      : null;
-                    const validation =
-                      loaded && format
-                        ? validateDeckSections(
-                            hubDeckValidationInput(loaded.deck),
-                            format,
-                            cardPool,
-                          )
-                        : { legal: true, errors: [] as string[] };
+                    const validation = loaded
+                      ? validateHubDeck(loaded.deck)
+                      : { legal: true, errors: [] as string[] };
                     return (
                       <DeckSelectionCard
                         key={deck.id}
@@ -233,28 +188,32 @@ export function DeckSelectionList({ model }: { model: DeckSelectionModel }) {
                 "grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]",
               )}
             >
-              {filteredPresetEntries.map((deck) => (
-                <DeckSelectionCard
-                  key={deck.id}
-                  name={deck.name}
-                  desc={deck.desc}
-                  color={deck.color}
-                  cards={deck.cards}
-                  cover={deck.cover}
-                  isPreset={deck.isPreset}
-                  isSelected={selectedDeck === deck.id}
-                  isLegal={true}
-                  dense={denseDecks}
-                  isTouch={isTouch}
-                  disabled={disabled}
-                  onSelect={() => selectDeck(deck.id)}
-                  onActivate={() => void handleCreate(deck, deck.commanderName)}
-                />
-              ))}
+              {filteredPresetEntries.map((deck) => {
+                const validation = validateDeck(deck);
+                return (
+                  <DeckSelectionCard
+                    key={deck.id}
+                    name={deck.name}
+                    desc={deck.desc}
+                    color={deck.color}
+                    cards={deck.cards}
+                    cover={deck.cover}
+                    isPreset={deck.isPreset}
+                    isSelected={selectedDeck === deck.id}
+                    isLegal={validation.legal}
+                    validationError={validation.errors[0]}
+                    dense={denseDecks}
+                    isTouch={isTouch}
+                    disabled={disabled}
+                    onSelect={() => selectDeck(deck.id)}
+                    onActivate={() => void handleCreate(deck, deck.commanderName)}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
-      </div>
+      </DeckPickerList>
     </div>
   );
 }

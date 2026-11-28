@@ -18,16 +18,24 @@ export function CompanionBoard({ session }: CompanionBoardProps) {
 
 function GridBoard({ session }: CompanionBoardProps) {
   const { slots, template } = getCompanionSlots(session.layout, session.players.length);
+  const players =
+    session.gridSeatOrder?.map((id) => session.players.find((player) => player.id === id)!) ??
+    session.players;
   return (
     <div
-      className="grid size-full overflow-auto overscroll-contain gap-1 p-1 sm:gap-2 sm:p-2 md:gap-3 md:p-3"
+      className="companion-board-grid grid size-full gap-1 overflow-auto overscroll-contain p-1 sm:gap-2 sm:p-2 md:gap-3 md:p-3"
       style={{ gridTemplate: template }}
     >
-      {session.players.map((player, index) => {
+      {players.map((player, index) => {
         const slot = slots[index];
         if (!slot) return null;
         return (
-          <div key={player.id} style={{ gridArea: slot.gridArea }} className="min-h-40 min-w-40">
+          <div
+            key={player.id}
+            data-companion-seat-id={player.id}
+            style={{ gridArea: slot.gridArea }}
+            className="min-h-40 min-w-40"
+          >
             <PlayerTile
               player={player}
               opponents={session.players.filter((p) => p.id !== player.id)}
@@ -59,10 +67,7 @@ function FreeBoard({ session }: CompanionBoardProps) {
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative size-full overflow-hidden bg-gradient-to-br from-muted/20 to-background"
-    >
+    <div ref={containerRef} className="relative size-full overflow-hidden">
       {session.players.map((player, index) => {
         const pos = ensureFreePos(player, index, session.players.length, bounds);
         return (

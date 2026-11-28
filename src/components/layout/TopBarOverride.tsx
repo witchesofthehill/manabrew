@@ -12,6 +12,7 @@ export interface TopBarOverride {
   locationKey: string;
   pathname: string;
   search: string;
+  hidden?: boolean;
   title?: string;
   onHome?: () => void;
   navigationDisabled?: boolean;
@@ -22,12 +23,18 @@ export const TopBarOverrideContext = createContext<
 >(undefined);
 
 interface TopBarOverrideOptions {
+  hidden?: boolean;
   title?: string;
   onHome?: () => void;
   navigationDisabled?: boolean;
 }
 
-export function useTopBarOverride({ title, onHome, navigationDisabled }: TopBarOverrideOptions) {
+export function useTopBarOverride({
+  hidden,
+  title,
+  onHome,
+  navigationDisabled,
+}: TopBarOverrideOptions) {
   const setOverride = useContext(TopBarOverrideContext);
   const location = useLocation();
   const homeRef = useRef(onHome);
@@ -40,12 +47,13 @@ export function useTopBarOverride({ title, onHome, navigationDisabled }: TopBarO
   });
 
   useEffect(() => {
-    if (!setOverride || (!hasTitle && !hasHome && !hasNavigationDisabled)) return;
+    if (!setOverride || (!hidden && !hasTitle && !hasHome && !hasNavigationDisabled)) return;
 
     const override: TopBarOverride = {
       locationKey: location.key,
       pathname: location.pathname,
       search: location.search,
+      hidden,
       title,
       onHome: hasHome ? () => homeRef.current?.() : undefined,
       navigationDisabled,
@@ -56,6 +64,7 @@ export function useTopBarOverride({ title, onHome, navigationDisabled }: TopBarO
     hasHome,
     hasNavigationDisabled,
     hasTitle,
+    hidden,
     location.key,
     location.pathname,
     location.search,

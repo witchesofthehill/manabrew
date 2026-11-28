@@ -1,41 +1,46 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { CompanionBar } from "@/components/companion/CompanionBar";
 import { CompanionBoard } from "@/components/companion/CompanionBoard";
-import { FocusExitButton } from "@/components/companion/FocusExitButton";
 import { GameIcon } from "@/components/companion/GameIcon";
 import { GameSummaryDialog } from "@/components/companion/GameSummaryDialog";
 import { NewSessionDialog } from "@/components/companion/NewSessionDialog";
 import { PhaseStrip } from "@/components/companion/PhaseStrip";
 import { StatsDialog } from "@/components/companion/StatsDialog";
 import { WinBanner } from "@/components/companion/WinBanner";
+import { useTopBarOverride } from "@/components/layout/TopBarOverride";
+import { readClockwiseSeats } from "@/components/companion/layouts/turnOrder";
+import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
+import "@/components/companion/companion.css";
 export default function Companion() {
   const session = useCompanionStore((s) => s.session);
   const newSession = useCompanionStore((s) => s.newSession);
   const archive = useCompanionStore((s) => s.archive);
   const restoreFromArchive = useCompanionStore((s) => s.restoreFromArchive);
   const [newOpen, setNewOpen] = useState(false);
-  const [focus, setFocus] = useState(false);
-  const [chromeInFocus, setChromeInFocus] = useState(false);
-  // Wrap the focus setter so leaving focus mode also clears the peek flag,
-  // without needing an effect that calls setState (which the React-hooks
-  // lint rules don't allow).
-  const setFocusMode = (next: boolean) => {
-    setFocus(next);
-    if (!next) setChromeInFocus(false);
-  };
-  // Keep focus state in sync with the browser's fullscreen state so Esc /
-  // the system gesture drops us back into the chrome'd view automatically.
+  const [fullscreen, setFullscreen] = useState(() => Boolean(document.fullscreenElement));
+  const boardRef = useRef<HTMLDivElement>(null);
+  useTopBarOverride({ hidden: Boolean(session) && fullscreen });
+
   useEffect(() => {
-    if (!focus) return;
-    const onChange = () => {
-      if (!document.fullscreenElement) setFocusMode(false);
-    };
-    document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
-  }, [focus]);
+    const sync = () => setFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => undefined);
+    } else if (fullscreen) {
+      setFullscreen(false);
+    } else if (document.documentElement.requestFullscreen) {
+      void document.documentElement.requestFullscreen().catch(() => setFullscreen(true));
+    } else {
+      setFullscreen(true);
+    }
+  }
+
   if (!session) {
     return (
       <div className="flex h-full min-h-0 flex-col items-center gap-4 overflow-y-auto overscroll-contain px-4 py-6 text-center sm:px-6 lg:px-8">
@@ -94,43 +99,47 @@ export default function Companion() {
       </div>
     );
   }
-  const showChrome = !focus || chromeInFocus;
+  const centerDock =
+    session.layout === "1v1" ||
+    session.layout === "quad" ||
+    session.layout === "three-wedge" ||
+    session.layout === "five-rows" ||
+    session.layout === "six-grid" ||
+    (session.layout === "vertical-stack" && session.players.length === 2);
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col",
-        focus
-          ? "fixed inset-0 z-50 h-[100dvh] w-screen bg-background pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] pt-[var(--safe-area-inset-top)]"
-          : "pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)]",
+        "companion-tracker h-full min-h-0 bg-card pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)]",
+        fullscreen && "pt-[var(--safe-area-inset-top)]",
       )}
     >
-      {showChrome && (
-        <div
-          className={cn(
-            "max-h-[50%] shrink-0 overflow-y-auto overscroll-contain",
-            focus &&
-              "absolute left-[var(--safe-area-inset-left)] right-[var(--safe-area-inset-right)] top-[var(--safe-area-inset-top)] z-40 shadow-xl",
-          )}
-        >
+      <div
+        className="companion-table relative size-full"
+        data-center-dock={centerDock ? "" : undefined}
+      >
+        <div className="companion-dock">
           <CompanionBar
             session={session}
+            getClockwiseSeats={() =>
+              readClockwiseSeats(
+                boardRef.current,
+                session.players.map((player) => player.id),
+              )
+            }
             onOpenNewSession={() => setNewOpen(true)}
-            focus={focus}
-            onToggleFocus={setFocusMode}
-            onHidePeek={focus && chromeInFocus ? () => setChromeInFocus(false) : undefined}
+            fullscreen={fullscreen}
+            onToggleFullscreen={toggleFullscreen}
           />
-          {session.phasesEnabled && <PhaseStrip />}
         </div>
-      )}
-      <div className="relative flex-1 min-h-0">
-        <CompanionBoard session={session} />
-        <WinBanner session={session} />
-        {focus && !chromeInFocus && (
-          <FocusExitButton
-            onExit={() => setFocusMode(false)}
-            onShowChrome={() => setChromeInFocus(true)}
-          />
+        {session.phasesEnabled && (
+          <div className="companion-phases">
+            <PhaseStrip />
+          </div>
         )}
+        <div ref={boardRef} className="companion-board relative min-h-0 min-w-0">
+          <CompanionBoard session={session} />
+          <WinBanner session={session} />
+        </div>
       </div>
       <NewSessionDialog
         open={newOpen}

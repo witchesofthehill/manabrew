@@ -147,6 +147,9 @@ public final class HarnessPlayPlumbing {
         }
 
         final Card source = sa.getHostCard();
+        if (sa.isActivatedAbility() && !sa.isCopied() && !sa.getRestrictions().canPlay(source, sa)) {
+            return false;
+        }
         final int waitingMark = game.getTriggerHandler().getWaitingTriggerCount();
         final Card host = sa.getHostCard();
         final Zone hz = host.isCopiedSpell() ? null : host.getZone();
